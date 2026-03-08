@@ -144,3 +144,16 @@ agents/, commands/, config/, skills/, get-shit-done/
 
 ### Path conventions
 Always use `~\` for home directory references — never hardcode usernames like Muzzy or joebr.
+
+## Problem-Solving Discipline
+
+When stuck on a technical problem, apply the **3-Strike Rule**:
+- After 3 failed attempts at the same approach, STOP
+- Explicitly state: "This approach isn't working. Reassessing."
+- Consider: Is there a simpler path? Should the environment solve this instead of me?
+- Prefer delegating environment-specific problems to the local environment
+
+Watch for rabbit hole signals:
+- Adding complexity to fix complexity
+- Installing new tools to fix problems caused by previous tools
+- Each fix creating a new problem
