@@ -55,7 +55,7 @@ Prints a `https://random-words.trycloudflare.com` URL. Open on phone. URL change
 ## Key Files
 - **Quick-start guide**: `~/.claude/QUICKSTART.md` — "how do I use all this?"
 - **Full pipeline reference**: `~/.claude/PIPELINE.md` — deep reference (1257 lines)
-- Game projects: `C:\Users\Muzzy\Documents\UnityProjects\`
+- Game projects: `~/Documents/UnityProjects/`
 
 ## Automatic Versioning
 
