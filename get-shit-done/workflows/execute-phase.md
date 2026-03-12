@@ -491,65 +491,26 @@ This is NOT a failure. Authentication gates are expected and normal. Handle them
 7. **Retry the original task** - Resume automation where you left off
 8. **Continue normally** - Don't treat this as an error in Summary
 
-**Example: Vercel deployment hits auth error**
+**Example: GitHub Pages deploy hits auth error**
 
 ```
-Task 3: Deploy to Vercel
-Running: vercel --yes
+Task 5: Deploy to GitHub Pages
+Running: git push origin gh-pages
 
-Error: Not authenticated. Please run 'vercel login'
+Error: Authentication failed for 'https://github.com/...'
 
-[Create checkpoint dynamically]
-
-════════════════════════════════════════
 CHECKPOINT: Authentication Required
-════════════════════════════════════════
-
-Task 3 of 8: Authenticate Vercel CLI
-
-I tried to deploy but got authentication error.
-
-What you need to do:
-Run: vercel login
-
-This will open your browser - complete the authentication flow.
-
-I'll verify after: vercel whoami returns your account
-
-Type "done" when authenticated
-════════════════════════════════════════
-
-[Wait for user response]
+I tried to push but got an auth error.
+What you need to do: Run `gh auth login` and complete the browser flow.
+I'll verify after: `gh auth status` shows you logged in.
+Type "done" when authenticated.
 
 [User types "done"]
-
-Verifying authentication...
-Running: vercel whoami
-✓ Authenticated as: user@example.com
-
-Retrying deployment...
-Running: vercel --yes
-✓ Deployed to: https://myapp-abc123.vercel.app
-
-Task 3 complete. Continuing to task 4...
+✓ Authenticated. Retrying push...
+✓ Deployed. Continuing to task 6...
 ```
 
-**In Summary documentation:**
-
-Document authentication gates as normal flow, not deviations:
-
-```markdown
-## Authentication Gates
-
-During execution, I encountered authentication requirements:
-
-1. Task 3: Vercel CLI required authentication
-   - Paused for `vercel login`
-   - Resumed after authentication
-   - Deployed successfully
-
-These are normal gates, not errors.
-```
+Document auth gates in Summary as normal flow, not deviations or errors.
 
 **Key principles:**
 

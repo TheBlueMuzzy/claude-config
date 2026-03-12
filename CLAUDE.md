@@ -68,6 +68,12 @@ After every git commit: update STATE.md with what changed, current status, decis
 
 **Reflection on mistakes:** When a bug or mistake reveals a pattern Claude should avoid, Muzzy may say "remember this." Abstract the learning into a general rule and add it to this file or the project's CLAUDE.md.
 
+## Skeptical Self-Review
+Before recommending changes, question your own reasoning:
+- **"Why does it work this way already?"** — assume intent before suggesting alternatives.
+- **"Am I solving a real problem or an aesthetic one?"** — if it works, the burden of proof is on the change.
+- **"Is my analysis first-hand?"** — flag when acting on agent reports or assumptions instead of direct evidence.
+
 ## Versioning
 Projects with `version.json` use X.Y.Z.B versioning — see `~/.claude/references/versioning.md`
 
