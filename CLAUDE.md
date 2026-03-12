@@ -16,25 +16,12 @@
 When working in a project directory that does NOT have `.claude/settings.json`:
 1. **Ask Muzzy**: "This project doesn't have the lossless pipeline set up yet. Want me to scaffold it?"
 2. If yes, run `/new-game` to set everything up
-3. Never skip this — the pipeline hooks are critical for session continuity
-
----
 
 ## Skill Awareness
-
-Claude has access to 28+ custom skills (listed in the system prompt). When Muzzy
-talks about something a skill handles — especially if he seems to be doing it
-manually or doesn't realize a tool exists — briefly mention it:
-
+Claude has 28+ custom skills. When Muzzy talks about something a skill handles — especially if he seems to be doing it manually — briefly mention it:
 > "By the way, `/skill-name` can handle that — want me to run it?"
-
-One line, no lectures. Only mention skills Muzzy hasn't already invoked this session.
-Don't suggest during active plan execution.
-
-**Double Diamond flow:** After completing a phase, suggest the next one:
-`/game-discover` → `/game-define` → `/game-design` → `/game-deliver` → `/gsd:create-roadmap`
-
----
+One line, no lectures. Don't suggest during active plan execution.
+**Double Diamond flow:** `/game-discover` → `/game-define` → `/game-design` → `/game-deliver` → `/gsd:create-roadmap`
 
 ## Working Style
 - Use GSD plugin for project management when available
@@ -42,118 +29,48 @@ Don't suggest during active plan execution.
 - Save early, save often — context can compact at any time
 - Feature branches for all work, merge only when deploying
 
-## Phone Testing (Vite Projects)
-
-**Primary — Local HTTPS:** `npx vite --host` exposes on LAN. Phone connects via `https://<PC-IP>:<port>/`.
-
-**Backup — Cloudflare Tunnel:** Use when phone won't accept the self-signed cert (common). Gives a real HTTPS URL that works everywhere — required for DeviceMotion/accelerometer.
-```bash
-"/c/Program Files (x86)/cloudflared/cloudflared.exe" tunnel --url https://localhost:<port> --no-tls-verify
-```
-Prints a `https://random-words.trycloudflare.com` URL. Open on phone. URL changes each restart. Run AFTER Vite is up — match the port Vite is using.
-
-## Key Files
-- **Quick-start guide**: `~/.claude/QUICKSTART.md` — "how do I use all this?"
-- **Full pipeline reference**: `~/.claude/PIPELINE.md` — deep reference (1257 lines)
-- Game projects: `~/Documents/UnityProjects/`
-
-## Automatic Versioning
-
-Projects with `version.json` get automatic version management: **X.Y.Z.B**
-- **B** (build): increment on every commit
-- **Z** (patch): bug fix or value tweak — reset B
-- **Y** (minor): milestone completed — reset Z, B — `git tag vX.Y.Z`
-- **X** (major): deploy/ship — reset Y, Z, B — `git tag vX.Y.Z`
-
-On bump: read `version.json`, update fields, append to `history` array
-(`{"version", "date", "summary"}`), write back. If unsure, just bump B.
+## Code Quality
+- **Verify your work** — run tests, check output, confirm behavior. Never assume code works without checking.
+- **Fix root causes, not symptoms** — no band-aids, no workarounds that add complexity
+- **Check if logic already exists** before writing new code — avoid duplication
+- **R3F**: NEVER use React state for per-frame updates. Mutate refs in useFrame.
 
 ## Plain English Errors
-
-When errors occur, ALWAYS: (1) translate to plain English, (2) explain why
-in non-technical terms, (3) offer to fix it. Never show raw stack traces
-without translation. Never assume Muzzy knows what error codes mean.
-
----
+When errors occur, ALWAYS: (1) translate to plain English, (2) explain why in non-technical terms, (3) offer to fix it. Never show raw stack traces without translation.
 
 ## BMUZ + GSD Integration
-
 - **BMUZ 4D** = "What are we building?" → outputs `.planning/PRD.md`
 - **GSD** = "How do we build it?" → reads PRD, manages execution via PROJECT.md + ROADMAP
 - PRD is the shared source of truth — don't duplicate its content in PROJECT.md
 
 ## Lossless Pipeline (MANDATORY)
 
-Three always-on protections that prevent context loss and maintain project continuity.
-
 ### GSD Context Persistence
 When a GSD plan is active (`.planning/STATE.md` shows a phase in progress):
 - **Show current context** in responses: "Phase X, Plan Y, Task Z"
 - **Don't go freeform** — always know where you are in the workflow
-- If user asks something off-topic, handle it, then return to plan context
 - After EVERY code change, update STATE.md (what changed, current status, next steps)
 - If you don't know the current GSD state, read STATE.md before responding
 
 ### Vision Capture
 When the user mentions ideas **not part of the current task**:
-- Future features, design direction, "wouldn't it be cool if...", aesthetic preferences
-- Changes they wish to make but aren't making yet
-- Silently append to `.planning/VISION.md` (create if needed) with date and context
-- Format: `### [Date] — [Topic]\n[Idea in user's words]\nContext: [what prompted it]`
-- Mention "Noted in VISION.md" briefly at end of response
-- Don't interrupt the flow — capture and move on
+- Silently append to `.planning/VISION.md` with date and context
+- Mention "Noted in VISION.md" briefly — don't interrupt the flow
 
 ### Auto Documentation
-After every git commit during a session:
-- Update STATE.md: what changed, current status, decisions made, next steps
-- This is NOT optional — the Stop hook catches missing updates
-- Don't wait until `<save>` — update incrementally after each commit
-
-## Project Folder Structure
-
-```
-.planning/          → Claude's workspace (STATE.md, PRD.md, research/)
-content/            → Editable game data (data/, text/, tuning/)
-proto/              → Python simulation workspace
-src/                → Game code
-```
-
-## R3F Golden Rule
-NEVER use React state for per-frame updates. Mutate refs in useFrame.
-
----
-
-## Multi-Machine Config Sync
-
-Config is synced across machines via a private GitHub repo: https://github.com/TheBlueMuzzy/claude-config
-
-**Source of truth:** Main PC (`~\` on Muzzy's desktop)
-**Laptop:** `~\` on the laptop
-
-### Synced files
-CLAUDE.md, PIPELINE.md, QUICKSTART.md, settings.json, statusline.sh
-agents/, commands/, config/, skills/, get-shit-done/
-
-### Never sync
-.credentials.json, settings.local.json, projects/, cache/, debug/, history/, telemetry/
-
-### Workflow when config changes
-1. Copy changed file(s) to `~\.claude-config\`
-2. `git add . && git commit -m "description" && git push`
-3. On other machine: `git pull` then copy file(s) to `~\.claude\`
-
-### Path conventions
-Always use `~\` for home directory references — never hardcode usernames like Muzzy or joebr.
+After every git commit: update STATE.md with what changed, current status, decisions, next steps. This is NOT optional.
 
 ## Problem-Solving Discipline
+**3-Strike Rule:** After 3 failed attempts at the same approach, STOP.
+- State: "This approach isn't working. Reassessing."
+- Consider: simpler path? Let the environment solve it?
+- Watch for: adding complexity to fix complexity, each fix creating a new problem
 
-When stuck on a technical problem, apply the **3-Strike Rule**:
-- After 3 failed attempts at the same approach, STOP
-- Explicitly state: "This approach isn't working. Reassessing."
-- Consider: Is there a simpler path? Should the environment solve this instead of me?
-- Prefer delegating environment-specific problems to the local environment
+## Versioning
+Projects with `version.json` use X.Y.Z.B versioning — see `~/.claude/references/versioning.md`
 
-Watch for rabbit hole signals:
-- Adding complexity to fix complexity
-- Installing new tools to fix problems caused by previous tools
-- Each fix creating a new problem
+## References
+- **Phone testing**: `~/.claude/references/phone-testing.md`
+- **Config sync**: `~/.claude/references/config-sync.md`
+- **Quick-start guide**: `~/.claude/QUICKSTART.md`
+- **Full pipeline reference**: `~/.claude/PIPELINE.md`
