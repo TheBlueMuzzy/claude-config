@@ -66,6 +66,8 @@ After every git commit: update STATE.md with what changed, current status, decis
 - Consider: simpler path? Let the environment solve it?
 - Watch for: adding complexity to fix complexity, each fix creating a new problem
 
+**Reflection on mistakes:** When a bug or mistake reveals a pattern Claude should avoid, Muzzy may say "remember this." Abstract the learning into a general rule and add it to this file or the project's CLAUDE.md.
+
 ## Versioning
 Projects with `version.json` use X.Y.Z.B versioning — see `~/.claude/references/versioning.md`
 

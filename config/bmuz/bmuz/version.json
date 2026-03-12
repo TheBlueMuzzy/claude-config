@@ -1,0 +1,8 @@
+{
+  "name": "BMUZ",
+  "version": "0.3.0",
+  "description": "Game dev toolkit for non-coders. Design, build, and ship games with AI.",
+  "author": "MuzzyMade",
+  "license": "MIT",
+  "repository": "https://github.com/MuzzyMade/BMUZ"
+}
