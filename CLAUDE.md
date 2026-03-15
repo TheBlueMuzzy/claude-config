@@ -80,7 +80,8 @@ Projects with `version.json` use X.Y.Z.B versioning — see `~/.claude/reference
 ## Google Workspace CLI (`gws`)
 
 Access to Drive, Docs, Sheets, Slides, and Tasks via `gws` CLI.
-Gmail and Calendar have dedicated MCP tools — prefer those.
+Calendar has a dedicated MCP tool — prefer that for calendar tasks.
+**Do NOT use Gmail MCP tools** — Muzzy has intentionally denied email access.
 
 ```bash
 # Drive
