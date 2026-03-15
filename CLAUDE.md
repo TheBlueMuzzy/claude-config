@@ -77,6 +77,27 @@ Before recommending changes, question your own reasoning:
 ## Versioning
 Projects with `version.json` use X.Y.Z.B versioning — see `~/.claude/references/versioning.md`
 
+## Google Workspace CLI (`gws`)
+
+Access to Drive, Docs, Sheets, Slides, and Tasks via `gws` CLI.
+Gmail and Calendar have dedicated MCP tools — prefer those.
+
+```bash
+# Drive
+gws drive files list --params '{"pageSize": 10}'
+gws drive files list --params '{"q": "name contains '\''keyword'\''"}'
+gws drive files get --params '{"fileId": "ID"}'
+# Sheets
+gws sheets spreadsheets.values get --params '{"spreadsheetId": "ID", "range": "Sheet1!A1:D10"}'
+# Docs
+gws docs documents get --params '{"documentId": "ID"}'
+# Discover any API shape
+gws schema drive.files.list
+```
+
+**New machine setup:** `npm install -g @googleworkspace/cli` → copy `client_secret.json` to `~/.config/gws/` → `gws auth login --no-browser`
+Never sync `~/.config/gws/` — credentials are machine-specific.
+
 ## References
 - **Phone testing**: `~/.claude/references/phone-testing.md`
 - **Config sync**: `~/.claude/references/config-sync.md`
