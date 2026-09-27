@@ -35,10 +35,24 @@ When working in a project directory that does NOT have `.claude/settings.json`:
 2. If yes, run `/new-game` to set everything up
 
 ## Skill Awareness
-Claude has 28+ custom skills. When Muzzy talks about something a skill handles — especially if he seems to be doing it manually — briefly mention it:
+Claude has 30+ custom skills. When Muzzy talks about something a skill handles — especially if he seems to be doing it manually — briefly mention it:
 > "By the way, `/skill-name` can handle that — want me to run it?"
 One line, no lectures. Don't suggest during active plan execution.
 **Double Diamond flow:** `/game-discover` → `/game-define` → `/game-design` → `/game-deliver` → `/gsd:create-roadmap`
+
+### Analysis Skills (suggest-mode triggers)
+These skills are **suggested, not auto-run**. Mention them at the right moment:
+- **`/triage`** — Suggest before any unplanned task that would touch 3+ files. "This might be worth a `/triage` first."
+- **`/prioritize`** — Suggest when Muzzy is choosing between features, scoping a milestone, or running `/gsd:new-milestone` or `/gsd:create-roadmap`.
+- **`/concept-eval`** — Suggest when exploring a new game concept or major feature direction. Natural fit during `/game-discover` or `/game-define`.
+- **`/retro`** — Suggest after `/gsd:complete-milestone`, before moving on. "Want to run `/retro` to harvest lessons first?"
+
+### Workflow Skills (suggest-mode triggers)
+High-signal moments only — crisp, unambiguous triggers:
+- **`/systematic-debugging`** — Suggest when any error, bug, or unexpected behavior appears. "Let's `/systematic-debugging` this before guessing."
+- **`/undo`** — Suggest when something breaks or Muzzy expresses regret about a change. "Want to `/undo` to a known-good state?"
+- **`/gsd:verify-work`** — Suggest after completing a phase, before moving to next. "Ready to `/gsd:verify-work` before moving on?"
+- **`/gsd:pause-work`** — Suggest when Muzzy signals he's stopping for the day. "Want me to `/gsd:pause-work` so we pick up cleanly?"
 
 ## Working Style
 - Use GSD plugin for project management when available
@@ -76,6 +90,34 @@ When the user mentions ideas **not part of the current task**:
 
 ### Auto Documentation
 After every git commit: update STATE.md with what changed, current status, decisions, next steps. This is NOT optional.
+
+## Autonomous Execution Mode
+
+When Muzzy gives a large task and says to "just go" (or equivalent), enter autonomous mode:
+
+### Ground Rules
+- **Don't ask Muzzy questions** — make reasonable decisions and document them in STATE.md
+- **Use `/lossless-pipeline`** — orchestrate via agent team, stay lean as Lead
+- **Write everything to disk** — STATE.md is the brain, not your context. Decisions, blockers solved, approach changes — all written down
+- **Commit early and often** — small atomic commits so nothing is lost to compaction
+
+### Self-Verification Loop
+- After any visual/UI work: take a Playwright screenshot and review it yourself
+- If something looks wrong: fix it before moving on — don't present broken work
+- After any game logic: run the game, check console, verify behavior
+- **No "it should work" — prove it works**
+
+### Problem Solving (no human needed)
+- Build error? Read the error, fix it, move on
+- Visual bug? Screenshot → diagnose → fix → re-screenshot to confirm
+- Logic bug? Add a test or console check, trace the issue, fix it
+- **3-Strike Rule still applies** — after 3 failed attempts, write the blocker to STATE.md and move to the next task. Come back to it later with fresh context
+- If truly stuck on something critical: flag it in STATE.md as `BLOCKED: [reason]` and keep building everything else
+
+### Progress Reporting
+- After each major milestone (phase complete, feature working), write a brief plain-English summary to STATE.md
+- Muzzy can check STATE.md at any time to see where things stand
+- No need to output status to the chat — the file system is the status board
 
 ## Problem-Solving Discipline
 **3-Strike Rule:** After 3 failed attempts at the same approach, STOP.
@@ -121,3 +163,6 @@ Never sync `~/.config/gws/` — credentials are machine-specific.
 - **Config sync**: `~/.claude/references/config-sync.md`
 - **Quick-start guide**: `~/.claude/QUICKSTART.md`
 - **Full pipeline reference**: `~/.claude/PIPELINE.md`
+
+## General PC Help
+- Home base: `C:\Users\Muzzy\Desktop\PC-Help\` — read `PC-STATUS.md` first for any computer (not game) issue; BIOS list in `BIOS-SETTINGS.md`.
