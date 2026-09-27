@@ -12,6 +12,23 @@
 - **3D Games**: Unity C#
 - **Design**: Double Diamond methodology, MDA framework, PRD-driven development
 
+## Projects Directory
+All projects live under `C:/Users/Muzzy/Documents/dev/` — index + rules in `dev/HUB.md`:
+- **games/** — `doomdial-original`, `escape-pod-scramble`, `glyphtender`, `goops`, `roll-better`, `windchime`
+- **apps/** — `mi-slides`, `my-first-baby`
+- **research/** — `mahjong`
+- **collabs/** — `joust-because` (Sherman Meredith's repo)
+
+**One project = one folder = one GitHub repo**, with everything (code, art, design) inside. Never put code projects in Google Drive. Board games live in Google Drive `Boardgames\`, separate from their digital versions.
+
+When Muzzy says "cd <project-name>" (e.g. "cd roll better", "cd glyphtender"), resolve the project name to its full path under `C:/Users/Muzzy/Documents/dev/` and `cd` there. Use fuzzy matching — "roll better" → `games/roll-better`, "eps" → `games/escape-pod-scramble`, etc.
+
+## Laptop ↔ Desktop Sync (MANDATORY)
+Muzzy works on both a desktop and a laptop. GitHub keeps them in parity — so Claude owns the habit:
+- **Session start** (in a project): `git pull` before doing anything. If it can't pull cleanly, explain in plain English and stop.
+- **Session end** (Muzzy says he's stopping, done, switching machines, or `/gsd:pause-work`): commit everything and `git push`. Confirm "pushed — safe to switch machines."
+- If a new project is missing on this machine, clone it into the matching `dev/` folder.
+
 ## New Project Auto-Setup
 When working in a project directory that does NOT have `.claude/settings.json`:
 1. **Ask Muzzy**: "This project doesn't have the lossless pipeline set up yet. Want me to scaffold it?"
