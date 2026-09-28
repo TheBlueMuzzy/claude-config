@@ -21,7 +21,7 @@ Follow the template in `~/.claude/config/bmuz/PROJECT-FILES.md`:
 - **Where we are** — stage, milestone, sprint, what's being done, branch, version.
 - **Key facts** — add anything learned this session that must survive (a gotcha, a decision, a port). Remove anything no longer true.
 - **Log** — one new dated entry, 1–3 lines, player's-eye view. Keep 10; move older ones to `.planning/archive/log.md`.
-- Ideas that came up but aren't being built → `VISION.md`.
+- Ideas that came up but aren't being built → ROADMAP → Ideas.
 
 ## 4. Commit and push
 - Stage everything relevant (never `.env`, secrets, or `.playwright-mcp/` — warn if you see them).

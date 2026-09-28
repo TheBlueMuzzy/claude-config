@@ -1,82 +1,17 @@
+# Define — narrow the concept (converge)
 
-# Define Phase - Double Diamond Game Design
+Goal: one clear concept everyone could explain, with what it should feel like and what's in scope.
 
-You are guiding the DEFINE phase. The goal is CONVERGENT narrowing to a clear
-concept. This phase UPDATES the GDD with design principles, experience targets, and scope.
-
-## Process
-
-1. **Read GDD**: Load `.planning/GDD.md` — review sections 1-2 from Discover
-2. **Insight Synthesis**: What patterns emerged? What's the core opportunity?
-3. **Refine Vision**: Tighten the elevator pitch from rough to sharp
-4. **Concept Statement**: "Players need [X] because [Y]"
-5. **Design Principles**: 3-5 rules that guide ALL decisions
-6. **Experience targets**: run **mda-analyze** (targets) — lock the Experience targets table: 1–2 primaries in players' words, each with a watchable "we'll know when", plus not-this-game, key moments, watch-outs.
-   (Sensation, Fantasy, Narrative, Challenge, Fellowship, Discovery, Expression, Submission)
-7. **Success Criteria**: How do we know this works?
-8. **Scope Definition**: Must (per release stage: alpha / beta / 1.0) · Should · Could · Won't
+## Do
+1. **Read** GDD §1–2 and `research/discovery.md`. Pick the direction with Muzzy (from the 2–4 on the table, or a blend).
+2. **Pitch** — sharpen §1 to one line anyone gets.
+3. **Experience targets** — **mda-analyze** targets: lock §2 (1–2 primaries in players' words, not-this-game, a *watchable* "we'll know when" each, key moments, watch-outs).
+4. **Pillars** — 3–5 in §3, each with the kind of argument it settles.
+5. **Scope** — §7: sort every feature idea into Must (per release stage) · Should · Could · Won't (with why). Musts for the first release = the smallest version that hits the primary target.
+6. **Risks** — the one or two things most likely to stop it being great, and the cheapest test for each (→ §9 or a spike later).
 
 ## Output
+GDD §1, §2, §3, §7, §9 filled. Header: `Current phase: Define`. Commit `GDD: define`.
 
-### Update `.planning/GDD.md`
-
-**Refine existing sections:**
-- Tighten section 1 (Vision) — elevator pitch should be sharp now
-- Refine audience/personas if needed based on narrowed concept
-
-**Fill in section 3:**
-```markdown
-## 3. Design Principles
-
-**Concept statement**: Players need [X] because [Y].
-**What makes this different**: [1-2 sentences]
-
-### Principles
-1. **[Principle]**: [Why it matters] — [example of how it guides a decision]
-2. **[Principle]**: [Why it matters] — [example]
-3. **[Principle]**: [Why it matters] — [example]
-
-### Experience targets  (what players should feel — used by /define, /develop tuning, playtests)
-| | Target | In players' words | We'll know when… (watchable) | Seen? |
-|---|---|---|---|---|
-| Primary | [e.g. Challenge] | ["one more try — I almost had it"] | [they ask for a rematch within 10 s] | — |
-| Secondary | [e.g. Fellowship] | ["we were yelling at each other"] | [players talk during others' turns] | — |
-| Not this game | [e.g. Submission] | [no grinding, no idle time] | [nobody waits >20 s for their turn] | — |
-**Key moments** (2–4 that must land): [e.g. the last-die gamble — everyone leans in]
-**Watch-outs** (dynamics that would kill the targets): [runaway leader · analysis paralysis · waiting around]
-Look & sound serve these too — see §6.
-
-### Success Criteria
-- [ ] [Testable criterion — something you can observe in a playtest]
-- [ ] [Testable criterion]
-- [ ] [Testable criterion]
-
-### Scope
-Sort every feature idea into one bucket. "Must" is per release — what's a must for alpha is different from 1.0.
-
-| Must — alpha | Must — beta | Must — 1.0 | Should | Could | Won't (this game) |
-|---|---|---|---|---|---|
-| [feature] | [feature] | [feature] | [feature] | [feature] | [feature — and why not] |
-
-Releases for this game: prototype → alpha → beta → 1.0 (rename or drop stages if Muzzy wants).
-**Done** for a release = every Must for it is done.
-```
-
-**Update the phase marker:**
-```
-> Current phase: **Define**
-```
-
-## Gate Criteria
-
-Before moving to the Design stage:
-- [ ] GDD sections 1-3 filled and coherent
-- [ ] Elevator pitch is sharp (1 sentence, anyone can understand it)
-- [ ] Design principles defined (3-5)
-- [ ] Experience targets set, each with a watchable "we'll know when"
-- [ ] Scope agreed (musts per release, should, could, won't)
-- [ ] User has approved the concept direction
-
-Tell the user:
-"Concept defined! The GDD now has your design principles, experience targets, and scope.
-Next: the Design part of /define — mechanics, art direction, and systems."
+## Done when
+- Pitch is one sharp line · targets locked with watchable signs · pillars set · scope sorted per release · Muzzy agrees with the direction.

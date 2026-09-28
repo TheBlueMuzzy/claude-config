@@ -5,7 +5,7 @@ description: Show the game's design (the GDD) as a one-screen digest — pitch, 
 
 # /gdd — the game design, at a glance
 
-Read `.planning/GDD.md` (old projects may still call it PRD.md — offer the conversion from `~/.claude/config/bmuz/PROJECT-FILES.md`). No GDD? → "No design doc yet — `/discover` or `/define` starts one."
+Read `.planning/GDD.md` (old projects may still call it PRD.md — offer the conversion from `~/.claude/config/bmuz/SETUP-AND-CONVERT.md`). No GDD? → "No design doc yet — `/discover` or `/define` starts one."
 
 ## `/gdd` (no words) → the digest, one screen
 ```
@@ -28,4 +28,4 @@ Show the section in plain English, trimmed to what matters, with the file + head
 2. Give an honest take — including when his idea is simpler or better than what's there.
 3. Small and agreed → edit the GDD section, update ROADMAP if features change (new IDs, needs), commit `GDD: <change>`.
    Big (new system, new direction) → suggest `/define` for it (or `/discover` if it's still fuzzy).
-4. Not for now → VISION.md with the date.
+4. Not for now → ROADMAP → Ideas with the date.

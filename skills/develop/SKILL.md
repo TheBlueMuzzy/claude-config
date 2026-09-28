@@ -17,7 +17,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session. Old G
 
 ## Focus rule (Muzzy asked to be kept on track)
 - **One feature being built at a time.** If Muzzy starts steering to another feature, say so in one line and offer to park it.
-- Mid-feature reports are sorted out loud in one line: a tweak to *this* feature → do it · a bug → the `/bug` triage (fix now only if P0, breaks this feature's Done-when, or it's a two-minute fix in code being changed; otherwise log it and continue) · a new idea → VISION.md or a new feature via `/roadmap`.
+- Mid-feature reports are sorted out loud in one line: a tweak to *this* feature → do it · a bug → `/bug` triage (fix now only if P0, it breaks this feature, or it's a two-minute fix in code being changed — else log it and continue) · a new idea → ROADMAP → Ideas.
 - Endless noodling on one feature → point it out kindly: "F08 has been in tuning for a while — ship it as is and log the rest as a ✨ feature?"
 
 ## 2. Do the tasks

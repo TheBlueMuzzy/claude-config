@@ -56,6 +56,6 @@ Bugs: P0 crash/broken live · P1 feature broken · P2 minor · P3 cosmetic
 <game>/.planning/ROADMAP.md   milestones + dependency graph (draws itself)
 <game>/.planning/SPRINT.md    what's being built, your 🙋 tasks
 <game>/.planning/GDD.md       the design        TDD.md  the engineering plan
-<game>/.planning/BUGS.md      the bug list      VISION.md  ideas for later
+<game>/.planning/BUGS.md      the bug list      (ideas: bottom of ROADMAP.md)
 <game>/content/               the numbers the game reads — edit freely
 ```

@@ -19,6 +19,7 @@ Feelings come from what players *want*: to win, to master, to belong, to express
 - **Fellowship** comes from shared information, shared goals, or reasons to talk during others' turns.
 - **Tension** needs rise, release, and a finish — not flat pressure.
 - **Feedback loops:** positive loops snowball the leader (kills tension); negative loops pull everyone together (can kill agency if too strong).
+- **Flow:** challenge should rise with the player's skill — too easy reads as boredom, too hard as frustration; watch where players give up or stop paying attention.
 - **Probability shapes pacing:** how random outcomes are distributed decides how long games last and how fair they feel.
 
 ## Modes — pick by what's asked, or what the calling stage says

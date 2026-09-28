@@ -56,4 +56,5 @@ Live: https://thebluemuzzy.github.io/card-game/
 New: <2–4 player's-eye bullets>
 Alpha musts: 9/9 ✅
 ```
-If the Live URL changed after the commit, update STATE and commit. Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."
+If the Live URL changed after the commit, update STATE and commit.
+Milestone or release stage delivered → ask one question: "One thing to keep doing, or stop doing, next time?" — a real answer becomes a line in STATE Key facts (or a CLAUDE.md rule if it applies to every game). Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."

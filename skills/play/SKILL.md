@@ -31,4 +31,3 @@ When Muzzy's done (or before switching machines): stop the background task, then
 ## 5. What he sees → what we do
 - A bug → fix it now if small, or add it as a 🐞 feature via `/roadmap`.
 - A feel/look tweak ("shrink it to 93%") → just do it, then say "refresh".
-- Planning real playtests with other people → use the **playtest-plan** skill.

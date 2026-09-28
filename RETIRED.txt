@@ -28,3 +28,19 @@ PIPELINE.md
 
 # Dropped 2026-09-28 (Muzzy: MDA stays, lenses go)
 skills/lens
+
+# Trimmed 2026-09-28 (bloat audit)
+skills/concept-eval
+skills/triage
+skills/prioritize
+skills/retro
+skills/player-profile
+skills/game-architecture
+skills/game-map
+skills/undo
+skills/playtest-plan
+skills/icon-text
+skills/style-guide
+skills/unity-ecs-patterns
+skills/vercel-react-best-practices
+agents/game-designer.md

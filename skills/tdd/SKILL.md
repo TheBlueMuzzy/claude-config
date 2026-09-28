@@ -5,7 +5,7 @@ description: Show the game's engineering plan (the TDD) in plain English — arc
 
 # /tdd — the engineering plan, at a glance
 
-Read `.planning/TDD.md`. None yet? → offer to write it now from the code + GDD using the template `~/.claude/config/bmuz/templates/TDD.md` (use the **game-architecture** method for plain-English architecture and **game-map** to survey an existing codebase). Commit `TDD: first draft`.
+Read `.planning/TDD.md`. None yet? → offer to write it now from the code + GDD using the template `~/.claude/config/bmuz/templates/TDD.md` (survey an existing codebase with an Explore agent; explain the architecture in plain English — what each part does and why, before how). Commit `TDD: first draft`.
 
 ## `/tdd` (no words) → the digest, one screen
 ```

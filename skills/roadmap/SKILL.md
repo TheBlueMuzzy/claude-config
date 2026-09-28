@@ -27,5 +27,6 @@ Then 1–3 lines of insight, only if true: what's on the critical path ("F09 is 
 - **Move / reorder:** check dependencies — never place a feature before something it needs; say what would break.
 - **Cut:** move it to Won't in the GDD (with the reason) or to Later; show what depended on it.
 - **Scope creep check:** if a milestone has grown past ~1.5× its original size, say so and offer to split it or push Shoulds/Coulds out.
-Use the **prioritize** method (Kano + MoSCoW + impact/effort) when Muzzy is choosing between several features — show only the ranked result.
+Choosing between several features → rank by: must before should before could, then biggest effect on the experience targets for the least effort; show only the ranked list with one-line reasons.
+Before adding anything sizeable, three quick questions out loud: is it worth it (which target does it serve)? what's risky? what's unknown (→ a spike task)?
 Keep each milestone's Mermaid graph in sync. Commit `Roadmap: <what changed>`.

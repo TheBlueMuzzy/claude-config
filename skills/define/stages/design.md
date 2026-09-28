@@ -1,110 +1,17 @@
+# Design — how it plays
 
-# Design Phase - Double Diamond Game Design
+Goal: rules and systems specific enough to build, each tied to the feeling it's for.
 
-You are guiding the DESIGN phase. The goal is DIVERGENT exploration of solutions.
-This phase UPDATES the GDD with core gameplay, systems, and art direction.
-
-## Process
-
-1. **Read GDD**: Load `.planning/GDD.md` — review sections 1-3 from Discover/Define
-2. **Ideation**: Generate 3-5 different approaches to the core loop
-3. **Mechanics Design**: For each approach, define the concrete mechanics
-4. **Trace it**: for each core mechanic, **mda-analyze** trace → a `why:` line (mechanic → what players end up doing → target), marked as a prediction; check the known traps (snowballing leader, one best strategy, waiting, too random). A target nothing serves → tell Muzzy.
-5. **Choose Approach**: Pick the best one with user input
-6. **Art Direction**: Style references, color palette, character proportions, audio direction
-7. **System Design**: Data models, state management, key algorithms
-8. **Prototype Scope**: What's the simplest testable version?
+## Do
+1. **Core loop + rules** — §4: the loop in one line, then the real rules, numbered and short. Controls for desktop and phone.
+2. **Options first** — for anything not obvious, sketch 2–3 ways it could work, pick with Muzzy, note the rejected ones in `research/` (so they're not re-argued).
+3. **Trace every core mechanic** with **mda-analyze** trace — one row in the §4 mechanics table: what players end up doing → which target. Mark predictions. Check the traps (snowballing leader, one best strategy, waiting around, too random). A target nothing serves → tell Muzzy.
+4. **Numbers** — rules with odds or balance → a **proto** sim before committing to them. Resources/currencies → **game-economy**. Computer opponents → **ai-opponent**.
+5. **Systems** — §5, only the ones this game has; long ones get their own `design/<system>.md`.
+6. **Look & sound** — §6 with Muzzy (he's the artist — capture his direction, don't invent it).
 
 ## Output
+GDD §4, §5, §6 filled. Header: `Current phase: Design`. Commit `GDD: design`.
 
-### Update `.planning/GDD.md`
-
-**Fill in section 4 (Core Gameplay):**
-```markdown
-## 4. Core Gameplay
-
-### Core Loop
-[ASCII diagram of the core loop]
-
-### Session Flow
-What happens in 5 minutes of play:
-1. [Player does X]
-2. [System responds with Y]
-3. [Player decides Z]
-...
-
-### Mechanics
-| Mechanic | Input | Behavior | Feedback | What players end up doing → Target |
-|----------|-------|----------|----------|-----------------|
-[one row per mechanic]
-
-### Rules
-[Formalized game rules — turn structure, win conditions,
-edge cases, tie-breakers. Written here or during /proto]
-
-### Progression
-- How does the game get harder / deeper over time?
-- What keeps the player coming back?
-```
-
-**Fill in section 5 (Game Systems):**
-```markdown
-## 5. Game Systems
-
-### [System Name]
-- **Purpose**: [one sentence]
-- **Data it owns**: [what state it manages]
-- **Talks to**: [other systems]
-- **Key rules**: [important logic]
-
-[Repeat for each system]
-
-### Balance Data
-[Key findings from /proto simulation if available.
-Full reports in .planning/research/simulations/]
-
-### Content Reference
-[What content files exist in content/data/ and what they define.
-E.g., cards.json — all card definitions; characters.json — faction abilities]
-```
-
-**Fill in section 6 (Art & Audio Direction):**
-```markdown
-## 6. Art & Audio Direction
-
-### Visual Style
-- **Style**: [description + references]
-- **Color palette**: [hex codes or descriptions]
-- **Character design**: [proportions, style]
-- **UI style**: [minimal, ornate, etc.]
-
-### Audio Direction
-- **Music mood**: [genre, tempo, feel]
-- **SFX style**: [realistic, stylized, retro, etc.]
-- **Key sounds**: [list the most important audio cues]
-```
-
-**Update the phase marker:**
-```
-> Current phase: **Design**
-```
-
-### Save exploration detail to `.planning/research/explorations.md`
-
-Put the approach comparison, rejected ideas, MDA traces, and
-art reference links here. The GDD gets the chosen approach; this file
-keeps the alternatives for future reference.
-
-## Gate Criteria
-
-Before moving to the build plan:
-- [ ] GDD sections 1-6 filled and coherent
-- [ ] Approach chosen and justified
-- [ ] Core mechanics traced to experience targets (predictions noted)
-- [ ] Art and audio direction defined
-- [ ] Systems identified
-- [ ] User has approved the direction
-
-Tell the user:
-"Design complete! The GDD now has your core gameplay, systems, and art direction.
-Next: the build plan — the last part of /define: architecture, milestones and the feature map."
+## Done when
+- Rules are buildable · every core mechanic traced to a target · numbers that matter were simmed or flagged · Muzzy agrees.

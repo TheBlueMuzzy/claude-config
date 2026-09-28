@@ -5,7 +5,7 @@ description: Double Diamond stage 2 — narrow the game (or a big feature) down 
 
 # /define — narrow it down (converge)
 
-Read `~/.claude/config/bmuz/PROJECT-FILES.md` first (layout, planning model, ROADMAP format). No `.planning/STATE.md`? Do the quick setup. Old GSD layout? Offer the conversion first.
+Read `~/.claude/config/bmuz/PROJECT-FILES.md` first (layout, planning model, ROADMAP format). No `.planning/STATE.md`? Do the quick setup from `~/.claude/config/bmuz/SETUP-AND-CONVERT.md`. Old GSD layout? Offer the conversion first.
 
 **Why this matters:** every hour here saves loops in /develop. A clear GDD + a good feature map means Claude builds the right thing in the right order.
 
@@ -16,7 +16,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` first (layout, planning model, ROA
 
 ## 2. The three parts
 1. **Define** — `stages/define.md`: sharp pitch, design principles, **experience targets** (mda-analyze), success criteria, **scope** (Must per release · Should · Could · Won't).
-2. **Design** — `stages/design.md`: mechanics, systems, art & audio direction. Pull in **proto** for rules/odds, **game-economy** for resources, **ai-opponent** for bots, **style-guide** for art direction, **mda-analyze** to trace each mechanic to the experience targets.
+2. **Design** — `stages/design.md`: mechanics, systems, art & audio direction. Pull in **proto** for rules/odds, **game-economy** for resources, **ai-opponent** for bots, **mda-analyze** to trace each mechanic to the experience targets.
 3. **Build plan** — `stages/build-plan.md`: the **TDD** (how it's built, standards, compliance, Dev Kit tools), milestones, and the **feature map** in ROADMAP.md — every feature typed (❓🧱🎮✨), scoped, and linked to what it `needs:`. Show Muzzy the dependency tree before writing it.
 
 At the end of each part: update `Current phase:` in the GDD, commit `GDD: <part>`, and ask *"Keep going, or stop here?"*
@@ -27,4 +27,4 @@ Same three parts, feature-sized: what it's for (which principle it serves), its 
 ## 4. Hand-off
 STATE: Stage = define → develop when the map is done; RESUME HERE → "Roadmap ready — N features ready to start. Next: /sprint".
 Say: *"The map's ready — N features can start now. Say `/sprint` and I'll line up the first sprint."*
-Ideas that aren't for now → VISION.md with the date.
+Ideas that aren't for now → ROADMAP → Ideas with the date.
