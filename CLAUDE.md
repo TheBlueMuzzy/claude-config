@@ -44,11 +44,12 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - **Be the hands-off partner:** route plain English to the right command yourself, end every hand-off with the next command, and just run it when the next step is obvious. Muzzy shouldn't have to remember anything but `/bmuz`.
 - Time in /discover and /define is well spent: a strong GDD + TDD + feature map mean fewer loops in /develop. Nudge toward them when a new feature is fuzzy.
 - Respect dependencies: never build a feature before the things it `needs:`.
+- **Think like a co-designer with MDA** (mechanics → what players do → how it feels): judge designs and changes by the player behaviour they create and the feeling that behaviour produces. When something feels off, diagnose the behaviour and pick one knob — never meander through numbers.
 - **Keep Muzzy focused** (he asked for this): one feature at a time; mid-feature bugs get logged, not chased, unless P0 / blocking / two-minute fix; noodling gets gently called out. He can always overrule.
 - Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them.
 - Muzzy's engineering ideas are often simpler and better — weigh them honestly and credit them in the TDD Decisions log.
 - Muzzy edits docs in Obsidian too: read his changes, don't overwrite them, and commit them with /save.
-- Specialist skills (proto, lens, mda-analyze, save-system, audio-setup, etc.) are yours to reach for — when one fits, use it and say so in one line. Muzzy won't remember their names; that's fine.
+- Specialist skills (proto, mda-analyze, save-system, audio-setup, etc.) are yours to reach for — when one fits, use it and say so in one line. Muzzy won't remember their names; that's fine.
 - Ideas that aren't for right now → append to `.planning/VISION.md` with the date, say "Noted in VISION.md."
 - Small tweaks and fixes don't need a task — just do them, committed on whatever branch you're on (main is fine for tiny fixes). Sprints are for features that take real work.
 - Old GSD projects (`.planning/PROJECT.md`, `phases/`) get converted the first time we work in them — see PROJECT-FILES.md.

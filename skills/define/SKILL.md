@@ -15,8 +15,8 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` first (layout, planning model, ROA
 - **GDD complete** (`Current phase: Complete`) → ask what to rethink: a section of the GDD, the scope, or adding/reshaping features. Edit just that — and update ROADMAP.md to match (new features get IDs, types, scope, needs).
 
 ## 2. The three parts
-1. **Define** — `stages/define.md`: sharp pitch, design principles, MDA targets, success criteria, **scope** (Must per release · Should · Could · Won't).
-2. **Design** — `stages/design.md`: mechanics, systems, art & audio direction. Pull in **proto** for rules/odds, **game-economy** for resources, **ai-opponent** for bots, **style-guide** for art direction, **mda-analyze** / **lens** when unsure it's fun.
+1. **Define** — `stages/define.md`: sharp pitch, design principles, **experience targets** (mda-analyze), success criteria, **scope** (Must per release · Should · Could · Won't).
+2. **Design** — `stages/design.md`: mechanics, systems, art & audio direction. Pull in **proto** for rules/odds, **game-economy** for resources, **ai-opponent** for bots, **style-guide** for art direction, **mda-analyze** to trace each mechanic to the experience targets.
 3. **Build plan** — `stages/build-plan.md`: the **TDD** (how it's built, standards, compliance, Dev Kit tools), milestones, and the **feature map** in ROADMAP.md — every feature typed (❓🧱🎮✨), scoped, and linked to what it `needs:`. Show Muzzy the dependency tree before writing it.
 
 At the end of each part: update `Current phase:` in the GDD, commit `GDD: <part>`, and ask *"Keep going, or stop here?"*

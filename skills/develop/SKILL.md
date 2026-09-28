@@ -24,6 +24,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session. Old G
 For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them at the hand-off):
 - **Small tasks:** do them yourself. **Big ones** (lots of reading, or a fresh head helps): hand to a `general-purpose` subagent with the task, the feature's "Done when", relevant Key facts, and "report what changed and anything surprising." Tasks from different features that don't touch the same files can run in parallel.
 - **Design is open** (feel, look, feature behaviour)? That's the diverge part — try 2–3 quick variants when cheap (behind a toggle or tuning value) and let Muzzy pick. Don't guess on taste.
+- **"Feels off" / a `(tuning)` task** → think it through with **mda-analyze** diagnose before touching numbers: name the feeling → look at what players actually do (Dev Kit Snapshots/Time, bot runs, proto) → sort the cause (feel · readability · dynamic · the rule can't do it → /gdd) → offer 2–3 real knobs in `content/tuning/` with a prediction each, one at a time. Log `Tuning: knob old→new — why — result` in SPRINT Notes.
 - Reach for specialists when a task calls for it: **proto** (rules/odds), **tuning-setup** (live sliders for tuning tasks), **save-system**, **audio-setup**, **multiplayer-setup**, **r3f-best-practices**… R3F rule: never React state for per-frame updates — mutate refs in useFrame.
 - Features with rules or logic get **tests** as part of being done (rules/logic → unit tests; key flows → a Playwright smoke check). Feel isn't tested — Muzzy judges it.
 - Tweakable values go into `content/` JSON (never hardcoded) so Muzzy can change them in the Dev Kit or Obsidian. A new data file or Dev Kit tool → update TDD §1/§3. A real "how should we build this" choice → TDD Decisions log.
@@ -40,6 +41,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 ## 4. Hand to Muzzy (after each feature, or when he needs to look)
 - Describe what changed from the player's side (3–6 bullets) and what the screenshots showed (he can't see Playwright's images — describe them). Say exactly what to try.
 - Playwright MCP may drop a `.playwright-mcp/` folder in the directory Claude was started from — delete it when you're done checking.
+- Feature has a `why:` line → end with its one feel question: "Did <moment> feel like <target, in players' words>?" Answer → SPRINT Notes.
 - List his 🙋 tasks and any new `Ask Muzzy:` questions.
 - Offer `/play` for links. Then wait.
 - Feedback → fix → re-check → show again. **"Approved"** → feature ✅ done in ROADMAP (one approval covers its tuning too), refresh which features became 🟢 ready, replace STATE RESUME HERE + Doing, commit `F08: done`.

@@ -56,6 +56,7 @@ Follow the ROADMAP format in `~/.claude/config/bmuz/PROJECT-FILES.md`.
 2. Type each: ❓ decision · 🧱 foundation · 🎮 player-facing · ✨ polish. Design questions that block building become ❓ features owned by Muzzy.
 3. **Dependencies — the important part.** For each feature ask: what must exist (or be decided) first? Keep chains short: let foundations own the data other features need (the hand system owns deck + discard data), so features depend on the foundation, not on each other. Concrete ("splayed cards needs the card hand system") and abstract ("discard pile needs the discard-rule decision") both count. Use `~F07` when it only needs F07 to *work*, not be finished/tuned.
 4. Group into milestones: the first milestone is the smallest playable loop. Foundations early, polish late. Each milestone moves toward a release (→ alpha).
+4b. Give every 🎮 ✨ ❓ feature a `why:` line from the GDD mechanics traces (mechanic → what players do → target). A Must with no trace → ask if it's really a Must (enablers are fine). A primary target no feature serves → a gap: add one or tell Muzzy.
 5. Mark states: a feature whose needs are all ✅ (or has none) is 🟢 ready, the rest ⏳ waiting. ❓ decisions Muzzy can answer right now → ask, write the answer into the GDD, mark ✅.
 6. **Show Muzzy the dependency picture** before writing — a short text tree of what unlocks what, plus "these N features are ready to start". Adjust with him.
 

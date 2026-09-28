@@ -41,14 +41,14 @@ Create `.planning/GDD.md` with all 12 sections filled:
 ## 3. Design Principles
 - Concept statement
 - 3-5 design principles
-- MDA targets (primary/secondary aesthetics)
+- Experience targets table (primary/secondary/not-this-game, players' words, we'll know when) — **mda-analyze** targets
 - Success criteria
 - Scope: Must (per release: alpha / 1.0) · Should · Could · Won't
 
 ## 4. Core Gameplay
 - Core loop diagram (ASCII)
 - Session flow (5 min of play)
-- Mechanics table with MDA tracing
+- Mechanics table with a `why:` trace per core mechanic
 - Rules (if game has formal rules — turn structure, win conditions, edge cases)
 - Progression system
 

@@ -32,7 +32,7 @@ This is the START of the GDD. It will grow through each phase.
 
 ## 1. Vision & Goals
 - **Elevator pitch**: [1 sentence — rough, will be refined in Define]
-- **Target feeling**: [What emotion/experience should players have?]
+- **Target feeling** (rough experience targets, in players' words): [e.g. "one more try" — Challenge · "we were yelling" — Fellowship]
 - **Platform**: [Web / Mobile / Steam / etc.]
 - **Target audience**: [Who is this for? Rough description]
 

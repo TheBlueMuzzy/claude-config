@@ -2,7 +2,7 @@
 # Define Phase - Double Diamond Game Design
 
 You are guiding the DEFINE phase. The goal is CONVERGENT narrowing to a clear
-concept. This phase UPDATES the GDD with design principles, MDA targets, and scope.
+concept. This phase UPDATES the GDD with design principles, experience targets, and scope.
 
 ## Process
 
@@ -11,7 +11,7 @@ concept. This phase UPDATES the GDD with design principles, MDA targets, and sco
 3. **Refine Vision**: Tighten the elevator pitch from rough to sharp
 4. **Concept Statement**: "Players need [X] because [Y]"
 5. **Design Principles**: 3-5 rules that guide ALL decisions
-6. **MDA Targets**: Which aesthetics are primary?
+6. **Experience targets**: run **mda-analyze** (targets) — lock the Experience targets table: 1–2 primaries in players' words, each with a watchable "we'll know when", plus not-this-game, key moments, watch-outs.
    (Sensation, Fantasy, Narrative, Challenge, Fellowship, Discovery, Expression, Submission)
 7. **Success Criteria**: How do we know this works?
 8. **Scope Definition**: Must (per release stage: alpha / beta / 1.0) · Should · Could · Won't
@@ -36,10 +36,15 @@ concept. This phase UPDATES the GDD with design principles, MDA targets, and sco
 2. **[Principle]**: [Why it matters] — [example]
 3. **[Principle]**: [Why it matters] — [example]
 
-### MDA Targets
-- **Primary aesthetic**: [e.g., Challenge] — this is the core feeling
-- **Secondary**: [e.g., Discovery] — supports the primary
-- **Avoid**: [e.g., Submission] — this would undermine the design
+### Experience targets  (what players should feel — used by /define, /develop tuning, playtests)
+| | Target | In players' words | We'll know when… (watchable) | Seen? |
+|---|---|---|---|---|
+| Primary | [e.g. Challenge] | ["one more try — I almost had it"] | [they ask for a rematch within 10 s] | — |
+| Secondary | [e.g. Fellowship] | ["we were yelling at each other"] | [players talk during others' turns] | — |
+| Not this game | [e.g. Submission] | [no grinding, no idle time] | [nobody waits >20 s for their turn] | — |
+**Key moments** (2–4 that must land): [e.g. the last-die gamble — everyone leans in]
+**Watch-outs** (dynamics that would kill the targets): [runaway leader · analysis paralysis · waiting around]
+Look & sound serve these too — see §6.
 
 ### Success Criteria
 - [ ] [Testable criterion — something you can observe in a playtest]
@@ -68,10 +73,10 @@ Before moving to the Design stage:
 - [ ] GDD sections 1-3 filled and coherent
 - [ ] Elevator pitch is sharp (1 sentence, anyone can understand it)
 - [ ] Design principles defined (3-5)
-- [ ] MDA aesthetic targets chosen
+- [ ] Experience targets set, each with a watchable "we'll know when"
 - [ ] Scope agreed (musts per release, should, could, won't)
 - [ ] User has approved the concept direction
 
 Tell the user:
-"Concept defined! The GDD now has your design principles, MDA targets, and scope.
+"Concept defined! The GDD now has your design principles, experience targets, and scope.
 Next: the Design part of /define — mechanics, art direction, and systems."

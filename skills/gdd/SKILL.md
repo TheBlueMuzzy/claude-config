@@ -12,6 +12,7 @@ Read `.planning/GDD.md` (old projects may still call it PRD.md — offer the con
 EXAMPLE GAME — "<one-line pitch>"      (example only — every line comes from the real docs)
 Pillars: <3–7 pillars>
 Core loop: <verb → verb → verb → win condition>
+Feels like: <primary target> · <secondary> (players' words; ✅/⚠️ if playtested)
 Scope: alpha musts 7/9 ✅ · should 3 · could 5 · won't: <list>
 Open design questions: 2 (<from ROADMAP ❓ features + GDD open questions>)
 Changed lately: <from `git log` on GDD.md>
@@ -23,7 +24,7 @@ Pull every line from the GDD, ROADMAP ❓ features, and `git log -- .planning/GD
 Show the section in plain English, trimmed to what matters, with the file + heading so Muzzy can open it in Obsidian.
 
 ## `/gdd what if … / I think … / let's change …` → a design discussion
-1. Say what it would change (which sections, which features in ROADMAP, which principles it serves or strains).
+1. Say what it would change (which sections, which features in ROADMAP, which principles it serves or strains) — and a one-line **mda-analyze** trace: what players would end up doing, and which experience target that serves or strains.
 2. Give an honest take — including when his idea is simpler or better than what's there.
 3. Small and agreed → edit the GDD section, update ROADMAP if features change (new IDs, needs), commit `GDD: <change>`.
    Big (new system, new direction) → suggest `/define` for it (or `/discover` if it's still fuzzy).

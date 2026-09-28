@@ -16,7 +16,7 @@ Muzzy is an artist/designer: be a design partner, not a form. A few questions at
 ## Diverge on purpose
 This stage is for *more* options, not fewer. Don't converge early. Useful moves:
 - Reference games (what works, what's missing) — web research when it helps, skip when Muzzy knows the space.
-- Who's it for → **player-profile**. What should it feel like → **mda-analyze**, **lens**.
+- Who's it for → **player-profile**. What should it feel like → draft 1–3 rough **experience targets** in players' words (**mda-analyze** targets — loose; /define locks them). Break reference games down with **mda-analyze** reference.
 - A hunch about rules or odds → **proto** (quick sim).
 - A big new direction → **concept-eval**.
 Skip heavy research if Muzzy just wants to move.

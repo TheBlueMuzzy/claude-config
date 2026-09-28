@@ -63,6 +63,7 @@ Goal: <one line: what a player can do when this milestone is done>
 - ✅ F07 🧱 Card hand system — must:alpha
 - 🔨 F08 🎮 Splayed cards — must:alpha · needs: F07 · sprint 4
   what: cards fan out in an arc; hovering lifts one   ← optional one-line goal
+  why: fan layout → players scan the whole hand at once → Mastery ("I can plan my turn")   ← optional MDA trace (🎮 ✨ ❓ only)
 - 🟢 F09 ❓ Decide discard rule — must:alpha · 🙋
 - ⏳ F10 🎮 Discard pile — must:alpha · needs: F09, F07
 - 🔨 F11 ✨ Card hover wiggle — could · needs: ~F08 · sprint 4 (after F08)

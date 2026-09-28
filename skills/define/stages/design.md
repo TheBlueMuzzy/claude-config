@@ -9,7 +9,7 @@ This phase UPDATES the GDD with core gameplay, systems, and art direction.
 1. **Read GDD**: Load `.planning/GDD.md` — review sections 1-3 from Discover/Define
 2. **Ideation**: Generate 3-5 different approaches to the core loop
 3. **Mechanics Design**: For each approach, define the concrete mechanics
-4. **MDA Validation**: Trace each mechanic → dynamic → aesthetic (check against section 3 targets)
+4. **Trace it**: for each core mechanic, **mda-analyze** trace → a `why:` line (mechanic → what players end up doing → target), marked as a prediction; check the known traps (snowballing leader, one best strategy, waiting, too random). A target nothing serves → tell Muzzy.
 5. **Choose Approach**: Pick the best one with user input
 6. **Art Direction**: Style references, color palette, character proportions, audio direction
 7. **System Design**: Data models, state management, key algorithms
@@ -34,7 +34,7 @@ What happens in 5 minutes of play:
 ...
 
 ### Mechanics
-| Mechanic | Input | Behavior | Feedback | Target Aesthetic |
+| Mechanic | Input | Behavior | Feedback | What players end up doing → Target |
 |----------|-------|----------|----------|-----------------|
 [one row per mechanic]
 
@@ -91,7 +91,7 @@ E.g., cards.json — all card definitions; characters.json — faction abilities
 
 ### Save exploration detail to `.planning/research/explorations.md`
 
-Put the approach comparison, rejected ideas, MDA tracing work, and
+Put the approach comparison, rejected ideas, MDA traces, and
 art reference links here. The GDD gets the chosen approach; this file
 keeps the alternatives for future reference.
 
@@ -100,7 +100,7 @@ keeps the alternatives for future reference.
 Before moving to the build plan:
 - [ ] GDD sections 1-6 filled and coherent
 - [ ] Approach chosen and justified
-- [ ] Mechanics specified with MDA tracing
+- [ ] Core mechanics traced to experience targets (predictions noted)
 - [ ] Art and audio direction defined
 - [ ] Systems identified
 - [ ] User has approved the direction
