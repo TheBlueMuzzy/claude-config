@@ -16,11 +16,13 @@ Ask only if it's unclear:
 
 ## 2. Make sure it's ready
 - Do `/save`'s STATE + Log step first (always — even with nothing uncommitted), so the log records what's being delivered.
-- Tests + build must pass, plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean). Any open **P0** in BUGS.md blocks the release. Open P1s → list them and ask. Offer a bug sweep if there are several.
+- Tests + build must pass (**verification-before-completion**: run them fresh, quote the result), plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean). Any open **P0** in BUGS.md blocks the release. Open P1s → list them and ask. Offer a bug sweep if there are several.
 - Release stage → tick what's true in TDD §7 Compliance; anything required by the target platform that's still unticked (e.g. privacy policy for app stores) → list it and ask.
 - Features in this delivery not yet approved by Muzzy? Ask once: "F08 hasn't had your OK yet — release anyway?"
 - Release stage checks, scaled to the stage: **alpha** → a quick look (loads fast, no console errors, works on a phone). **beta / 1.0** → the full **optimize** and **accessibility-check** skills plus a phone test via `/play`. Fix quick wins; list the rest as 🐞/✨ features.
+- **Credits check** (`content/credits.json`, lights from `~/.claude/references/indie-toolkit.md`): every 🟡 asset's credit line shows in the game's Credits screen, no 🔴 asset ships, and no asset file is missing from the list. Anything wrong blocks the release until it's fixed or Muzzy decides.
 - A SPRINT.md whose features are all done → archive it (`Sprint NN done`).
+- **Review before merging:** run the built-in `/code-review` and `/security-review` on the work branch's changes. Fix real bugs and security issues now. List the rest in plain English and ask.
 
 ## 3. First release to a platform? Set it up now
 If §6 will need one-time setup (base path, deploy workflow…), do and commit it here on the work branch — so the version tag in §5 contains it. Follow/write the recipe as in §6.
@@ -32,6 +34,7 @@ If §6 will need one-time setup (base path, deploy workflow…), do and commit i
 
 ## 5. Version + notes (per `~/.claude/references/versioning.md`) — one commit
 - Bump Z / Y / X per §1 (build resets to 0). `history` entry in version.json; sync `package.json` version if it has one.
+- **Patch notes:** read the commits since the last version tag (`git log <last-tag>..HEAD --oneline`) and write 3–8 player-facing bullets: what players will notice, no code talk. A one-line version goes in the `history` summary. The bullets become §8's "New:" lines, ready to paste into an itch devlog.
 - ROADMAP: milestone ✅ with date if finished; release line updated ("alpha — released 2026-11-02"). After a release stage, set `Release target:` to the next stage — if it has no musts yet: "beta — musts not set (/define)".
 - STATE: version, Live line (with release stage), Stage = deliver, RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)".
 - Commit `Release vX.Y.Z: <summary>`, tag `vX.Y.Z`, push with tags (if there's a remote).

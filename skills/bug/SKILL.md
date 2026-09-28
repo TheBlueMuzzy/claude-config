@@ -34,7 +34,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` (BUGS.md format + P-levels). Creat
 1. **Reproduce first.** Write a test that fails *because of* this bug: rules/logic → unit test; flow/UI → Playwright script; timing/physics that can't be tested → a scripted reproduction + Dev Kit Snapshot. Keep them in `tests/` (or `e2e/` for browser flows), not scratch folders. If the logic is buried in a big file with no way to test it, it's OK to pull that piece out into a small pure function first (no behaviour change) — the minimal change that makes it testable. Can't reproduce it? Say so — don't guess-fix.
 2. **Root cause** with the **systematic-debugging** method. Check `.planning/archive/` and BUGS.md "fixed" — has this come back?
 3. **Fix** the cause, not the symptom.
-4. **Verify:** the new test passes · the whole test suite passes · the full build passes (`npm run build`, including type checks) · for P0/P1, ask Muzzy to confirm on his device. Something already broken before your change? Log it as its own bug; fix it now only if it's tiny.
+4. **Verify** (per **verification-before-completion** — run it, read the output, then claim it): the new test passes · the whole test suite passes · the full build passes (`npm run build`, including type checks) · for P0/P1, ask Muzzy to confirm on his device. Something already broken before your change? Log it as its own bug; fix it now only if it's tiny.
 5. **Record:** status `fixed` with the commit and the guarding test (`Guarded by: tests/dice-pulse.test.ts`). Muzzy's confirmation → `verified`. Add any "must not" rule to STATE Key facts → Don't re-break.
 Commit `Fix B014: <title>`.
 

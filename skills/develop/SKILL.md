@@ -25,14 +25,17 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - **Small tasks:** do them yourself. **Big ones** (lots of reading, or a fresh head helps): hand to a `general-purpose` subagent with the task, the feature's "Done when", relevant Key facts, and "report what changed and anything surprising." Tasks from different features that don't touch the same files can run in parallel.
 - **Design is open** (feel, look, feature behaviour)? That's the diverge part — try 2–3 quick variants when cheap (behind a toggle or tuning value) and let Muzzy pick. Don't guess on taste.
 - **"Feels off" / a `(tuning)` task** → think it through with **mda-analyze** diagnose before touching numbers: name the feeling → look at what players actually do (Dev Kit Snapshots/Time, bot runs, proto) → sort the cause (feel · readability · dynamic · the rule can't do it → /gdd) → offer 2–3 real knobs in `content/tuning/` with a prediction each, one at a time. Log `Tuning: knob old→new — why — result` in SPRINT Notes.
+- Cause is **feel** (it works but feels flat, weak, floaty, no impact) → reach for **game-feel**: juice tiers in `content/feel.json`, still one knob at a time.
 - Reach for specialists when a task calls for it: **proto** (rules/odds), **tuning-setup** (live sliders for tuning tasks), **save-system**, **audio-setup**, **multiplayer-setup**, **r3f-best-practices**… R3F rule: never React state for per-frame updates — mutate refs in useFrame.
+- Need placeholder art or audio? Follow the **placeholder ladder** in `~/.claude/references/indie-toolkit.md` (shapes → emoji/icons → Kenney/Quaternius kit → real art; ZzFX for sound), and log every asset we didn't make in `content/credits.json`.
+- A project needs Claude to work inside another program (Unity Editor, Blender, Supabase, a live Cloudflare deploy…)? Check `~/.claude/references/mcp-card.md` — prefer a CLI; offer the MCP in one line when its trigger hits, set up so it syncs (plugin or the repo's `.mcp.json`).
 - Features with rules or logic get **tests** as part of being done (rules/logic → unit tests; key flows → a Playwright smoke check). Feel isn't tested — Muzzy judges it.
 - Tweakable values go into `content/` JSON (never hardcoded) so Muzzy can change them in the Dev Kit or Obsidian. A new data file or Dev Kit tool → update TDD §1/§3. A real "how should we build this" choice → TDD Decisions log.
 - After each task: tick it in SPRINT.md, add surprises to Notes, commit `F08: <task>`. That's all — no STATE edits per task, no version.json (/save does that).
 - A feature's build tasks are done and it works → if it has `(tuning)` tasks left, set it 🎛️ tuning in ROADMAP (features that `~need` it can start now); else go to §4.
 - **Stuck** 3 times on one approach → stop, say so plainly, suggest another path (**systematic-debugging** method for real bugs). Found a bug too big to fix now → add it as a 🐞 feature in ROADMAP.
 
-## 3. Prove it works (never "should work")
+## 3. Prove it works (never "should work") — follow **verification-before-completion**: evidence before any "done"
 - Tests if the project has them; `npm run build` must pass.
 - Visual change → start the dev server the way `/play` does (`--host`, the port from Key facts — write it there the first time), open it in Playwright, screenshot, look at it yourself, fix, re-shoot. Fixes are commits too (`F08: fix …`).
 - Logic → play it via Playwright or a quick script; console must be clean (a missing-favicon 404 doesn't count).

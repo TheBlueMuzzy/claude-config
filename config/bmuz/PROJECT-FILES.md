@@ -3,7 +3,7 @@
 ## Layout
 ```
 version.json        X.Y.Z + build (~/.claude/references/versioning.md)
-content/            data the game reads; Muzzy edits it in Obsidian or the Dev Kit (tuning/, anim/, text/, data/)
+content/            data the game reads; Muzzy edits it in Obsidian or the Dev Kit (tuning/, anim/, text/, data/, credits.json)
 .planning/
   GDD.md            the design: what it is, how it plays, how it should feel, scope   (/discover /define · /gdd)
   TDD.md            the engineering plan: how it's built, standards, decisions, compliance   (/define · /tdd)
@@ -83,6 +83,18 @@ Steps: 1… 2… · Expected: … · Actual: … · How often: …
 ```
 P0 crash/can't continue/live broken (fix now, blocks /deliver) · P1 feature broken · P2 minor · P3 cosmetic.
 Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for P0/P1) · watching · can't reproduce · won't fix. Old fixed entries → `archive/bugs.md` after each release.
+
+## content/credits.json  (every asset we didn't make ourselves)
+```json
+[
+  { "paths": ["public/icons/sword.svg", "public/icons/potion.svg"], "source": "game-icons.net",
+    "author": "Lorc", "licence": "CC-BY 3.0", "light": "🟡", "url": "https://game-icons.net",
+    "credit": "Icons made by Lorc. Available on https://game-icons.net" },
+  { "paths": ["public/models/kenney-dice/"], "source": "Kenney", "author": "Kenney",
+    "licence": "CC0", "light": "🟢", "url": "https://kenney.nl/assets/...", "credit": "" }
+]
+```
+Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships (/deliver checks). organize-assets keeps it up to date.
 
 ## STATE.md  (under ~120 lines)
 ```markdown

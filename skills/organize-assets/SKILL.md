@@ -17,6 +17,7 @@ Takes your game's art, audio, and other assets and:
 - Finds missing assets (referenced in code but don't exist)
 - Generates a visual catalog so you can see everything at a glance
 - Suggests sprite sheet packing opportunities
+- Records where each asset came from and its licence in `content/credits.json`
 
 ## Process
 
@@ -65,6 +66,20 @@ Check code for asset paths that don't resolve:
 MISSING ASSETS (referenced in code but file not found):
   src/Player.tsx:15 → assets/sprites/player-jump.png [FILE NOT FOUND]
   src/Audio.ts:8 → assets/audio/victory.mp3 [FILE NOT FOUND]
+```
+
+### Step 4b: Credits & Licences
+Every asset we didn't make ourselves (and every new one being added) needs an entry in `content/credits.json`
+(format in `~/.claude/config/bmuz/PROJECT-FILES.md`). Look up its source in `~/.claude/references/indie-toolkit.md`
+and give it that card's traffic light:
+- 🟢 free, no credit → log it (credit line empty). For Kenney, confirm CC0 in the pack's LICENSE file.
+- 🟡 credit required → log it with the exact credit line from the card; make sure the in-game Credits screen shows it.
+- 🔴 avoid (NC, share-alike, GPL media, unknown) → flag it to Muzzy and suggest a 🟢 swap.
+- Unknown source → ask Muzzy; if nobody knows, treat it as 🔴.
+```
+CREDITS: 14 assets logged (🟢 11 · 🟡 2 · 🔴 1)
+  🔴 assets/audio/boss-theme.mp3 — CC-BY-NC (non-commercial) → swap for a Pixabay track?
+  🟡 2 need an in-game credit — Credits screen shows 1 of 2
 ```
 
 ### Step 5: Suggest Compression
@@ -128,6 +143,7 @@ Renamed: X files (all code references updated)
 Compressed: saved XMB
 Unused: X files flagged (XKB reclaimable)
 Missing: X broken references found
+Credits: X logged in content/credits.json (🟢 X · 🟡 X · 🔴 X)
 
 Catalog: docs/asset-catalog.md
 

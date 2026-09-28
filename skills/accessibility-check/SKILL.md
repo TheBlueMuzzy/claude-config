@@ -99,6 +99,12 @@ Check for:
 - Custom UI components not using proper ARIA roles
 - Canvas/WebGL content with no text alternative
 
+## NOT ASSESSED — NO DATA
+If a check couldn't actually be run or measured (colour contrast inside a WebGL canvas with no
+screenshot, a screen reader never tested, touch targets never measured on a phone, the game
+didn't start), list it under **NOT ASSESSED — NO DATA** with the reason. Never count it as a
+pass, and leave it out of the score. The score says how many checks it covers, e.g. `7/10 (4 not assessed)`.
+
 ## Report Format
 ```
 ACCESSIBILITY REPORT
@@ -116,7 +122,10 @@ NICE TO HAVE (improves experience for everyone):
   3. [Issue]
      Fix: [specific fix]
 
-SCORE: X/10
+NOT ASSESSED — NO DATA:
+  4. [Check] — [why it couldn't run] — [how to run it next time]
+
+SCORE: X/10 (based on N checks; M not assessed)
 
 QUICK WINS (fix in under 5 minutes each):
   - [Quick fix 1]

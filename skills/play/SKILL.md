@@ -29,5 +29,6 @@ If yes → use the **live-playtest** method: open the page in Playwright without
 When Muzzy's done (or before switching machines): stop the background task, then make sure the port is really free — on Windows node can linger: `netstat -ano | findstr :<port>` → `taskkill /PID <pid> /F`.
 
 ## 5. What he sees → what we do
-- A bug → fix it now if small, or add it as a 🐞 feature via `/roadmap`.
-- A feel/look tweak ("shrink it to 93%") → just do it, then say "refresh".
+- A bug → `/bug` (it triages: fix now if small/blocking, else log it).
+- A feel/look tweak ("shrink it to 93%") → just do it, then say "refresh". "Feels flat / no punch" → **game-feel**.
+- After a real playtest (friends, or a full session) → **mda-analyze** playtest mode: what players did and said vs the GDD experience targets, update `Seen?`, one fix suggestion per ⚠️/❌. Ideas → ROADMAP Ideas.
