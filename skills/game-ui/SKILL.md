@@ -35,6 +35,10 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    (`--dry-run` first on an update: it lists changed / added / removed kit files). It copies the kit to
    `src/ui/kit/` with a VERSION stamp, creates style.json + settings.json only if missing (never
    overwrites) and adds the kit's font credits to `content/credits.json`. Follow its printed next steps.
+   **A game that already has UI** (most of them): screenshot its other screens first; wrap its
+   page-wide CSS (index.css `button {}`, `* { margin:0; padding:0 }`) in `@layer game-base { … }` or it
+   overrides every kit part; mount `<ScreenStack overlay screens={…} />` next to the game (not around
+   it) and set `--kit-overlay-z` in its CSS. Re-shoot the other screens: they must be unchanged.
 3. **Plan first:** name the catalog entries the task needs and draw a quick ASCII sketch. Only style
    names (primary, gap m, title text), never raw values.
 4. **Build from Built blocks.** A **Recipe** → build it from its listed parts in the framework kit
@@ -76,6 +80,9 @@ Settings rows come from the list — switch rows off with `"on": false`, add you
 ```tsx
 const SettingsScreen = () => <Settings schema={settings} onChange={(values) => audio.setVolume(values.musicVolume)} />
 ```
+Settings values in a game's own store (and its own save): pass `load` / `save`; rows that only make
+sense in some places (quit in-game only): `hide={inGame ? [] : ['quit']}`. A kit-only game adds
+`class="kit-page"` to `<body>` so the kit paints the page; otherwise the kit styles only its own screens.
 Change the look: edit `content/ui/style.json` → `{ "preset": "cozy", "tweaks": { "accent": "#e07a5f" } }`.
 Muzzy can also just say "rounder, more orange" — make it a tweak, not code.
 
