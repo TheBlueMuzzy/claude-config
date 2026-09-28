@@ -15,7 +15,12 @@ if [ "$SOURCE" = "startup" ] || [ -z "$SOURCE" ]; then
 fi
 
 cd "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null || exit 0
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  # Started in a folder that holds projects (e.g. dev/games) — reviews, RESUME HERE and sync only work inside one
+  REPOS=$(for d in */; do [ -d "$d.git" ] && [ -f "$d.planning/STATE.md" ] && printf '%s ' "${d%/}"; done)
+  [ -n "$REPOS" ] && echo "Not inside a project — tell Muzzy in one line: start Claude in the project folder (e.g. \`cd <project>\` then \`claude\`) so RESUME HERE, sync and /security-review work. Projects here: $REPOS"
+  exit 0
+fi
 
 # Title line: game name + version, if it has version.json
 TITLE=$(basename "$PWD")

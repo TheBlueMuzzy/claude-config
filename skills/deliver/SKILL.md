@@ -22,7 +22,7 @@ Ask only if it's unclear:
 - Release stage checks, scaled to the stage: **alpha** → a quick look (loads fast, no console errors, works on a phone). **beta / 1.0** → the full **optimize**, **accessibility-check** and **web-design-guidelines** (menus/HUD) skills plus a phone test via `/play`. Fix quick wins; list the rest as 🐞/✨ features.
 - **Credits check** (`content/credits.json`, lights from `~/.claude/references/indie-toolkit.md`): every 🟡 asset's credit line shows in the game's Credits screen, no 🔴 asset ships, and no asset file is missing from the list. Anything wrong blocks the release until it's fixed or Muzzy decides.
 - A SPRINT.md whose features are all done → archive it (`Sprint NN done`).
-- **Review before merging:** run the built-in `/code-review` and `/security-review` on the work branch's changes. Fix real bugs and security issues now. List the rest in plain English and ask.
+- **Review before merging:** run the built-in `/code-review` and `/security-review` on the work branch's changes. They need the session to be inside the repo — if it isn't, hand each review to a subagent working in the repo (same scope: real bugs / real exploits only). Fix real bugs and security issues now. List the rest in plain English and ask.
 
 ## 3. First release to a platform? Set it up now
 If §6 will need one-time setup (base path, deploy workflow…), do and commit it here on the work branch — so the version tag in §5 contains it. Follow/write the recipe as in §6.
@@ -43,6 +43,7 @@ If §6 will need one-time setup (base path, deploy workflow…), do and commit i
 Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all projects). The project's Key facts says which platform(s) it releases to.
 - **Recipe exists** → follow it step by step. If anything was different this time, fix the recipe afterwards.
 - **No recipe yet** (first release to this platform) → ask where it should go (suggest GitHub Pages for web; it needs a GitHub remote). Set it up, release, and **write the recipe as you go**: prerequisites, one-time setup, the release steps, how to check it's live, gotchas hit. Keep it short and exact. Record the platform in Key facts. For app stores / Steam, bring in the **deployer** agent and still write the recipe.
+- **Nothing to host** (a library like `dev/framework` — games copy it): skip §3, §6, §7; merge, version, tag, push, and in §8 give the repo link and what games get from it.
 - **Not yet** (Muzzy doesn't want it hosted) → record `Release: not set up (declined <date>)` in Key facts and say plainly: "Merged and versioned v0.1.1 — **not live anywhere yet**."
 - **Blocked** (platform chosen but something's missing, e.g. no GitHub repo) → do all the local setup, write the recipe as far as it goes (mark untested steps ⚠), record `Release: <platform> — blocked: <why>` in Key facts, add a `Muzzy:` line saying what unblocks it, and say plainly it's **not live**.
 - Companion servers (e.g. `npx partykit deploy`) only when their code changed — check `git diff` of the merge.

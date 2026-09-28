@@ -26,7 +26,7 @@ A feature that became ready mid-sprint and fits the goal? Offer to pull it in.
 4. Break each into 3–8 tasks — **look at the actual code first** (Explore agent for anything beyond a few files) so tasks name real files. No code yet → first task scaffolds the project using the GDD's Technical Architecture. Owners: 🤖 / 🙋. Include stand-in art as tasks. Put tuning tasks last and mark them `(tuning)`.
 5. If a feature changes something the GDD describes, add a task "update GDD §X". Open P0/P1 bugs always go in as tasks; P2/P3 only if they're in files this sprint touches. Work already finished (e.g. by a /bug fix) goes in as a ticked task with its commit.
 6. Unknowns that could sink it → first task is a quick spike.
-7. Show the sprint as in A, with the goal and any `Ask Muzzy:` questions. On OK: write SPRINT.md, set those features 🔨 in ROADMAP, update STATE (Sprint, Doing, replace RESUME HERE), commit `Sprint NN: <goal>` on the current branch (numbered from 01).
+7. Show the sprint as in A, with the goal, **what Muzzy will see change — and what stays the same** (one line, so nothing surprises him), and any `Ask Muzzy:` questions. Purely technical choices are not questions: decide them and log them (TDD Decisions / Notes). On OK: write SPRINT.md, set those features 🔨 in ROADMAP, update STATE (Sprint, Doing, replace RESUME HERE), commit `Sprint NN: <goal>` on the current branch (numbered from 01).
 
 ## C. Quick question ("what's on my plate?")
 List only 🙋 tasks and open `Ask Muzzy:` questions across the sprint, ❓ decisions of his that block features, and every `Muzzy:` line in STATE's RESUME HERE.

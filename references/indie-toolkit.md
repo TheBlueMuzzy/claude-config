@@ -8,7 +8,7 @@ what to use for placeholders, feel, hosting and analytics. Source: `config/bmuz/
 ## Rules of thumb
 - **Licence traffic light:**
   - 🟢 **free, no credit.** CC0 and similar. Use freely, still log it in `content/credits.json`.
-  - 🟡 **free, credit required.** CC-BY, OFL. Use it, log it with its exact credit line, and show the credit in-game.
+  - 🟡 **free, credit required.** CC-BY: use it, log it with its exact credit line, and show the credit in-game. (OFL fonts are 🟡 too, but only need the licence kept — a credits line is good practice, not required.)
   - 🔴 **avoid.** Non-commercial (NC), share-alike (SA), GPL media, unclear licences. Ask Muzzy before using one, and never ship it.
 - Prefer 🟢 sources. The licence is per item on mixed sites, so check each download.
 - Every imported asset gets an entry in `content/credits.json` (format in `config/bmuz/PROJECT-FILES.md`).

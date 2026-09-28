@@ -41,6 +41,8 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - Visual change → start the dev server the way `/play` does (`--host`, the port from Key facts — write it there the first time), open it in Playwright, screenshot, look at it yourself, fix, re-shoot. Fixes are commits too (`F08: fix …`).
 - Logic → play it via Playwright or a quick script; console must be clean (a missing-favicon 404 doesn't count).
 - Check the feature's `Check:` line.
+- **Review the feature before showing it:** run `/code-review` (low) on the feature's changes and fix real bugs now — cheaper than finding them at /deliver. (Not in the project's repo folder? Hand the review to a subagent working in the repo.)
+- Screenshots: also look for things **clipped inside boxes** (scroll areas, panels) — sideways-overflow checks don't catch those.
 
 ## 4. Hand to Muzzy (after each feature, or when he needs to look)
 - Describe what changed from the player's side (3–6 bullets) and what the screenshots showed (he can't see Playwright's images — describe them). Say exactly what to try.
