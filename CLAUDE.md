@@ -66,7 +66,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - Delegate exploration/research to subagents (keep main context clean)
 - One work branch per delivery (`/develop` makes it: `dev/<milestone>`), merged only by `/deliver`. Tiny fixes can go straight on main.
 - Save early, save often — context can compact at any time
-- **Progress updates** on multi-step work: show a bar + steps + rough time left, e.g. `████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper)`. Percent = steps done / total; time is an honest guess — say when it's waiting on something
+- **Progress updates** on multi-step work: show a bar + steps + rough time left, e.g. `████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper)`. Percent = steps done / total; time is an honest guess — say when it's waiting on something. **Re-post the bar each time a step completes** (incl. background helpers — watch their commits with Monitor), not just at start and end
 
 ## Code Quality
 - **Verify your work** — run tests, check output, confirm behavior. Never assume code works without checking. Visual work → Playwright screenshot and look at it yourself.
