@@ -21,6 +21,7 @@ Run `bash ~/.claude/config/bmuz/checkup.sh` (read-only; takes about a minute).
   - Doing the same job as another skill → propose merging them.
 - **Wiring (✗):** every specialist needs at least one BMUZ step that calls it by name. Propose where to wire it in, or propose retiring it.
 - **Plugins / MCPs:** anything broken, needing login, or disabled for 3+ months → fix or retire it. Check `~/.claude/references/mcp-card.md` for anything a current project now needs.
+- **UI kit:** games with `src/ui/kit/VERSION` older than `~/Documents/dev/framework/ui-kit/kit/VERSION` → offer an update (`install-kit.mjs`, shows what changes). Recipes built in a game but not yet in the framework → harvest them.
 - **Sync:** a difference between `~/.claude` and `~/.claude-config` means something wasn't pushed. A folder that exists only in the repo is a leftover, so propose adding it to `RETIRED.txt`.
 - **Scan for news (quick):** in the Anthropic plugin marketplace and in the repos in `sources.json`, look for new skills in the areas BMUZ-PLAN cares about. Mention at most 3.
 

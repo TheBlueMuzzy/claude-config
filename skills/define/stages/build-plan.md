@@ -3,7 +3,7 @@
 Goal: an engineering plan and a feature map with dependencies, so /develop builds the right things in the right order.
 
 ## Do
-1. **TDD** — write `.planning/TDD.md` from `~/.claude/config/bmuz/templates/TDD.md`: stack and why, how the systems fit (Mermaid diagram), golden rules, the `content/` data files Muzzy will edit, standards, budgets, security, compliance checklist, third-party licenses, risks. Aim for ~120 lines; plain English. Pick **Dev Kit** tools from `~/.claude/config/bmuz/DEVKIT.md` — Tier 1 becomes a 🔧 foundation feature in the first milestone.
+1. **TDD** — write `.planning/TDD.md` from `~/.claude/config/bmuz/templates/TDD.md`: stack and why, how the systems fit (Mermaid diagram), golden rules, the `content/` data files Muzzy will edit, standards, budgets, security, compliance checklist, third-party licenses, risks. Aim for ~120 lines; plain English. Pick **Dev Kit** tools from `~/.claude/config/bmuz/DEVKIT.md` — Tier 1 becomes a 🔧 foundation feature in the first milestone. **UI:** if the game has menus/HUD (web), note "UI: game-ui kit" in the TDD and let **game-ui** get the style picked (5-style sheet, one question) — it goes in the TDD Decisions log and `content/ui/style.json`.
 2. **Milestones** — vertical slices (each one playable), tagged with the release stage they move toward. First milestone = smallest playable loop.
 3. **Feature map** → `.planning/ROADMAP.md` (format in PROJECT-FILES.md):
    - every Must/Should/Could from GDD §7 becomes a feature; split anything that's really a building block + what's built on it;

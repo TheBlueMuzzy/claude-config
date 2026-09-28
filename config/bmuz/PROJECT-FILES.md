@@ -3,7 +3,7 @@
 ## Layout
 ```
 version.json        X.Y.Z + build (~/.claude/references/versioning.md)
-content/            data the game reads; Muzzy edits it in Obsidian or the Dev Kit (tuning/, anim/, text/, data/, credits.json)
+content/            data the game reads; Muzzy edits it in Obsidian or the Dev Kit (tuning/, anim/, text/, data/, ui/ = style.json + settings.json from game-ui, credits.json)
 .planning/
   GDD.md            the design: what it is, how it plays, how it should feel, scope   (/discover /define · /gdd)
   TDD.md            the engineering plan: how it's built, standards, decisions, compliance   (/define · /tdd)
