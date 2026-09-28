@@ -124,6 +124,7 @@ Never sync `~/.config/gws/` — credentials are machine-specific.
 
 ## References
 - **BMUZ project rules**: `~/.claude/config/bmuz/PROJECT-FILES.md`
+- **Improving BMUZ itself** (vision, Game Framework, next steps): `~/.claude/config/bmuz/BMUZ-PLAN.md` — read it first
 - **Phone testing**: `~/.claude/references/phone-testing.md`
 - **Config sync**: `~/.claude/references/config-sync.md`
 
