@@ -7,6 +7,10 @@ His games so far are deliberately varied to prove out which modules are needed. 
 
 ## Order of work
 1. **Next: skill library review** — survey external Claude skill libraries/marketplaces and compare against this vision. What's already solved, what's a better version of something BMUZ has, what idea can be adapted? Areas: look-dev / art pipeline, animation, UI/UX, game feel, audio, standards, GDD/doc making, testing, release/store assets, anything else. Then clean up the BMUZ-connected skills.
+   **Muzzy's priorities for the review (2026-09-28):**
+   - **Look & feel is the biggest time sink.** Prototype-quality UI/UX must come out good-looking and *standardized* — menus, panels, HUDs that adapt on their own (add a row → the layout still works) instead of back-and-forth tweaking. Real art replaces it later. Look for: UI/UX standards, game-menu patterns, design-system/UI-kit approaches (a Figma-style library of app elements would cover ~95% of prototyping), layout systems, Figma-to-code routes.
+   - **Art/audio generation:** fine for prototypes, not final; he doesn't want to pay — basic shapes are usually enough. Prefer free libraries/standards over paid generators.
+   - **Platforms:** web, Unity, maybe itch.io. Free services as needed (Netlify, Firebase, Cloudflare, Supabase…). **Claude must cover what he doesn't know he needs** — the standard indie toolkit: free/CC0 asset sources (sprites, fonts, icons, SFX/music), shader libraries, hosting, backend, analytics-free options, etc.
 2. **Then: the Game Framework**
    - Inventory all projects for candidate modules (read-only).
    - Muzzy picks the first 3–5 to harvest (Roll Better's online rooms, drag-to-zone, physics dice are strong candidates).
