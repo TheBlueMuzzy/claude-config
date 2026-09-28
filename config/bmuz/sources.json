@@ -1,0 +1,21 @@
+{
+  "_about": "Where BMUZ's borrowed pieces came from, so the checkup can see when upstream changed. how: copied = replace with the new version (after a look); adapted = our own skill, only read the upstream diff for ideas. checked = date we last matched upstream.",
+  "skills": [
+    { "skill": "vite", "repo": "antfu/skills", "path": "skills/vite", "how": "copied", "checked": "2026-09-28" },
+    { "skill": "vitest", "repo": "antfu/skills", "path": "skills/vitest", "how": "copied", "checked": "2026-09-28" },
+    { "skill": "verification-before-completion", "repo": "obra/superpowers", "path": "skills/verification-before-completion", "how": "copied", "checked": "2026-09-28" },
+    { "skill": "systematic-debugging", "repo": "obra/superpowers", "path": "skills/systematic-debugging", "how": "copied", "checked": "2026-09-28", "note": "local edits: links point to vitest/bug/verification-before-completion; re-apply after updating" },
+    { "skill": "game-feel", "repo": "gamedev-skills/awesome-gamedev-agent-skills", "path": "skills/disciplines/game-feel", "how": "adapted", "checked": "2026-09-28" },
+    { "skill": "game-feel", "repo": "gamedev-skills/awesome-gamedev-agent-skills", "path": "skills/disciplines/physics-tuning", "how": "adapted", "checked": "2026-09-28" },
+    { "skill": "audio-setup", "repo": "gamedev-skills/awesome-gamedev-agent-skills", "path": "skills/disciplines/audio-design", "how": "adapted", "checked": "2026-09-28" },
+    { "skill": "optimize", "repo": "gamedev-skills/awesome-gamedev-agent-skills", "path": "skills/disciplines/performance-optimization", "how": "adapted", "checked": "2026-09-28" },
+    { "skill": "web-design-guidelines", "repo": "vercel-labs/agent-skills", "path": "skills/web-design-guidelines", "how": "copied", "checked": "unknown" },
+    { "skill": "r3f-best-practices", "repo": "", "path": "", "how": "copied", "checked": "unknown", "note": "author 'three-agent-skills', upstream repo not found yet — find it or treat as frozen" },
+    { "skill": "three-best-practices", "repo": "", "path": "", "how": "copied", "checked": "unknown", "note": "same as r3f-best-practices" }
+  ],
+  "cards": [
+    { "file": "references/indie-toolkit.md", "checked": "2026-09-28", "recheck_months": 6, "what": "free-tier limits, licences, package names" },
+    { "file": "references/mcp-card.md", "checked": "2026-09-28", "recheck_months": 6, "what": "which MCPs/CLIs, their triggers and risks" },
+    { "file": "config/bmuz/release/itch.md", "checked": "2026-09-28", "recheck_months": 6, "what": "butler + itch page facts" }
+  ]
+}

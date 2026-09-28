@@ -21,7 +21,6 @@ Rule: **skill = know-how, MCP = hands into another program.** If a good CLI exis
 | Project uses Firebase | Firebase plugin | |
 | Debugging a live PartyKit/Cloudflare deploy | Cloudflare docs/logs MCP | |
 | Live game with crash reporting | Sentry MCP | free-plan access unverified |
-| Custom 3D props + Blender installed | Blender MCP | runs arbitrary Python — telemetry off, save first |
 | Pixel-art game + Aseprite owned | Aseprite MCP | Aseprite ≈ $20 |
 | Wants generated placeholder art + runs ComfyUI | official local Comfy MCP | prototypes only |
 

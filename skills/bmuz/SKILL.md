@@ -38,6 +38,7 @@ List the specialist skills — Claude uses these on its own inside the commands;
 - **Building (in /develop):** tuning-setup, game-feel, save-system, audio-setup, multiplayer-setup, externalize-text, localize, systematic-debugging (behind /bug)
 - **Releasing (in /deliver):** optimize, accessibility-check, organize-assets
 - **Playtesting (in /play):** live-playtest
+- **Upkeep (monthly — the session start says when it's due):** checkup, verification-before-completion (behind /develop, /bug, /deliver)
 - **Reference packs (automatic):** r3f / three / vite / vitest / web-design
 Any skill found that isn't listed → **Other**, so nothing is hidden.
 

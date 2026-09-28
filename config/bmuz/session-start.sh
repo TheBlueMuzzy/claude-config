@@ -6,6 +6,14 @@
 INPUT=$(cat 2>/dev/null)
 SOURCE=$(echo "$INPUT" | grep -o '"source" *: *"[a-z]*"' | grep -o '[a-z]*"$' | tr -d '"')
 
+# Monthly BMUZ checkup reminder (startup only; any folder)
+LAST=$(cat "$HOME/.claude/config/bmuz/last-checkup" 2>/dev/null)
+if [ "$SOURCE" = "startup" ] || [ -z "$SOURCE" ]; then
+  if [ -z "$LAST" ] || [ $(( ( $(date +%s) - $(date -d "$LAST" +%s 2>/dev/null || echo 0) ) / 86400 )) -ge 30 ]; then
+    echo "🩺 BMUZ checkup due (last: ${LAST:-never}) — offer Muzzy /checkup in one line."
+  fi
+fi
+
 cd "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null || exit 0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
