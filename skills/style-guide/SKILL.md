@@ -1,7 +1,6 @@
 ---
 name: style-guide
 description: Generate an art style guide for a game project. Covers visual identity, color palette, character design rules, animation standards, and UI style. Use when establishing art direction for a new game.
-disable-model-invocation: true
 ---
 
 # Art Style Guide Generator

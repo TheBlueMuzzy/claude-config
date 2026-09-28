@@ -10,7 +10,7 @@
 ## My Tech Stack
 - **Web Games**: React + TypeScript + Vite + Three.js (R3F)
 - **3D Games**: Unity C#
-- **Design**: Double Diamond methodology, MDA framework, PRD-driven development
+- **Design**: Double Diamond methodology, MDA framework, GDD-driven development
 
 ## Projects Directory
 All projects live under `C:/Users/Muzzy/Documents/dev/` — index + rules in `dev/HUB.md`:
@@ -23,45 +23,50 @@ All projects live under `C:/Users/Muzzy/Documents/dev/` — index + rules in `de
 
 When Muzzy says "cd <project-name>" (e.g. "cd roll better", "cd glyphtender"), resolve the project name to its full path under `C:/Users/Muzzy/Documents/dev/` and `cd` there. Use fuzzy matching — "roll better" → `games/roll-better`, "eps" → `games/escape-pod-scramble`, etc.
 
+## BMUZ — how we make games
+Double Diamond stages + views + tools. Muzzy may type them or say them in plain English — treat both the same.
+
+| | Command | Means |
+|---|---|---|
+| Stage 1 | `/discover` | explore the idea wide open → research, references, GDD start |
+| Stage 2 | `/define` | lock it in → GDD (design + scope per release), TDD (engineering plan), feature map with dependencies |
+| Stage 3 | `/develop` | "go" → build the sprint on the work branch, tests, tuning, prove it works, wait for "approved" |
+| Stage 4 | `/deliver` | smoke test, merge, version, release per platform recipe, live link |
+| View | `/roadmap` | milestones, features, what needs what, % of musts, open bugs |
+| View | `/sprint` | current sprint tasks (🤖 Claude / 🙋 Muzzy), or plan the next one |
+| View | `/gdd` | the game design as a digest; `/gdd what if…` to change it |
+| View | `/tdd` | the engineering plan as a digest; `/tdd what if…` to weigh Muzzy's approach |
+| Tool | `/play` | run it, desktop + phone links, watch the console |
+| Tool | `/save` | update STATE.md, commit, push → safe to clear or switch machines |
+| Tool | `/bug` | report (P0–P3), list, or bug sweep |
+
+`/bmuz` shows the menu. Rules + planning model: `~/.claude/config/bmuz/PROJECT-FILES.md`. Dev Kit catalog: `DEVKIT.md`. Obsidian: `OBSIDIAN.md` (vault = `Documents/dev`).
+- **Be the hands-off partner:** route plain English to the right command yourself, end every hand-off with the next command, and just run it when the next step is obvious. Muzzy shouldn't have to remember anything but `/bmuz`.
+- Time in /discover and /define is well spent: a strong GDD + TDD + feature map mean fewer loops in /develop. Nudge toward them when a new feature is fuzzy.
+- Respect dependencies: never build a feature before the things it `needs:`.
+- **Keep Muzzy focused** (he asked for this): one feature at a time; mid-feature bugs get logged, not chased, unless P0 / blocking / two-minute fix; noodling gets gently called out. He can always overrule.
+- Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them.
+- Muzzy's engineering ideas are often simpler and better — weigh them honestly and credit them in the TDD Decisions log.
+- Muzzy edits docs in Obsidian too: read his changes, don't overwrite them, and commit them with /save.
+- Specialist skills (proto, lens, mda-analyze, save-system, audio-setup, etc.) are yours to reach for — when one fits, use it and say so in one line. Muzzy won't remember their names; that's fine.
+- Ideas that aren't for right now → append to `.planning/VISION.md` with the date, say "Noted in VISION.md."
+- Small tweaks and fixes don't need a task — just do them, committed on whatever branch you're on (main is fine for tiny fixes). Sprints are for features that take real work.
+- Old GSD projects (`.planning/PROJECT.md`, `phases/`) get converted the first time we work in them — see PROJECT-FILES.md.
+- Undo: something you just did this session → rewind (Esc Esc) or `/undo` for anything committed/older. When Muzzy says "undo that", pick the right one.
+
 ## Laptop ↔ Desktop Sync (MANDATORY)
-Muzzy works on both a desktop and a laptop. GitHub keeps them in parity — so Claude owns the habit:
-- **Session start** (in a project): `git pull` before doing anything. If it can't pull cleanly, explain in plain English and stop.
-- **Session end** (Muzzy says he's stopping, done, switching machines, or `/gsd:pause-work`): commit everything and `git push`. Confirm "pushed — safe to switch machines."
-- If a new project is missing on this machine, clone it into the matching `dev/` folder.
-
-## New Project Auto-Setup
-When working in a project directory that does NOT have `.claude/settings.json`:
-1. **Ask Muzzy**: "This project doesn't have the lossless pipeline set up yet. Want me to scaffold it?"
-2. If yes, run `/new-game` to set everything up
-
-## Skill Awareness
-Claude has 30+ custom skills. When Muzzy talks about something a skill handles — especially if he seems to be doing it manually — briefly mention it:
-> "By the way, `/skill-name` can handle that — want me to run it?"
-One line, no lectures. Don't suggest during active plan execution.
-**Double Diamond flow:** `/game-discover` → `/game-define` → `/game-design` → `/game-deliver` → `/gsd:create-roadmap`
-
-### Analysis Skills (suggest-mode triggers)
-These skills are **suggested, not auto-run**. Mention them at the right moment:
-- **`/triage`** — Suggest before any unplanned task that would touch 3+ files. "This might be worth a `/triage` first."
-- **`/prioritize`** — Suggest when Muzzy is choosing between features, scoping a milestone, or running `/gsd:new-milestone` or `/gsd:create-roadmap`.
-- **`/concept-eval`** — Suggest when exploring a new game concept or major feature direction. Natural fit during `/game-discover` or `/game-define`.
-- **`/retro`** — Suggest after `/gsd:complete-milestone`, before moving on. "Want to run `/retro` to harvest lessons first?"
-
-### Workflow Skills (suggest-mode triggers)
-High-signal moments only — crisp, unambiguous triggers:
-- **`/systematic-debugging`** — Suggest when any error, bug, or unexpected behavior appears. "Let's `/systematic-debugging` this before guessing."
-- **`/undo`** — Suggest when something breaks or Muzzy expresses regret about a change. "Want to `/undo` to a known-good state?"
-- **`/gsd:verify-work`** — Suggest after completing a phase, before moving to next. "Ready to `/gsd:verify-work` before moving on?"
-- **`/gsd:pause-work`** — Suggest when Muzzy signals he's stopping for the day. "Want me to `/gsd:pause-work` so we pick up cleanly?"
+- **Session start:** a hook runs `git pull` and shows ▶ RESUME HERE. If it says SYNC FAILED, explain in plain English and stop until it's sorted.
+- **Session end** (Muzzy says he's stopping, done, switching machines, going to bed): do `/save`. Confirm "pushed — safe to switch machines."
+- If a project is missing on this machine, clone it into the matching `dev/` folder.
+- Auto-memory is NOT synced between machines — anything a project needs goes in its STATE.md, not memory.
 
 ## Working Style
-- Use GSD plugin for project management when available
 - Delegate exploration/research to subagents (keep main context clean)
+- One work branch per delivery (`/develop` makes it: `dev/<milestone>`), merged only by `/deliver`. Tiny fixes can go straight on main.
 - Save early, save often — context can compact at any time
-- Feature branches for all work, merge only when deploying
 
 ## Code Quality
-- **Verify your work** — run tests, check output, confirm behavior. Never assume code works without checking.
+- **Verify your work** — run tests, check output, confirm behavior. Never assume code works without checking. Visual work → Playwright screenshot and look at it yourself.
 - **Fix root causes, not symptoms** — no band-aids, no workarounds that add complexity
 - **Check if logic already exists** before writing new code — avoid duplication
 - **R3F**: NEVER use React state for per-frame updates. Mutate refs in useFrame.
@@ -69,55 +74,13 @@ High-signal moments only — crisp, unambiguous triggers:
 ## Plain English Errors
 When errors occur, ALWAYS: (1) translate to plain English, (2) explain why in non-technical terms, (3) offer to fix it. Never show raw stack traces without translation.
 
-## BMUZ + GSD Integration
-- **BMUZ 4D** = "What are we building?" → outputs `.planning/PRD.md`
-- **GSD** = "How do we build it?" → reads PRD, manages execution via PROJECT.md + ROADMAP
-- PRD is the shared source of truth — don't duplicate its content in PROJECT.md
-
-## Lossless Pipeline (MANDATORY)
-
-### GSD Context Persistence
-When a GSD plan is active (`.planning/STATE.md` shows a phase in progress):
-- **Show current context** in responses: "Phase X, Plan Y, Task Z"
-- **Don't go freeform** — always know where you are in the workflow
-- After EVERY code change, update STATE.md (what changed, current status, next steps)
-- If you don't know the current GSD state, read STATE.md before responding
-
-### Vision Capture
-When the user mentions ideas **not part of the current task**:
-- Silently append to `.planning/VISION.md` with date and context
-- Mention "Noted in VISION.md" briefly — don't interrupt the flow
-
-### Auto Documentation
-After every git commit: update STATE.md with what changed, current status, decisions, next steps. This is NOT optional.
-
-## Autonomous Execution Mode
-
-When Muzzy gives a large task and says to "just go" (or equivalent), enter autonomous mode:
-
-### Ground Rules
-- **Don't ask Muzzy questions** — make reasonable decisions and document them in STATE.md
-- **Use `/lossless-pipeline`** — orchestrate via agent team, stay lean as Lead
-- **Write everything to disk** — STATE.md is the brain, not your context. Decisions, blockers solved, approach changes — all written down
-- **Commit early and often** — small atomic commits so nothing is lost to compaction
-
-### Self-Verification Loop
-- After any visual/UI work: take a Playwright screenshot and review it yourself
-- If something looks wrong: fix it before moving on — don't present broken work
-- After any game logic: run the game, check console, verify behavior
-- **No "it should work" — prove it works**
-
-### Problem Solving (no human needed)
-- Build error? Read the error, fix it, move on
-- Visual bug? Screenshot → diagnose → fix → re-screenshot to confirm
-- Logic bug? Add a test or console check, trace the issue, fix it
-- **3-Strike Rule still applies** — after 3 failed attempts, write the blocker to STATE.md and move to the next task. Come back to it later with fresh context
-- If truly stuck on something critical: flag it in STATE.md as `BLOCKED: [reason]` and keep building everything else
-
-### Progress Reporting
-- After each major milestone (phase complete, feature working), write a brief plain-English summary to STATE.md
-- Muzzy can check STATE.md at any time to see where things stand
-- No need to output status to the chat — the file system is the status board
+## Autonomous Mode
+When Muzzy says "just go" (or equivalent) on a big task:
+- Don't ask questions — make reasonable calls and write them in the sprint's Notes / STATE.md. Taste calls you can't infer → leave as `Ask Muzzy:` and keep going on other tasks.
+- Work through `/sprint` → `/develop` feature by feature; commit after every task; `/save` after every feature.
+- Prove everything works (tests, build, screenshots) before moving on.
+- Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
+- STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.
 
 ## Problem-Solving Discipline
 **3-Strike Rule:** After 3 failed attempts at the same approach, STOP.
@@ -159,10 +122,9 @@ gws schema drive.files.list
 Never sync `~/.config/gws/` — credentials are machine-specific.
 
 ## References
+- **BMUZ project rules**: `~/.claude/config/bmuz/PROJECT-FILES.md`
 - **Phone testing**: `~/.claude/references/phone-testing.md`
 - **Config sync**: `~/.claude/references/config-sync.md`
-- **Quick-start guide**: `~/.claude/QUICKSTART.md`
-- **Full pipeline reference**: `~/.claude/PIPELINE.md`
 
 ## General PC Help
 - Home base: `C:\Users\Muzzy\Desktop\PC-Help\` — read `PC-STATUS.md` first for any computer (not game) issue; BIOS list in `BIOS-SETTINGS.md`.

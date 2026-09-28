@@ -3,7 +3,7 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
+    "defaultMode": "auto",
     "deny": [
       "mcp__claude_ai_Gmail"
     ]
@@ -19,5 +19,30 @@
     "playground@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true
   },
-  "skipDangerousModePermissionPrompt": true
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "agentPushNotifEnabled": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/config/bmuz/session-start.sh\"",
+            "timeout": 45
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null && [ -f .planning/STATE.md ] && cp .planning/STATE.md .planning/STATE.md.bak; exit 0"
+          }
+        ]
+      }
+    ]
+  }
 }

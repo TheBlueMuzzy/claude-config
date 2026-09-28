@@ -1,8 +1,7 @@
 ---
 name: live-playtest
 description: Watch a live multiplayer game session by monitoring browser console logs via Playwright. Use when Muzzy is playtesting an online game and wants Claude to observe, summarize rounds, and flag issues in real-time. Works with any Vite + PartyKit (or similar WebSocket server) game.
-allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion
-allowed-mcp-tools: plugin_playwright_playwright__browser_navigate, plugin_playwright_playwright__browser_evaluate, plugin_playwright_playwright__browser_console_messages, plugin_playwright_playwright__browser_snapshot, plugin_playwright_playwright__browser_tabs
+allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion, mcp__plugin_playwright_playwright__browser_navigate, mcp__plugin_playwright_playwright__browser_evaluate, mcp__plugin_playwright_playwright__browser_console_messages, mcp__plugin_playwright_playwright__browser_snapshot, mcp__plugin_playwright_playwright__browser_tabs
 ---
 
 # Live Playtest Observer
@@ -11,7 +10,7 @@ Watch Muzzy play a multiplayer game and report what happens from the game logic 
 
 ## When to Use
 - Muzzy says "watch me play", "observe this session", "check the logs"
-- During `/gsd:verify-work` for multiplayer features
+- During `/play`, or while `/develop` checks multiplayer features
 - Any time Muzzy wants a second pair of eyes on a live game session
 
 ## Setup
@@ -78,7 +77,7 @@ This skill works for any game where:
 
 For a new game, ask Muzzy what log prefixes to watch for, or scan the console output for patterns during the first round.
 
-## Integration with GSD
-- Can be used during `/gsd:verify-work` for multiplayer phases
-- Log findings as issues if bugs are spotted
-- Note edge cases for future testing in the project MEMORY.md
+## Integration with BMUZ
+- Used by `/play` (watch mode) and `/develop` (checking multiplayer features)
+- Bugs spotted → fix now if small, or add a 🐞 feature via `/roadmap`
+- Note edge cases worth re-testing in STATE.md → Key facts (it syncs via git)

@@ -27,7 +27,7 @@ Bonus: It battle-tests AI archetypes against your systems, so when you build
 Accept game rules in any format:
 - Rulebook dump (paste, PDF, doc)
 - Verbal description ("here's how it works...")
-- Existing PRD section 4 (Core Gameplay / Rules)
+- Existing GDD section 4 (Core Gameplay / Rules)
 - Reference to a known game with modifications
 
 Read everything. Don't start coding yet.
@@ -50,9 +50,9 @@ my understanding:" — then summarize. Get their sign-off before coding.
 
 ### Step 3: Formalize — Write the Rules
 
-Write the formalized rules into the PRD:
-- If `.planning/PRD.md` exists, update section 4 (Core Gameplay → Rules subsection)
-- If no PRD exists, create one with at least sections 1 and 4
+Write the formalized rules into the GDD:
+- If `.planning/GDD.md` exists, update section 4 (Core Gameplay → Rules subsection)
+- If no GDD exists, create one with at least sections 1 and 4
 
 ### Step 4: Content — Build Game Data Files
 
@@ -201,7 +201,7 @@ Each re-run saves a new report so you can compare before/after.
 ### Step 9: Lock — Finalize and Feed Forward
 
 When the user is satisfied with balance:
-1. Update PRD section 5 (Game Systems → Balance Data) with key findings
+1. Update GDD section 5 (Game Systems → Balance Data) with key findings
 2. Mark content files as "validated via simulation"
 3. Save final simulation report to `.planning/research/simulations/final.md`
 
@@ -209,7 +209,7 @@ Tell the user:
 ```
 PROTO COMPLETE
 
-Rules formalized in PRD § Core Gameplay.
+Rules formalized in GDD § Core Gameplay.
 Content files created in content/data/.
 Balance validated across 10,000 simulated games.
 AI archetypes tested and documented.
@@ -218,8 +218,8 @@ The content/data/ files are the SAME files your real game will read from.
 No re-entry needed — what's balanced here stays balanced.
 
 What's next?
-  /game-deliver  → Finalize architecture and milestones (if in DD flow)
-  /gsd:new-project → Create a roadmap and start building
+  /define       → Fold the results into the GDD and feature map
+  /sprint       → Line up the next sprint and start building
   /ai-opponent   → Build on the archetypes we tested here
 ```
 

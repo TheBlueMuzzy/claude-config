@@ -1,0 +1,27 @@
+# BMUZ-2 retired these on 2026-09-27. setup.sh moves them to ~/.claude/archive/ (never deletes).
+# Paths are relative to ~/.claude/
+
+# GSD (npm package is dead; its job is now /roadmap + /sprint + /develop)
+commands/gsd
+get-shit-done
+
+# Folded into /discover + /define
+skills/game-discover
+skills/game-define
+skills/game-design
+skills/game-deliver
+skills/game-prd
+
+# Folded into the verbs / automatic setup
+skills/new-game
+skills/first-time-setup
+skills/git-setup
+skills/lossless-pipeline
+skills/skills-bmuz
+skills/what-changed
+
+# Broken on Windows (needs tmux)
+skills/build-with-agent-team
+
+# Replaced by QUICKSTART.md + config/bmuz/PROJECT-FILES.md
+PIPELINE.md

@@ -1,7 +1,6 @@
 ---
 name: playtest-plan
 description: Create a structured playtesting plan with objectives, observation guides, questionnaires, and synthesis templates. Use when preparing for playtesting sessions.
-disable-model-invocation: true
 ---
 
 # Playtesting Plan Generator
