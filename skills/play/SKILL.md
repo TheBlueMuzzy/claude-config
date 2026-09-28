@@ -11,13 +11,15 @@ description: Start the game so Muzzy can play it — runs the dev server, gives 
 - Otherwise start it in the background with LAN access (e.g. `npm run dev -- --host`). Also start any companion server listed in Key facts (e.g. PartyKit).
 - Wait until it answers, then check it loads without console errors (quick Playwright look).
 
-## 2. Give the links
+## 2. Give the links — always both kinds, clearly labeled
 ```
-Desktop:  http://localhost:<port>/
-Phone:    http://<PC-LAN-IP>:<port>/      (same Wi-Fi; https only if the Vite config enables it)
+▶ LIVE — share with friends (v<version>, last /deliver):  <Live URL from STATE — full clickable URL>
+  Dev version (what we're building now — just you):
+    Desktop:  http://localhost:<port>/
+    Phone:    http://<PC-LAN-IP>:<port>/      (same Wi-Fi; https only if the Vite config enables it)
 ```
+Say plainly that friends can only use the LIVE link, and that it changes only on /deliver. No live version yet → say so and offer to set one up at the next /deliver.
 Get the LAN IP from `ipconfig`. If the phone can't connect or needs motion sensors, use the Cloudflare tunnel from `~/.claude/references/phone-testing.md` and give that URL instead.
-If a deployed version exists (STATE.md → Live), mention it too.
 
 ## 3. Watch (offer, don't force)
 "Want me to watch the console while you play? Tell me when you finish a round."
