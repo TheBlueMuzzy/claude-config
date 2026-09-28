@@ -44,3 +44,8 @@ skills/style-guide
 skills/unity-ecs-patterns
 skills/vercel-react-best-practices
 agents/game-designer.md
+
+# Leftovers found by the first /checkup 2026-09-28 (old BMAD + a stray nested copy)
+skills/bmad
+config/bmad
+config/bmuz/bmuz
