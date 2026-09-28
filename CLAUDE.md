@@ -16,6 +16,7 @@
 All projects live under `C:/Users/Muzzy/Documents/dev/` — index + rules in `dev/HUB.md`:
 - **games/** — `doomdial-original`, `escape-pod-scramble`, `glyphtender`, `goops`, `roll-better`, `windchime`
 - **apps/** — `mi-slides`, `my-first-baby`
+- **framework/** — the Game Framework (reusable modules; first: game UI kit)
 - **research/** — `mahjong`
 - **collabs/** — `joust-because` (Sherman Meredith's repo)
 
