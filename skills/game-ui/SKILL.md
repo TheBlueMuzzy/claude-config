@@ -80,6 +80,9 @@ Settings rows come from the list — switch rows off with `"on": false`, add you
 ```tsx
 const SettingsScreen = () => <Settings schema={settings} onChange={(values) => audio.setVolume(values.musicVolume)} />
 ```
+Saved settings get a browser slot per game automatically (`kit-settings:<first folder of the URL>`);
+to pick one by hand, pass the same key to both: `<Settings storageKey="my-game" />` +
+`loadSettings(settings, 'my-game')`. Saved values that no longer fit their row fall back to the default.
 Settings values in a game's own store (and its own save): pass `load` / `save`; rows that only make
 sense in some places (quit in-game only): `hide={inGame ? [] : ['quit']}`. A kit-only game adds
 `class="kit-page"` to `<body>` so the kit paints the page; otherwise the kit styles only its own screens.
