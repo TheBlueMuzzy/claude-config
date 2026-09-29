@@ -12,7 +12,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session. Old G
 - Tiny request that isn't in the sprint ("shrink it to 93%") → just do it on the current branch, commit, done. Not everything needs a task.
 - Open `Ask Muzzy:` questions on the next task? Ask now (2–3 options + your pick), write answers into Notes.
 - **Branch — one work branch per delivery, not per sprint:** on the default branch (main/master) → create `dev/<milestone-slug>` and switch (if the project auto-deploys from main, say once: "The live site now only updates when you `/deliver`."). Already on a `dev/…` or other work branch → stay on it, across as many sprints as it takes until `/deliver`.
-- **UI task?** Compare the game's `src/ui/kit/VERSION` with `~/Documents/dev/framework/ui-kit/kit/VERSION`; behind → offer the update (install-kit `--dry-run` first, then run it). Same for the Dev Kit once it's a framework module.
+- **UI task?** Compare the game's `src/ui/kit/VERSION` with `~/Documents/dev/framework/ui-kit/kit/VERSION`; behind → offer the update (install-kit `--dry-run` first, then run it). Same for the Dev Kit: `src/devkit/VERSION` vs `framework/devkit/kit/VERSION` (`devkit/scripts/install-devkit.mjs`).
 - STATE (only if it changed): Stage = develop, Doing = "F08 — building".
 - One-line kickoff: "Picking up F08 — hover lifts the card. 3 tasks left in this sprint."
 

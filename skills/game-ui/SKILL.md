@@ -43,14 +43,16 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    **Moving an existing screen onto the kit:** diff its behaviour from the OLD CODE (not the docs) and note "kept / changed" per screen.
 3. **Plan first:** name the catalog entries the task needs and draw a quick ASCII sketch. Only style
    names (primary, gap m, title text), never raw values.
-   Flag dense per-row UI on phone landscape (rows ~39 px apart) as a readability risk. Decide HUD/toast zones up front (instructions vs tips vs toasts) so they never fight for a spot.
-   Kit UI pinned over a 3D scene = kit part (engine-free) + a game-side pin wrapper (drei Html) inside `.kit-scope` with its own z-index layer; the kit never imports three/R3F.
+   Flag dense per-row UI on phone landscape (rows ~39 px apart) as a readability risk — use PlayerChip `size="xs"` (one line) there. Decide HUD/toast zones up front (instructions vs tips vs toasts) so they never fight for a spot — `ToastStack place="top|center|bottom"`.
+   Kit UI pinned over a 3D scene = kit `PinnedBox` (engine-free, scales with the world) + the small game-side R3F adapter from CATALOG.md → Pinned; the kit never imports three/R3F.
+   Main menu buttons in the game's own order → `MainMenu items={[{ label, onClick, primary? }]}`. Results over the game → `Results dim`.
 4. **Build from Built blocks.** A **Recipe** → build it from its listed parts in the framework kit
    (`kit/blocks/`), add it to the gallery (`gallery/menu.ts` + `Screens.tsx`), move it to Built in
    CATALOG.md, bump `kit/VERSION`, then re-run the installer in the game.
 5. **Missing a part?** Same path: add it to the framework kit, generic and tested, never in the game.
-6. **Enforce:** `node src/ui/kit/check-ui.mjs src/ui` (point it at the game's UI folders, not all of
-   `src/` — 3D code has raw colours on purpose). Must pass before showing Muzzy anything.
+6. **Enforce:** `node src/ui/kit/check-ui.mjs src/ui --css src` (point it at the game's UI folders, not all of
+   `src/` — 3D code has raw colours on purpose; `--css src` warns about game CSS restyling kit parts —
+   a warning = a kit gap to fix in the framework). Wire it as the game's `check:ui` script. Must pass before showing Muzzy anything.
 7. **Verify:** screenshots at phone 390×844, phone landscape 844×390 and desktop 1440×900 with
    Playwright's own Chromium (never Muzzy's Chrome; don't touch his dev server). Look at every one:
    no sideways overflow, nothing clipped, targets ≥ 44px, Back / Esc / phone Back close the top screen.
