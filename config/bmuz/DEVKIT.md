@@ -23,7 +23,7 @@ Unity games use Unity's own editor instead.
 | Tool | Does |
 |---|---|
 | **Console** | the ` overlay itself, tabs, quick-action buttons — ✅ framework module `devkit/` (from Roll Better F60): panel + save endpoint + release check `npm run check:devkit` (both ways) + switch `content/devkit.json` |
-| **Tuning** | sliders/fields/toggles for any value in `content/tuning/` |
+| **Tuning** | sliders/fields/toggles for any value in `content/tuning/` — ✅ framework module `devkit/` (kit 0.2.0, F48): every number as slider + box, groups, checkboxes, `_ranges`, ↺, Save/Copy for Claude; live in the game via `liveTuning` / `useLiveTuning` (a plain `devkit:tuning` event, safe in release) |
 | **Time** | pause · slow motion 0.1×–2× · step one frame |
 | **Snapshots** | save "this exact moment" and restore it; jump to any round/level/scene |
 | **Bug capture** | ● record · 📍 mark "it happened here" · send → `/bug` with the last ~60 s of events, game state, version, device |
@@ -49,6 +49,6 @@ Unity games use Unity's own editor instead.
 | **Capture** | clean screenshots/GIFs for devlogs and store pages |
 | **Feel** | screen shake, hit-stop, camera kick presets |
 
-**Built so far** (in `dev/framework/devkit/`, kit 0.1.0): Console + Color. Copy for Claude names the game from `document.title`.
+**Built so far** (in `dev/framework/devkit/`, kit 0.2.0): Console + Color + Tuning. Copy for Claude names the game from `document.title`.
 
 Add new tools to this catalog as games discover the need.
