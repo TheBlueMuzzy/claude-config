@@ -1,0 +1,6 @@
+{
+  "showUnsupportedFiles": true,
+  "userIgnoreFilters": [
+    "/node_modules|\\/dist\\/|\\.git\\/|\\.partykit|\\.playwright-mcp/"
+  ]
+}
