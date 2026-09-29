@@ -10,6 +10,7 @@ Every panel has **Save** (write to the JSON file) and **Copy for Claude** (a pla
 **How tools get made:** a tool is built the first time a game needs it — as a 🔧 tool feature on that game's
 roadmap, with proper time given to it — then moved into the shared kit (`dev/tools/bmuz-devkit`) for every
 future game. Unity games use Unity's own editor instead.
+Once the Dev Kit is a framework module, new tools go framework-first like the UI kit (build in `dev/framework`, then install); /develop checks its VERSION at the start of UI work.
 
 **In release builds through beta, off at 1.0:** local dev always has the kit. Release builds (the live link) have it while `content/devkit.json` `inReleaseBuilds` is `true` (prototype/alpha/beta — friends testing can open it); /deliver sets it to `false` at the 1.0 full release, and then the live game has no Dev Kit code at all (build-time switch, dead-code-removed; `npm run check:devkit` proves both ways). Release builds have no dev server, so they can't Save: tools show **Copy for Claude** instead, with a note that changes last until a refresh. **Any tool that can affect play** — force dice, level loader, cheats — must be offline-only and disabled in online games.
 **Existing games (retrofit):** don't stop everything to add the kit. /tdd lists the recommended tools; each becomes a 🔧 feature on the roadmap, pulled into a sprint when the work in front of us would benefit most (e.g. Multiplayer + Force tools right before a netcode sprint).

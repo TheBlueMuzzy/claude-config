@@ -11,12 +11,13 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session.
 ## 1. What kind of delivery?
 Ask only if it's unclear:
 - **Update** — merge finished work and put it on the current live site (most common). Bumps **Z**.
-- **Milestone** — a milestone's features are all done. Bumps **Y**, marks it ✅ in ROADMAP.
+- **Milestone** — a milestone's features are all done. Bumps **Y**, marks it ✅ in ROADMAP. Completes approved milestones → still a Milestone (Y) even if another milestone stays open; label it with the current release stage.
 - **Release stage** — moving to prototype / alpha / beta / 1.0. Run the **done check** first: every `must:<stage>` feature in ROADMAP is ✅. Missing musts → list them and ask: finish them first, or release anyway (say what's missing in the release notes). 1.0 → ask about **X** (public release).
 
 ## 2. Make sure it's ready
 - Do `/save`'s STATE + Log step first (always — even with nothing uncommitted), so the log records what's being delivered.
 - Tests + build must pass (**verification-before-completion**: run them fresh, quote the result), plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean). Any open **P0** in BUGS.md blocks the release. Open P1s → list them and ask. Offer a bug sweep if there are several.
+- Run e2e scripts **one at a time** (shared ports — an overlap crash isn't a game bug); read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe.
 - Release stage → tick what's true in TDD §7 Compliance; anything required by the target platform that's still unticked (e.g. privacy policy for app stores) → list it and ask.
 - Features in this delivery not yet approved by Muzzy? Ask once: "F08 hasn't had your OK yet — release anyway?"
 - Release stage checks, scaled to the stage: **alpha** → a quick look (loads fast, no console errors, works on a phone). **beta / 1.0** → the full **optimize**, **accessibility-check** and **web-design-guidelines** (menus/HUD) skills plus a phone test via `/play`. Fix quick wins; list the rest as 🐞/✨ features.
@@ -46,11 +47,12 @@ Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all
 - **Nothing to host** (a library like `dev/framework` — games copy it): skip §3, §6, §7; merge, version, tag, push, and in §8 give the repo link and what games get from it.
 - **Not yet** (Muzzy doesn't want it hosted) → record `Release: not set up (declined <date>)` in Key facts and say plainly: "Merged and versioned v0.1.1 — **not live anywhere yet**."
 - **Blocked** (platform chosen but something's missing, e.g. no GitHub repo) → do all the local setup, write the recipe as far as it goes (mark untested steps ⚠), record `Release: <platform> — blocked: <why>` in Key facts, add a `Muzzy:` line saying what unblocks it, and say plainly it's **not live**.
-- Companion servers (e.g. `npx partykit deploy`) only when their code changed — check `git diff` of the merge.
+- Companion servers (e.g. `npx partykit deploy`) only when their code changed — check `git diff` of the merge. Untouched → skip its deploy and say so ("server unchanged — not redeployed").
 - CI deploys (a workflow in `.github/workflows/`) → pushing main started it; watch with `gh run watch` until done.
 
 ## 7. Check it's actually live
 Open the live URL in Playwright: it loads, shows the new version/feature, console clean. Retry after a minute if the host is still updating.
+Site has a service worker / offline cache? The first check may show the old version — confirm the deploy with a fresh fetch (`curl "<url>?v=<timestamp>"`), then reload twice.
 
 ## 8. Tell him — always with the clickable public link
 Confirm the link is public (opens without login), put it on its own line as a full URL, and add 2–5 lines on how to test it (with friends too: room codes, what to look for).

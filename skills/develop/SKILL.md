@@ -12,6 +12,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session. Old G
 - Tiny request that isn't in the sprint ("shrink it to 93%") → just do it on the current branch, commit, done. Not everything needs a task.
 - Open `Ask Muzzy:` questions on the next task? Ask now (2–3 options + your pick), write answers into Notes.
 - **Branch — one work branch per delivery, not per sprint:** on the default branch (main/master) → create `dev/<milestone-slug>` and switch (if the project auto-deploys from main, say once: "The live site now only updates when you `/deliver`."). Already on a `dev/…` or other work branch → stay on it, across as many sprints as it takes until `/deliver`.
+- **UI task?** Compare the game's `src/ui/kit/VERSION` with `~/Documents/dev/framework/ui-kit/kit/VERSION`; behind → offer the update (install-kit `--dry-run` first, then run it). Same for the Dev Kit once it's a framework module.
 - STATE (only if it changed): Stage = develop, Doing = "F08 — building".
 - One-line kickoff: "Picking up F08 — hover lifts the card. 3 tasks left in this sprint."
 
@@ -23,6 +24,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session. Old G
 ## 2. Do the tasks
 For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them at the hand-off):
 - **Small tasks:** do them yourself. **Big ones** (lots of reading, or a fresh head helps): hand to a `general-purpose` subagent with the task, the feature's "Done when", relevant Key facts, and "report what changed and anything surprising." Tasks from different features that don't touch the same files can run in parallel.
+- **UI sprints / multi-part work — default pattern:** a framework helper ∥ a game helper when their files don't overlap; one bigger game helper per sprint, not one per task; bugs grouped by the files they touch (one helper per file group, not per bug). A Monitor on SPRINT.md ticks (and framework commits) posts the progress bar as tasks land — re-arm it when it expires.
 - **Design is open** (feel, look, feature behaviour)? That's the diverge part — try 2–3 quick variants when cheap (behind a toggle or tuning value) and let Muzzy pick. Don't guess on taste.
 - **"Feels off" / a `(tuning)` task** → think it through with **mda-analyze** diagnose before touching numbers: name the feeling → look at what players actually do (Dev Kit Snapshots/Time, bot runs, proto) → sort the cause (feel · readability · dynamic · the rule can't do it → /gdd) → offer 2–3 real knobs in `content/tuning/` with a prediction each, one at a time. Log `Tuning: knob old→new — why — result` in SPRINT Notes.
 - Cause is **feel** (it works but feels flat, weak, floaty, no impact) → reach for **game-feel**: juice tiers in `content/feel.json`, still one knob at a time.
@@ -38,6 +40,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 
 ## 3. Prove it works (never "should work") — follow **verification-before-completion**: evidence before any "done"
 - Tests if the project has them; `npm run build` must pass.
+- Run e2e scripts **one at a time** (they share ports — a crash while two overlap isn't a game bug). Read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe.
 - Visual change → start the dev server the way `/play` does (`--host`, the port from Key facts — write it there the first time), open it in Playwright, screenshot, look at it yourself, fix, re-shoot. Fixes are commits too (`F08: fix …`).
 - Logic → play it via Playwright or a quick script; console must be clean (a missing-favicon 404 doesn't count).
 - Check the feature's `Check:` line.

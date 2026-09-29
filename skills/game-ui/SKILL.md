@@ -40,8 +40,11 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    page-wide CSS (index.css `button {}`, `* { margin:0; padding:0 }`) in `@layer game-base { … }` or it
    overrides every kit part; mount `<ScreenStack overlay screens={…} />` next to the game (not around
    it) and set `--kit-overlay-z` in its CSS. Re-shoot the other screens: they must be unchanged.
+   **Moving an existing screen onto the kit:** diff its behaviour from the OLD CODE (not the docs) and note "kept / changed" per screen.
 3. **Plan first:** name the catalog entries the task needs and draw a quick ASCII sketch. Only style
    names (primary, gap m, title text), never raw values.
+   Flag dense per-row UI on phone landscape (rows ~39 px apart) as a readability risk. Decide HUD/toast zones up front (instructions vs tips vs toasts) so they never fight for a spot.
+   Kit UI pinned over a 3D scene = kit part (engine-free) + a game-side pin wrapper (drei Html) inside `.kit-scope` with its own z-index layer; the kit never imports three/R3F.
 4. **Build from Built blocks.** A **Recipe** → build it from its listed parts in the framework kit
    (`kit/blocks/`), add it to the gallery (`gallery/menu.ts` + `Screens.tsx`), move it to Built in
    CATALOG.md, bump `kit/VERSION`, then re-run the installer in the game.

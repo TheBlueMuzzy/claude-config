@@ -10,6 +10,7 @@ Goal: an engineering plan and a feature map with dependencies, so /develop build
    - type each (❓ 🧱 🎮 ✨ 🔧) and scope it;
    - **needs:** what must exist or be decided first — concrete ("splayed cards needs the card hand") or abstract ("discard pile needs the discard-rule decision"). Keep chains short: let foundations own the data others need. `~F07` = only needs F07 to *work*;
    - `why:` line on 🎮 ✨ ❓ features from the GDD mechanics traces; a Must with no reason → ask if it's really a Must; a primary target no feature serves → a gap;
+   - a feature needing a new kit piece or Dev Kit tool → plan it **framework-first** per the game-ui rules (build in `dev/framework`, then install) — never "build in the game, copy back later";
    - features whose needs are met → 🟢 ready, others ⏳. ❓ decisions Muzzy can answer now → ask, write the answer into the GDD, mark ✅.
 4. **Show Muzzy the dependency tree** (short text tree + "N features ready to start") before writing it. Adjust with him.
 

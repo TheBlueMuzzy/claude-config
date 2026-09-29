@@ -104,6 +104,7 @@ Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 �
 Stage · Milestone · Sprint · Doing · Branch · Version · Live (url + release stage)
 ## Key facts
 <~40 lines max, under bold labels (Run/deploy, Rules, Architecture, Don't re-break). Prune stale ones.>
+<Don't re-break includes test-infrastructure facts when they bite (ports, e2e run order).>
 ## Log
 <newest first, one line per /save; keep 10, older → archive/log.md>
 ```
