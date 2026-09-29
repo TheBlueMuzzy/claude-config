@@ -10,6 +10,7 @@ decides *how everything looks*. Swap the style → the whole game restyles, layo
 Design: `dev/framework/.planning/design/ui-kit.md`. Say "Using game-ui for this." in one line.
 
 ## Rules
+- **If it isn't a button, it must not look like one** (Muzzy's rule). Instructions, status, round labels and other info are plain text (kit `HudText`, 0.1.9+) — no card, outline or drop shadow. Cards/outlines/shadows mean "you can press this".
 - **Never hand-style game UI.** No raw colours, px sizes, font names, absolute positioning or inline
   styles in game UI code — only kit parts and style names. The checker enforces it.
 - **Nothing one-off in the game.** A missing part or screen goes into the framework kit (generic), then
