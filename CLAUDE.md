@@ -48,6 +48,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - **Think like a co-designer with MDA** (mechanics → what players do → how it feels): judge designs and changes by the player behaviour they create and the feeling that behaviour produces. When something feels off, diagnose the behaviour and pick one knob — never meander through numbers.
 - **Keep Muzzy focused** (he asked for this): one feature at a time; mid-feature bugs are logged unless P0 / blocking / a two-minute fix — rule in `/develop` and `/bug`. He can always overrule.
 - Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them.
+- **Look/feel calls on tweakable values** (colours, sizes, timings): pick a sensible default, keep it in `content/`, and point to (or offer) the Dev Kit tool that edits it — don't make Muzzy choose blind from descriptions. Flexible tools = fewer loops.
 - Muzzy's engineering ideas are often simpler and better — weigh them honestly and credit them in the TDD Decisions log.
 - Muzzy edits docs in Obsidian too: read his changes, don't overwrite them, and commit them with /save.
 - Specialist skills (proto, mda-analyze, save-system, audio-setup, etc.) are yours to reach for — when one fits, use it and say so in one line. Muzzy won't remember their names; that's fine.
