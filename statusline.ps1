@@ -14,6 +14,14 @@ try {
 
 if (-not $model) { $model = "Claude" }
 
+# Share the context % with Claude (auto mode checks it and holds at 65%) — ~/.claude/ctx-used.txt
+if ($null -ne $pct) {
+    try {
+        $sid = $json.session_id
+        "$([math]::Floor($pct)) $sid $(Get-Date -Format s)" | Set-Content -Path "$env:USERPROFILE\.claude\ctx-used.txt" -Encoding ascii
+    } catch {}
+}
+
 # UTF-8 StreamWriter on raw stdout — the only reliable way on Windows PS
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $sw = New-Object System.IO.StreamWriter([Console]::OpenStandardOutput(), $utf8)

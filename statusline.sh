@@ -25,6 +25,9 @@ fi
 pct=${used%%.*}
 pct=${pct:-0}
 
+# Share the context % with Claude (auto mode checks it and holds at 65%)
+echo "$pct - $(date +%Y-%m-%dT%H:%M:%S)" > ~/.claude/ctx-used.txt 2>/dev/null
+
 # Color thresholds
 if [ "$pct" -ge 78 ]; then
   color="\033[31m"       # Red — about to compact

@@ -85,6 +85,7 @@ When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm goi
 - Prove everything works (tests, build, screenshots) before moving on.
 - Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
 - STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.
+- **Context auto-hold:** after every task, read `~/.claude/ctx-used.txt` (the status line writes the CTX %). At **65% or more**: finish/commit what's in hand, `/save`, write `HOLD: context at N% — /clear then /develop to resume` in RESUME HERE, and start nothing new. Helpers already running may finish and be committed.
 - Stops before anything public or hard to undo (`/deliver`, pushing to the live branch, deleting data) — those wait for Muzzy. Everything else: proceed.
 
 ## Problem-Solving Discipline
