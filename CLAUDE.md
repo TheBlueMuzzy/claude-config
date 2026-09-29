@@ -6,6 +6,7 @@
 - Prefers **human-readable code** over clever abstractions
 - Values **targeted, minimal changes** — don't refactor beyond what's asked
 - Always provide **terminal commands ready to copy/paste**
+- **New app or tool walkthroughs: ONE step at a time** — give a single step, wait for Muzzy to say it's done (or send a screenshot), then the next. No bulk lists of directions.
 
 ## My Tech Stack
 - **Web Games**: React + TypeScript + Vite + Three.js (R3F)
