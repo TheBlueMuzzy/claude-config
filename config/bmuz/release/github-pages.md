@@ -1,5 +1,5 @@
 # GitHub Pages release recipe (web games, + optional PartyKit server)
-Last used: 2026-09-29 (roll-better v0.2.2)
+Last used: 2026-09-29 (roll-better v0.4.0)
 
 ## Prerequisites
 - GitHub remote under TheBlueMuzzy; `gh` CLI logged in (`gh auth status`).
