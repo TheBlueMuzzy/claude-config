@@ -30,3 +30,4 @@ Last used: 2026-09-29 (roll-better v0.2.2)
 - alpha: the Pages link is fine to share with friends.
 - beta: add a feedback link in the menu.
 - 1.0: privacy policy page linked in Settings (roll-better has one: `privacy.html`), credits screen from `content/credits.json`.
+- 1.0: Dev Kit out of the live game — set `content/devkit.json` `"inReleaseBuilds": false`, then run `npm run check:devkit` (must PASS) before releasing.
