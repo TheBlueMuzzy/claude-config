@@ -79,12 +79,13 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 When errors occur, ALWAYS: (1) translate to plain English, (2) explain why in non-technical terms, (3) offer to fix it. Never show raw stack traces without translation.
 
 ## Autonomous Mode
-When Muzzy says "just go" (or equivalent) on a big task:
+When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm going to bed — finish it" (or equivalent) on a big task:
 - Don't ask questions — make reasonable calls and write them in the sprint's Notes / STATE.md. Taste calls you can't infer → leave as `Ask Muzzy:` and keep going on other tasks.
 - Work through `/sprint` → `/develop` feature by feature; commit after every task; `/save` after every feature.
 - Prove everything works (tests, build, screenshots) before moving on.
 - Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
 - STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.
+- Stops before anything public or hard to undo (`/deliver`, pushing to the live branch, deleting data) — those wait for Muzzy. Everything else: proceed.
 
 ## Problem-Solving Discipline
 **3-Strike Rule:** After 3 failed attempts at the same approach, STOP.
