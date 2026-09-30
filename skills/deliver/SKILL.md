@@ -52,7 +52,7 @@ Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all
 
 ## 7. Check it's actually live
 Open the live URL in Playwright: it loads, shows the new version/feature, console clean. Retry after a minute if the host is still updating.
-Site has a service worker / offline cache? The first check may show the old version — confirm the deploy with a fresh fetch (`curl "<url>?v=<timestamp>"`), then reload twice.
+Site has a service worker / offline cache? Returning players must get the new version on their first visit — run the project's `e2e:update` (recipe setup step 5; add it if missing). Your own first check may show the old version — confirm the deploy with a fresh fetch (`curl "<url>?v=<timestamp>"`), then reload twice.
 
 ## 8. Tell him — always with the clickable public link
 Confirm the link is public (opens without login), put it on its own line as a full URL, and add 2–5 lines on how to test it (with friends too: room codes, what to look for).
