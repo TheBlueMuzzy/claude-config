@@ -1,10 +1,11 @@
 # GitHub Pages release recipe (web games, + optional PartyKit server)
-Last used: 2026-09-29 (roll-better v0.4.0)
+Last used: 2026-09-30 (glyphtender v0.1.0 — web only)
 
 ## Prerequisites
 - GitHub remote under TheBlueMuzzy; `gh` CLI logged in (`gh auth status`).
 - Free Pages needs the repo **public**.
 - Online games: PartyKit CLI logged in (`npx partykit whoami` → thebluemuzzy). Never commit `.env`.
+- ⚠ **NEW online games can't use PartyKit's shared `*.partykit.dev` any more** (2026-09-30: "exceeded the limit of 10000 Workers custom domains on zone 'partykit.dev'" — the shared zone stopped minting hostnames after the Cloudflare acquisition). Existing projects (roll-better) keep working. New ones: deploy to Muzzy's own free Cloudflare account — PartyKit cloud-prem (`CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… npx partykit deploy --domain …`) or partyserver + wrangler (→ `<name>.<account>.workers.dev`). Needs Muzzy's one-time `npx wrangler login`. Until then: ship web-only with "Play online" hidden (unset VITE_PARTY_HOST).
 
 ## One-time setup per project
 1. Vite `base: '/<repo>/'` in `vite.config.ts`.
@@ -26,6 +27,7 @@ Last used: 2026-09-29 (roll-better v0.4.0)
 - Online games: press CREATE → a room code appears = front end reaches the new server.
 
 ## Gotchas hit
+- 2026-09-30 glyphtender: `npx partykit deploy` → 10,000-custom-domain limit on partykit.dev (see Prerequisites). Shipped web-only; online waits for Muzzy's Cloudflare account.
 - 2026-09-29 roll-better: v0.4.0 live, but a returning browser showed v0.2.1 — PWA `autoUpdate` without `registerSW({ immediate: true })` only swaps on the next visit. Fixed in v0.4.1 (setup step 5).
 - Node 20 deprecation + ubuntu-latest migration notices in the Actions annotations (2026-09) — warnings only; bump `actions/*@v4` / `node-version` when convenient.
 

@@ -14,7 +14,7 @@ try {
 
 if (-not $model) { $model = "Claude" }
 
-# Share the context % with Claude (auto mode checks it and holds at 65%) — ~/.claude/ctx-used.txt
+# Share the context % with Claude (auto mode checks it and checkpoints at 80%) — ~/.claude/ctx-used.txt
 if ($null -ne $pct) {
     try {
         $sid = $json.session_id

@@ -32,6 +32,13 @@ cp "$REPO_DIR/settings.json" "$CLAUDE_DIR/"
 cp "$REPO_DIR/statusline.sh" "$CLAUDE_DIR/"
 cp "$REPO_DIR/statusline.ps1" "$CLAUDE_DIR/" 2>/dev/null || true
 
+# --- Project hub (the dev/ folder isn't a repo, so its index lives here) ---
+if [ -f "$REPO_DIR/HUB.md" ]; then
+  mkdir -p "$HOME/Documents/dev"
+  cp "$REPO_DIR/HUB.md" "$HOME/Documents/dev/HUB.md"
+  echo "Copied HUB.md -> ~/Documents/dev/HUB.md"
+fi
+
 # --- Copy directories (merge) ---
 echo "Copying directories..."
 for dir in agents config references skills; do

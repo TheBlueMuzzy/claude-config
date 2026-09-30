@@ -14,8 +14,8 @@
 - **Design**: Double Diamond methodology, MDA framework, GDD-driven development
 
 ## Projects Directory
-All projects live under `C:/Users/Muzzy/Documents/dev/` — index + rules in `dev/HUB.md`:
-- **games/** — `doomdial-original`, `escape-pod-scramble`, `glyphtender`, `goops`, `roll-better`, `windchime`
+All projects live under `~/Documents/dev/` (same on every machine — the username differs: Muzzy on the PC, joebr on the laptop) — index + rules in `dev/HUB.md` (synced via claude-config; `setup.sh` copies it there):
+- **games/** — `doomdial`, `doomdial-original`, `escape-pod-scramble`, `glyphtender` (web remake), `glyphtender-original` (Unity, read-only), `goops`, `roll-better`, `windchime`
 - **apps/** — `mi-slides`, `my-first-baby`
 - **framework/** — the Game Framework (reusable modules; first: game UI kit)
 - **research/** — `mahjong`
@@ -23,7 +23,7 @@ All projects live under `C:/Users/Muzzy/Documents/dev/` — index + rules in `de
 
 **One project = one folder = one GitHub repo**, with everything (code, art, design) inside. Never put code projects in Google Drive. Board games live in Google Drive `Boardgames\`, separate from their digital versions.
 
-When Muzzy says "cd <project-name>" (e.g. "cd roll better", "cd glyphtender"), resolve the project name to its full path under `C:/Users/Muzzy/Documents/dev/` and `cd` there. Use fuzzy matching — "roll better" → `games/roll-better`, "eps" → `games/escape-pod-scramble`, etc.
+When Muzzy says "cd <project-name>" (e.g. "cd roll better", "cd glyphtender"), resolve the project name to its full path under `~/Documents/dev/` and `cd` there. Use fuzzy matching — "roll better" → `games/roll-better`, "eps" → `games/escape-pod-scramble`, etc.
 
 ## BMUZ — how we make games
 Double Diamond stages + views + tools. Muzzy may type them or say them in plain English — treat both the same.
@@ -87,7 +87,7 @@ When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm goi
 - Prove everything works (tests, build, screenshots) before moving on.
 - Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
 - STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.
-- **Context auto-hold:** after every task, read `~/.claude/ctx-used.txt` (the status line writes the CTX %). At **65% or more**: finish/commit what's in hand, `/save`, write `HOLD: context at N% — /clear then /develop to resume` in RESUME HERE, and start nothing new. Helpers already running may finish and be committed.
+- **Context checkpoint:** after every task, read `~/.claude/ctx-used.txt` (the status line writes the CTX %, measured against the real window — 1M on Opus 5.5). At **80% or more**: finish/commit what's in hand, then a quick sweep, not a dump: only what a fresh Claude would get wrong or have to re-ask Muzzy (an unrecorded decision, Muzzy's exact words on a taste call, an open question, the in-flight plan) goes into SPRINT Notes / STATE / GDD / TDD, within their size limits — then `/save` and **keep going**; auto-compact (~97%) summarises the chat, and the files carry the truth. Never rely on remembering something that isn't written down.
 - Stops before anything public or hard to undo (`/deliver`, pushing to the live branch, deleting data) — those wait for Muzzy. Everything else: proceed.
 
 ## Problem-Solving Discipline

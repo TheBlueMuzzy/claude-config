@@ -6,7 +6,7 @@ Config is synced across machines via GitHub repo: https://github.com/TheBlueMuzz
 **Laptop:** `~\` on the laptop
 
 ## Synced files
-CLAUDE.md, QUICKSTART.md, settings.json, statusline.sh, statusline.ps1
+HUB.md (→ `~/Documents/dev/HUB.md`, the project index), CLAUDE.md, QUICKSTART.md, settings.json, statusline.sh, statusline.ps1
 agents/, config/, references/, skills/, RETIRED.txt
 
 ## Never sync
