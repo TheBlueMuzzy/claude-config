@@ -3,7 +3,7 @@
 ## The vision
 BMUZ is Muzzy's way to build games fast as a designer/artist who's only somewhat technical: he designs, Claude builds, and the process stays mostly invisible.
 The long-term heart of it is a **Game Framework** (like the one at PlayTable/TapTop, where Muzzy was creative director): a library of easily modified **modules**. Starting a new game, Claude reads the GDD, **infers the modules it needs** (AI opponents, multiplayer, card hand…) and the project gets its bones automatically. Muzzy is only asked about genuine choices.
-His games so far are deliberately varied to prove out which modules are needed. Roll Better ≈ beta, a testbed — not a game to keep polishing.
+His games so far are deliberately varied to prove out which modules are needed. Roll Better = on the shelf since 2026-09-29 (v0.4.0 beta, live) — still the testbed when a framework module needs proving.
 
 ## Order of work
 1. **Next: skill library review** — ✅ done 2026-09-28 except the UI kit (next, own sprint) — see `reviews/2026-09-28-skill-review/SUMMARY.md`. Survey external Claude skill libraries/marketplaces and compare against this vision. What's already solved, what's a better version of something BMUZ has, what idea can be adapted? Areas: look-dev / art pipeline, animation, UI/UX, game feel, audio, standards, GDD/doc making, testing, release/store assets, anything else. Then clean up the BMUZ-connected skills.
@@ -23,7 +23,7 @@ His games so far are deliberately varied to prove out which modules are needed. 
    - Only make something a module once it's proven in a real game (no speculative abstractions).
 
 ## Open threads
-- Roll Better: record as beta; park the physics-bug sprint; `/deliver` the finished F47 + F49 work sometime (no more bug-chasing).
+- Roll Better: on the shelf (Muzzy, 2026-09-29) after v0.4.0. Framework is at v0.2.0 + Dev Kit 0.2.0 Tuning tab (unversioned on main — stamp at next framework /deliver).
 - Laptop still needs BMUZ-2 installed (Google Task).
 - Obsidian setup (vault = Documents/dev).
 
