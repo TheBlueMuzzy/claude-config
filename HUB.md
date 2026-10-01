@@ -8,7 +8,6 @@ All code projects live here: `C:\Users\Muzzy\Documents\dev\`
 
 | Game | GitHub | Play |
 |---|---|---|
-| doomdial | not on GitHub yet (new remake, started 2026-09-27) | — |
 | doomdial-original | [doomdial-original](https://github.com/TheBlueMuzzy/doomdial-original) (private) | — |
 | escape-pod-scramble | [EscapePodScramble](https://github.com/thebluemuzzy/EscapePodScramble) | — |
 | glyphtender | [glyphtender](https://github.com/TheBlueMuzzy/glyphtender) (web remake, alpha 2026-09-30) | [play](https://thebluemuzzy.github.io/glyphtender/) |

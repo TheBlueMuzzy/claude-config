@@ -28,10 +28,17 @@ Follow the template in `~/.claude/config/bmuz/PROJECT-FILES.md`:
 - Commit with a plain summary. Push the current branch (set upstream if new).
 - No remote? If Key facts says `Remote: none (declined …)`, don't offer again. Otherwise offer once to create one (`gh repo create TheBlueMuzzy/<folder> --private --source . --push`); if he declines, record that.
 
+## 4b. Sync the shared setup (PC ↔ laptop)
+Run `bash ~/.claude/config/bmuz/config-sync.sh status` (pulls `~/.claude-config` first).
+- **INCOMING** (the other machine pushed config) → apply it first: `cd ~/.claude-config && bash setup.sh`, then re-run status.
+- **CHANGED** lines (this machine's global setup — CLAUDE.md, skills, config, references, HUB.md… — differs from the repo) → show the list in one line and ask: *"Your global setup changed here (CLAUDE.md, HUB.md…) — sync it to the other machine?"* Yes → `bash ~/.claude/config/bmuz/config-sync.sh push "<plain summary>"`. If a CHANGED file was also changed by INCOMING, show both versions and ask which to keep.
+- "only in repo" lines are usually things retired on purpose — mention once, never delete without asking (retire via RETIRED.txt).
+- Nothing printed → say nothing.
+
 ## 5. Tell him
 Two or three lines, player's-eye:
 ```
-Saved + pushed (v0.2.0.93, branch dev/v0-3-card-play — on the other machine I'll switch to it automatically).
+Saved + pushed (v0.2.0.93, branch dev/v0-3-card-play — on the other machine I'll switch to it automatically). Setup synced to the laptop too.
 This session: lobby shows seats, host can kick. Next: reconnect handling.
 Safe to /clear or switch machines.
 ```

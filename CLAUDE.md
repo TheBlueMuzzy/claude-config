@@ -15,7 +15,7 @@
 
 ## Projects Directory
 All projects live under `~/Documents/dev/` (same on every machine — the username differs: Muzzy on the PC, joebr on the laptop) — index + rules in `dev/HUB.md` (synced via claude-config; `setup.sh` copies it there):
-- **games/** — `doomdial`, `doomdial-original`, `escape-pod-scramble`, `glyphtender` (web remake), `glyphtender-original` (Unity, read-only), `goops`, `roll-better`, `windchime`
+- **games/** — `doomdial-original` (a fresh remake starts later with the new BMUZ), `escape-pod-scramble`, `glyphtender` (web remake), `glyphtender-original` (Unity, read-only), `goops`, `roll-better`, `windchime`
 - **apps/** — `mi-slides`, `my-first-baby`
 - **framework/** — the Game Framework (reusable modules; first: game UI kit)
 - **research/** — `mahjong`
