@@ -59,6 +59,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - Undo ("undo that"): something just done this session → rewind (Esc Esc); anything committed → `git revert` (never `reset --hard`, never force-push, never delete branches). Show what will be undone first.
 
 ## Laptop ↔ Desktop Sync (MANDATORY)
+- **Machine to-do:** if `~/Documents/dev/HUB.md` has a "📌 Machine to-do" section for this machine (PC = user Muzzy, laptop = user joebr), do it first — one item at a time, tick each, then remove the section and `/save` so it syncs back.
 - **Session start:** a hook runs `git pull` and shows ▶ RESUME HERE. If it says SYNC FAILED, explain in plain English and stop until it's sorted.
 - **Session end** (Muzzy says he's stopping, done, switching machines, going to bed): do `/save`. Confirm "pushed — safe to switch machines."
 - If a project is missing on this machine, clone it into the matching `dev/` folder.

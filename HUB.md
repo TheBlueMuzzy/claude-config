@@ -51,3 +51,12 @@ All code projects live here: `C:\Users\Muzzy\Documents\dev\`
 ## New project checklist
 1. Create `dev\games\<name>` (lowercase-with-dashes) + git + GitHub repo
 2. Add a row to this file
+
+## 📌 Machine to-do (Claude: do the list for THIS machine, tick each item, then delete the section once it's all ticked — and sync HUB.md back via /save)
+
+### Laptop (user joebr) — added 2026-09-30 from the PC
+- [ ] 1. `cd ~/.claude-config && git pull && bash setup.sh` — brings this HUB.md, the /save config-sync check, and the PC's latest global setup (you've done this if you're reading this file on the laptop).
+- [ ] 2. `~/Documents/dev/games/glyphtender`: `git fetch --prune && git checkout main && git pull`, then delete the local `dev/alpha` branch (merged into main and deleted on GitHub; alpha v0.1.0 is released from main — live at https://thebluemuzzy.github.io/glyphtender/).
+- [ ] 3. Clone `TheBlueMuzzy/glyphtender-original` into `~/Documents/dev/games/glyphtender-original` (read-only Unity reference; the AI source is on branch `festive-booth`).
+- [ ] 4. Obsidian: follow `~/.claude/config/bmuz/OBSIDIAN.md` "Fast way (second machine)" — close Obsidian, copy `~/.claude-config/config/bmuz/obsidian-vault/` into `~/Documents/dev/.obsidian/`, reopen, Open folder as vault → `~/Documents/dev`.
+- [ ] 5. Ask Muzzy about `C:\Users\joebr\dev` (mmb-clip-voting, truth-or-chairs-buzzer): are they on GitHub, and should they move into `~/Documents/dev` and get rows in this file?
