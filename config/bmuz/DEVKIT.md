@@ -23,7 +23,8 @@ Unity games use Unity's own editor instead.
 | Tool | Does |
 |---|---|
 | **Console** | the ` overlay itself, tabs, quick-action buttons — ✅ framework module `devkit/` (from Roll Better F60): panel + save endpoint + release check `npm run check:devkit` (both ways) + switch `content/devkit.json` |
-| **Tuning** | sliders/fields/toggles for any value in `content/tuning/` — ✅ framework module `devkit/` (kit 0.2.0, F48): every number as slider + box, groups, checkboxes, `_ranges`, ↺, Save/Copy for Claude; live in the game via `liveTuning` / `useLiveTuning` (a plain `devkit:tuning` event, safe in release) |
+| **Tuning** | sliders/fields/toggles for any value in `content/tuning/` — ✅ framework module `devkit/` (kit 0.2.0, F48): every number as slider + box, groups, checkboxes, `_ranges`, ↺, Save/Copy for Claude; live in the game via `liveTuning` / `useLiveTuning` (a plain `devkit:tuning` event, safe in release). Kit 0.5.0: collapsible **sections** with counts + chips (remembered per game), readable names — each file's `_labels` / `_sections` beside `_help` (order: `content/devkit.json` `sectionOrder`), `#rrggbb` values get a colour picker |
+| **Search** | ✅ kit 0.5.0 (Glyphtender, Muzzy: "it's SOO hard to find attributes"): a box under the tabs filters every settings tab live — substring anywhere in a word, camelCase split, all words must match; searches key, label, help, section, file; highlighted, counted, grouped by tab + section; tap a section title to jump there; ✕ / Esc clear. **Every game: give each tuning key a plain-English `_labels` entry and a `_sections` home** |
 | **Time** | pause · slow motion 0.1×–2× · step one frame |
 | **Snapshots** | save "this exact moment" and restore it; jump to any round/level/scene — ✅ framework module `devkit/` (kit 0.3.0, Glyphtender F16): name + Save moment, Restore / Copy for Claude / Save to file (`content/snapshots/`), files listed too; restore off when `canRestore()` is false (online). Needs the game adapter (`registerDevKitGame` in `src/devkit-game/tabs.ts`) |
 | **Bug capture** | ● record · 📍 mark "it happened here" · send → `/bug` with the last ~60 s of events, game state, version, device — ✅ framework module `devkit/` (kit 0.3.0, Glyphtender F17): rolling 60 s window (events + state every 5 s, Record remembered), Send → `.planning/bugs/capture-<date>-<time>.json` in dev, Copy for Claude everywhere. Same game adapter (`onEvent` feeds the log) |
@@ -49,6 +50,6 @@ Unity games use Unity's own editor instead.
 | **Capture** | clean screenshots/GIFs for devlogs and store pages |
 | **Feel** | screen shake, hit-stop, camera kick presets |
 
-**Built so far** (in `dev/framework/devkit/`, kit 0.3.0 — on branch `dev/devkit-tools` until merged): Console + Color + Tuning + Snapshots + Bug capture. Copy for Claude names the game from `document.title` (Snapshots/Bug capture: from the game adapter).
+**Built so far** (in `dev/framework/devkit/`, kit 0.5.0 — on branch `dev/devkit-previews` until merged): Console + Search + Color + Tuning (sections) + Snapshots + Bug capture + Screens (previews, dev only). Copy for Claude names the game from `document.title` (Snapshots/Bug capture: from the game adapter).
 
 Add new tools to this catalog as games discover the need.
