@@ -24,7 +24,7 @@
 ## Setup (once per machine) - tested with Muzzy 2026-09-29 (Obsidian 1.13.7)
 **Fast way (second machine):** close Obsidian, copy `~/.claude-config/config/bmuz/obsidian-vault/` into `Documents/dev/.obsidian/` (settings + the two plugins below), reopen, "Open folder as vault" -> `Documents/dev`.
 **By hand (walk Muzzy through ONE step at a time):**
-1. Obsidian start screen -> **Open folder as vault** (grey Open, not Create) -> paste `C:\Users\Muzzy\Documents\dev` in the picker's address bar -> Select Folder -> Trust.
+1. Obsidian start screen -> **Open folder as vault** (grey Open, not Create) -> paste your `Documents\dev` path (PC: `C:\Users\Muzzy\Documents\dev` · laptop: `C:\Users\joebr\Documents\dev`) in the picker's address bar -> Select Folder -> Trust.
 2. Settings -> Files and links -> **Show all file types** ON (older versions: "Detect all file extensions"). Leave "Automatically update internal links" OFF.
 3. Same page -> Advanced -> **Excluded files** -> + -> one regex (hides build/library junk from search everywhere):
    `/node_modules|\/dist\/|\.git\/|\.partykit|\.playwright-mcp/` - the file LIST still shows those folders; exclusions only hide them from search/graph.
