@@ -1,6 +1,6 @@
 ---
 name: multiplayer-setup
-description: Set up online multiplayer for your game — room codes, matchmaking, real-time sync. Covers PartyKit on Cloudflare (web default, free, used by Roll Better), Colyseus (self-hosted web), Unity Netcode + UGS (Unity), and Playroom Kit (quick P2P). Use when adding online play to any game.
+description: Set up online multiplayer for your game — room codes, matchmaking, real-time sync. Covers PartyServer + wrangler on Muzzy's own Cloudflare (web default, free, used by Glyphtender; PartyKit legacy for Roll Better), Colyseus (self-hosted web), Unity Netcode + UGS (Unity), and Playroom Kit (quick P2P). Use when adding online play to any game.
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch
 ---
 
@@ -26,8 +26,8 @@ Ask the user about their game:
 
 | Game Type | Framework | Recommended Stack |
 |-----------|-----------|-------------------|
-| Turn-based web | React/Vite | **PartyKit** (default: free, authoritative server, proven in Roll Better) |
-| Real-time web | R3F/Three.js | **PartyKit** (watch the daily request limit) or **Playroom Kit** (P2P, faster setup) |
+| Turn-based web | React/Vite | **PartyServer + wrangler** on Muzzy's Cloudflare (default: free, authoritative server, proven in Glyphtender) |
+| Real-time web | R3F/Three.js | **PartyServer** (watch the daily request limit) or **Playroom Kit** (P2P, faster setup) |
 | Web, needs a big always-on server | Any web | **Colyseus**, self-hosted (Colyseus Cloud has **no free tier**, from $15/month) |
 | Turn-based Unity | Unity | **Netcode for GameObjects + UGS** (Lobby + Relay) |
 | Real-time Unity | Unity | **Netcode for GameObjects + UGS** or **Photon** |
@@ -35,39 +35,51 @@ Ask the user about their game:
 
 ## Step 2: Implement (based on chosen stack)
 
-### For Web Games (PartyKit, the default)
-PartyKit runs each room as a Cloudflare Durable Object: one small server per room code, holding that room's state.
-**Free tier** (checked 2026-09-28, see `~/.claude/references/indie-toolkit.md`): ~100k requests/day, and every WebSocket
-message counts. Over the limit → errors until 00:00 UTC. Fine for turn-based games; a busy real-time game can hit it.
+### For Web Games (PartyServer on Muzzy's own Cloudflare — the default since 2026-10-01)
+PartyKit's shared `*.partykit.dev` zone is FULL — new projects can't deploy there (10,000-domain limit, 2026-09-30).
+Roll Better keeps working on it; every NEW game uses **PartyServer** (PartyKit's open-source successor) deployed with
+**wrangler** to Muzzy's own free Cloudflare account → `<game>.joebrogno.workers.dev`. Each room = one Durable Object,
+same `/parties/main/<code>` path PartySocket already uses, so the client code is unchanged. Proven in Glyphtender (TDD D46).
+**Free tier** (see `~/.claude/references/indie-toolkit.md`): ~100k requests/day; every WebSocket message counts.
 
-**Setup (the Roll Better pattern):**
+**Setup (the Glyphtender pattern):**
 ```bash
-npm install partysocket && npm install -D partykit
+npm install partysocket partyserver && npm install -D wrangler
 ```
-- `partykit.json`: `{ "name": "<game>", "main": "party/server.ts", "compatibilityDate": "2024-12-01", "port": 1999 }`
-- `package.json` scripts: `"party:dev": "partykit dev"`, `"party:deploy": "partykit deploy"`
+- `wrangler.json` (plain JSON, so the client can import its dev port): `name`, `main: "party/worker.ts"`, `compatibility_date`,
+  `durable_objects.bindings: [{ name: "Main", class_name: "Main" }]`, `migrations: [{ tag: "v1", new_sqlite_classes: ["Main"] }]`
+  (SQLite-backed = free plan), `dev: { port: <unique per game>, ip: "0.0.0.0" }`. Text assets (word lists) → `rules: [{ type: "Text", globs: ["**/*.txt"] }]`.
+- `package.json`: `"party:dev": "wrangler dev --persist-to .wrangler/state-dev"`, `"party:deploy": "wrangler deploy"`. Gitignore `.wrangler/`.
+- One-time: Muzzy runs `! npx wrangler login` (free account, no card).
 
 **Files to create:**
 ```
-party/server.ts            # export default class GameServer implements Party.Server — onConnect / onMessage / onClose
-src/types/protocol.ts      # ClientMessage / ServerMessage types, shared by client AND server
-src/utils/partyClient.ts   # PartySocket connection; host = import.meta.env.VITE_PARTY_HOST ?? "localhost:1999"
-src/hooks/useRoom.ts       # lobby / room state for React
+party/worker.ts            # class Main extends Server (partyserver) → hands each room to the game's room class; default export fetch → routePartykitRequest
+party/server.ts            # the room itself (framework rooms module RoomServer) — knows nothing about Cloudflare, testable with fakes
+party/liveConnections.ts   # the server's OWN live-socket list (see gotchas)
+src/rooms/...              # framework rooms module (create/join, identity, rejoin, host migration) — dev/framework/rooms
 ```
-- **Server is authoritative.** It validates moves and broadcasts results (`this.room.broadcast(...)`). Pure game rules live in `src/utils/` so both the server and the client import the same code.
-- **Room code = PartyKit room id.** `new PartySocket({ host, room: code, id })`.
-- **Reconnects:** pass a stable `id` per tab (sessionStorage) so a reconnect keeps the same `conn.id`, and a persistent player id (localStorage) so a player can reclaim their seat.
-- **Timing:** keep animation timing on the clients. Roll Better found server timers unreliable for that (use them only for backstops like AFK timeouts).
+- **Server is authoritative**; the same pure engine runs on client and server. Each player gets their OWN view (hidden info stripped) — test every view for secrets.
+- **Room code = room name.** `new PartySocket({ host, room: code, id })` with a stable per-tab id + a persistent player id (localStorage) to reclaim a seat.
+- **Timing:** animation timing on the clients; server timers only for backstops (turn timer, bot takeover).
+
+**Gotchas (each cost us a bug):**
+- **Late close on reconnect:** a phone that reconnects reuses its id and its NEW socket can open before the OLD one's close arrives; PartyServer's
+  connection list then forgets the new socket too → seat marked away → a bot takes it. Keep the server's own `LiveConnections` (forget a socket only if it's still the live one) and wire `onError` too.
+- **Eviction:** an empty in-memory Durable Object is evicted after ~1–2 min — "keep the empty room for 5 min" is an upper bound, not a promise.
+- **Local storage lock:** two `wrangler dev` processes sharing `.wrangler/state` crash with `SQLITE_BUSY`. EVERY local instance gets its own
+  `--persist-to` folder: party:dev → `.wrangler/state-dev`, /play → `.wrangler/state-play`, each e2e run → `.wrangler/state-e2e-<port>`.
+- **Ports:** each game has its own dev port (Roll Better 1999, Glyphtender 1997); e2e runs start their OWN servers on other ports and never kill anyone else's.
 
 **Run and deploy:**
-- Local: `npm run dev` + `npm run party:dev` (port 1999). Don't set `VITE_PARTY_HOST` in `.env` for local dev.
-- Deploy the server: `npx partykit deploy` → `<game>.<user>.partykit.dev`. Do it by hand, only when `party/` changed, because a front-end release doesn't update it.
-- The front-end build (CI or itch) sets `VITE_PARTY_HOST=<game>.<user>.partykit.dev`.
-- Long-term option: deploy to Muzzy's own Cloudflare account with no platform fee (`CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… npx partykit deploy`).
+- Local: `npm run dev` + `npm run party:dev`. Don't set `VITE_PARTY_HOST` locally (the client uses the page's host + wrangler.json's dev port).
+- Deploy: `npm run party:deploy` → `<game>.joebrogno.workers.dev`. Only when `party/` (or the shared engine) changed — **server first, then the site**.
+- The front-end build (deploy.yml) sets `VITE_PARTY_HOST: <game>.joebrogno.workers.dev`; unset = "Play online" hidden on live.
 - Record the run/deploy lines in STATE Key facts.
+- Legacy (Roll Better only): `partykit.json` + `npx partykit deploy` on the shared zone still works for projects that already have their address.
 
 ### For Web Games (Colyseus, self-hosted)
-Use it only when PartyKit's limits don't fit. It needs an always-on server that you host yourself: **Colyseus Cloud has no free tier.**
+Use it only when Cloudflare's free limits don't fit. It needs an always-on server that you host yourself: **Colyseus Cloud has no free tier.**
 
 **Server setup:**
 ```bash

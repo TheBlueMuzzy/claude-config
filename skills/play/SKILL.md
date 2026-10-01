@@ -8,7 +8,7 @@ description: Start the game so Muzzy can play it — runs the dev server, gives 
 ## 1. Start it
 - Find how it runs: STATE.md → Key facts first (old GSD projects: look for a Dev Server / Deploy section instead, and don't restructure STATE), else `package.json` scripts (`dev`), else ask. The first time, always write the run command and port into Key facts.
 - Already running? Check the usual port (curl it). Don't start a second copy.
-- Otherwise start it in the background with LAN access (e.g. `npm run dev -- --host`). Also start any companion server listed in Key facts (e.g. PartyKit).
+- Otherwise start it in the background with LAN access (e.g. `npm run dev -- --host`). Also start any companion server listed in Key facts (e.g. the online server). A local `wrangler dev` started here always gets its own storage folder (`--persist-to .wrangler/state-play`) and its own port if the usual one is taken — two instances sharing `.wrangler/state` crash each other (SQLITE_BUSY).
 - Wait until it answers, then check it loads without console errors (quick Playwright look).
 
 ## 2. Give the links — always both kinds, clearly labeled

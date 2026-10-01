@@ -9,14 +9,14 @@ Last used: 2026-09-30 (glyphtender v0.1.0 — web only)
 
 ## One-time setup per project
 1. Vite `base: '/<repo>/'` in `vite.config.ts`.
-2. `.github/workflows/deploy.yml` on push to the default branch: `npm ci` → `npm test` → `npm run build` (type check included — never plain `npx vite build`, it hides type errors) → `actions/upload-pages-artifact` (`dist`) → `actions/deploy-pages`. Pass public build env (e.g. `VITE_PARTY_HOST: <name>.thebluemuzzy.partykit.dev`) in the Build step.
+2. `.github/workflows/deploy.yml` on push to the default branch: `npm ci` → `npm test` → `npm run build` (type check included — never plain `npx vite build`, it hides type errors) → `actions/upload-pages-artifact` (`dist`) → `actions/deploy-pages`. Pass public build env (e.g. `VITE_PARTY_HOST: <name>.joebrogno.workers.dev`) in the Build step.
 3. Repo Settings → Pages → Source: **GitHub Actions**.
 4. Write the Live URL + "deploys on push to <branch>" in the project's STATE Key facts.
 5. Offline cache (vite-plugin-pwa)? Add `import { registerSW } from 'virtual:pwa-register'; registerSW({ immediate: true })` to `src/main.tsx` + `"vite-plugin-pwa/client"` in tsconfig.app.json `types`. Without it, returning players see the OLD version until their next visit (Roll Better B020). Copy roll-better's `e2e/sw-update.mjs` as `npm run e2e:update` to guard it.
 
 ## Every release
 1. On master after the merge + release commit + tag (see /deliver §4–5).
-2. **Server first, if `party/` changed in the merge** (`git diff <last-tag>..HEAD --stat -- party/`): `npx partykit deploy` → "Deployed ./party/server.ts to https://<name>.thebluemuzzy.partykit.dev". Server first so a new front end never talks to an old server. Check the new server still accepts the OLD client's messages (players with the old page cached).
+2. **Server first, if `party/` changed in the merge** (`git diff <last-tag>..HEAD --stat -- party/ src/engine src/rooms`): `npm run party:deploy` (wrangler → `https://<name>.joebrogno.workers.dev`; legacy Roll Better: `npx partykit deploy`). Server first so a new front end never talks to an old server. Check the new server still accepts the OLD client's messages (players with the old page cached).
 3. `git push origin master --tags` → starts the Pages workflow.
 4. `gh run list --limit 1` → `gh run watch <id>` → then confirm with `gh run view <id> --json conclusion,jobs` (don't trust `$?` after a pipe).
 5. Delete the merged work branch locally + on the remote.
@@ -36,3 +36,4 @@ Last used: 2026-09-30 (glyphtender v0.1.0 — web only)
 - beta: add a feedback link in the menu.
 - 1.0: privacy policy page linked in Settings (roll-better has one: `privacy.html`), credits screen from `content/credits.json`.
 - 1.0: Dev Kit out of the live game — set `content/devkit.json` `"inReleaseBuilds": false`, then run `npm run check:devkit` (must PASS) before releasing.
+- 2026-10-01 glyphtender v0.2.0: moved to PartyServer + wrangler on Muzzy's account (`wrangler login` done on the PC) — see multiplayer-setup. Live-test the server with the real e2e (`VITE_PARTY_HOST=<host> npm run e2e:online`) before the site goes out; a pre-release review caught a reconnect seat bug.
