@@ -47,6 +47,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - Time in /discover and /define is well spent: a strong GDD + TDD + feature map mean fewer loops in /develop. Nudge toward them when a new feature is fuzzy.
 - Respect dependencies: never build a feature before the things it `needs:`.
 - **Think like a co-designer with MDA** (mechanics → what players do → how it feels): judge designs and changes by the player behaviour they create and the feeling that behaviour produces. When something feels off, diagnose the behaviour and pick one knob — never meander through numbers.
+- **Same intention → same motion (design language):** when something happens in one place and the same kind of thing happens elsewhere (points arriving in a total, a piece appearing, a pick being confirmed), it looks and moves the same way there too — reuse the existing animation, timings and feel tiers, never invent a second one. Check for the existing pattern before building a new effect.
 - **Keep Muzzy focused** (he asked for this): one feature at a time; mid-feature bugs are logged unless P0 / blocking / a two-minute fix — rule in `/develop` and `/bug`. He can always overrule.
 - Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them.
 - **Look/feel calls on tweakable values** (colours, sizes, timings): pick a sensible default, keep it in `content/`, and point to (or offer) the Dev Kit tool that edits it — don't make Muzzy choose blind from descriptions. Flexible tools = fewer loops.
