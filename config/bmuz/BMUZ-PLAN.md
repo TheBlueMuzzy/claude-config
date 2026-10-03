@@ -26,6 +26,7 @@ His games so far are deliberately varied to prove out which modules are needed. 
 - Roll Better: on the shelf (Muzzy, 2026-09-29) after v0.4.0. Framework is at v0.2.0 + Dev Kit 0.2.0 Tuning tab (unversioned on main — stamp at next framework /deliver).
 - Laptop still needs BMUZ-2 installed (Google Task).
 - Obsidian setup (vault = Documents/dev).
+- **Standard screen names (Muzzy, 2026-10-02):** one name per screen across every game, the UI kit, Dev Kit previews and the GDD/TDD — so "Main Menu" always means the same thing. Draft to settle with Muzzy: Main Menu · Settings (not "Options") · New Game (table setup) · Lobby (online) · Play Screen (the in-game view; scene names per game on top) · Pause · Results (end of game — tabs like Story / Scorecard live inside it; "Score Screen" = this) · Stats (lifetime) · How to Play · Credits. Then: the kit's screen registry + game-ui catalog use exactly these, and the game-ui skill names new screens from the list.
 
 ## Lessons from the Roll Better UI revamp (2026-09-29, autonomous run) — game-ui improvements to make
 Applied to skills 2026-09-29; open items = next framework kit pass.
