@@ -71,3 +71,17 @@ Severity: 🔴 blocked or caused real waste · 🟡 friction / had to improvise 
 52. 🔴 **Local servers sharing storage crash each other** (`SQLITE_BUSY` killed Muzzy's play server while helpers ran e2e). *Fix (done):* every `wrangler dev` gets its own `--persist-to` — in multiplayer-setup, /play, and Glyphtender's e2e. Muzzy spotted that this belongs in SOP.
 53. 🟡 **Helper worktrees start from main, not the work branch** — the first helper had no SPRINT.md. *Fix:* helper briefs start with `git merge --ff-only <work branch>`; worktrees live in `.claude/worktrees/` → tests, lint and git must ignore `.claude/`. Worth baking into /develop.
 54. 🟡 **Layout asks verified only on phone portrait** — Muzzy had to repeat "highlights under the results" on desktop. *Fix:* briefs list every size (390x844, 360x780, 844x390, ~768x343, ~1100 wide, 1440x900, 1920x1080) with per-size assertions; the lead looks at a desktop shot before saying done.
+
+### Polish round + Deliver v0.3.0 (2026-10-03) — full write-up: `../2026-10-03-standards-and-process/REVIEW.md`
+55. 🔴 **Muzzy had to repeat UI rules** ("you didn't listen to the 'margin' rule"; reveal cards grew when a star appeared although the B013 prompt sizer solved the same problem in the same project). *Fix:* game-ui "UI craft rules" + a screenshot checklist run before any "done": breathing room, nothing grows mid-sequence, no orphan words, dead bands, same motion.
+56. 🟡 **New motion built where one existed** — the reveal's +3 flew straight; the seed already arcs. *Fix:* game-feel step 0 lists the game's motion vocabulary and maps each new moment to an existing motion (now a global CLAUDE.md rule).
+57. 🟡 **Fixed-frame pattern proven twice** (prompt + reveal cards: hidden sizer copies at the biggest content). *Fix:* kit `FixedFrame` primitive with an e2e marker so checks skip the hidden copies.
+58. 🟡 **Full screen is every web game's need** (phones sideways, links sent to friends). *Fix:* framework web shell (full screen on tap / button / iPhone tip + PWA update-on-first-visit + an e2e helper that turns it off before resizing).
+59. 🟢 **Plain-sentence captions** — "Move, then cast: 9 → 5 → 1 moves" wasn't readable for players. *Fix:* writing rule in game-ui / externalize-text.
+60. 🟢 **A real playtest game as a fixture** paid off twice (Walled garden bug, Pincer tuning). *Fix:* /bug + /develop save the snapshot to e2e/fixtures when a playtest surprises.
+61. 🟡 **STATE drift reached /deliver** — branches already merged, a "360 px" problem already fixed. *Fix:* /deliver (and any "Ask Muzzy") re-verifies stated facts before acting/asking.
+62. 🟡 **Kit carousel rewound instead of looping; kit text allowed orphans** — kit parts didn't follow platform conventions. *Fix (done):* UI kit 0.2.14 / 0.2.15; catalog notes conventions.
+63. 🟢 **Kit fix → game copy done by hand 5× in a day** (VERSION + commit stamp). *Fix:* `npm run kit:update` (see #36).
+64. 🟢 **Windows text tooling** — CRLF working copies broke scripted edits; tool input turns ` ` into an invisible character. *Fix:* starter `.gitattributes` (`* text=auto eol=lf`); invisible characters via `String.fromCharCode`.
+65. 🟢 **e2e:menu needs an outside dev server** while every other e2e starts its own. *Fix:* shared harness (#10/#25).
+66. 🟡 **This log isn't triaged** — 54 items, ~4 marked applied, no review since 10-01. *Fix:* /checkup triages FINDINGS with Muzzy at each milestone (apply / park / drop).
