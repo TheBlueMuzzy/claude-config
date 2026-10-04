@@ -35,10 +35,13 @@ Run `bash ~/.claude/config/bmuz/config-sync.sh status` (pulls `~/.claude-config`
 - "only in repo" lines are usually things retired on purpose — mention once, never delete without asking (retire via RETIRED.txt).
 - Nothing printed → say nothing.
 
+## 4c. Clean up
+- **Clean up after yourself** (Muzzy, 2026-10-04): `bash ~/.claude/config/bmuz/cleanup.sh` — removes helper workspaces whose work is all on the main branch, empties git-ignored check output (`e2e-shots/`…), deletes temporary files (`*.tmp.*`, `e2e/_*.mjs`). Never touches tracked files; keeps (and names) any workspace that still holds work. Its one line goes in the report.
+
 ## 5. Tell him
 Two or three lines, player's-eye:
 ```
-Saved + pushed (v0.2.0.93, branch dev/v0-3-card-play — on the other machine I'll switch to it automatically). Setup synced to the laptop too.
+Saved + pushed (v0.2.0.93, branch dev/v0-3-card-play — on the other machine I'll switch to it automatically). Setup synced to the laptop too. 🧹 cleaned 1.2 GB.
 This session: lobby shows seats, host can kick. Next: reconnect handling.
 Safe to /clear or switch machines.
 ```

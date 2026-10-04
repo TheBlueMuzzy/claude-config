@@ -1,5 +1,13 @@
 # BMUZ-2 — where it's going (read this at the start of any BMUZ-improvement session)
 
+## Mission (agreed with Muzzy, 2026-10-04)
+**BMUZ lets anyone make good games fast with Claude: the person designs, Claude builds — filling the knowledge gaps, keeping the process invisible, asking only real design choices, and laying down proven modules as foundation bricks so every game starts further ahead.** Muzzy builds it and improves it; one day he shares it with friends.
+- **BMUZ** = the AI-builder guide (process): knows what to do when the designer doesn't, and makes sure architecture, testing, release and quality happen without being asked.
+- **Framework** = the bricks BMUZ lays down: Foundations every game gets (UI kit, Dev Kit, …) + Feature modules a game has or doesn't ("does this game have a hand? dice? AI? online play?"). Like PlayTable's platform: modules made it easy for others to build games on it.
+- **BMUZ is not:** a rulebook the designer must remember · a home for every lesson (a lesson becomes a module, a checklist line, or nothing) · a speculative library (one game proves a module, a second makes it general) · game-specific design (a game's rules stay in the game) · Claude's internal hygiene · meetings.
+- **The bloat test** — anything entering BMUZ must (1) remove a loop the designer actually had to make, (2) make a proven part reusable, or (3) cover something they didn't know they needed. Otherwise it stays out; where possible an addition replaces or shrinks something.
+- **Module size:** one line on "Does this game have…?" — something a player would name. Too small = a part inside a module (no "button module"); rules are never modules. Research: `reviews/2026-10-04-modules/RESEARCH.md`.
+
 ## The vision
 BMUZ is Muzzy's way to build games fast as a designer/artist who's only somewhat technical: he designs, Claude builds, and the process stays mostly invisible.
 The long-term heart of it is a **Game Framework** (like the one at PlayTable/TapTop, where Muzzy was creative director): a library of easily modified **modules**. Starting a new game, Claude reads the GDD, **infers the modules it needs** (AI opponents, multiplayer, card hand…) and the project gets its bones automatically. Muzzy is only asked about genuine choices.

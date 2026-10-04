@@ -24,6 +24,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session. Old G
 ## 2. Do the tasks
 For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them at the hand-off):
 - **Small tasks:** do them yourself. **Big ones** (lots of reading, or a fresh head helps): hand to a `general-purpose` subagent with the task, the feature's "Done when", relevant Key facts, and "report what changed and anything surprising." Tasks from different features that don't touch the same files can run in parallel.
+- **After a helper's work is merged** → `bash ~/.claude/config/bmuz/cleanup.sh` (removes its finished workspace — they were 3.9 GB in Glyphtender by v0.3.0).
 - **Helpers in worktrees** start from main, not the work branch: their brief's first step is `git merge --ff-only <work branch>`; tests, lint and git ignore `.claude/` (worktrees live there). Each helper's local servers use their own ports and storage (`wrangler dev --persist-to …`).
 - **Layout/UI briefs list every size** — 390x844, 360x780, 844x390, a short window ~768x343, ~1100 wide, 1440x900, 1920x1080 — with per-size checks; a layout ask applies at ALL sizes. Look at a desktop shot yourself before saying done.
 - **UI sprints / multi-part work — default pattern:** a framework helper ∥ a game helper when their files don't overlap; one bigger game helper per sprint, not one per task; bugs grouped by the files they touch (one helper per file group, not per bug). A Monitor on SPRINT.md ticks (and framework commits) posts the progress bar as tasks land — re-arm it when it expires.

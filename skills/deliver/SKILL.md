@@ -54,6 +54,9 @@ Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all
 Open the live URL in Playwright: it loads, shows the new version/feature, console clean. Retry after a minute if the host is still updating.
 Site has a service worker / offline cache? Returning players must get the new version on their first visit — run the project's `e2e:update` (recipe setup step 5; add it if missing). Your own first check may show the old version — confirm the deploy with a fresh fetch (`curl "<url>?v=<timestamp>"`), then reload twice.
 
+## 7b. Clean up
+- **Clean up after yourself** (Muzzy, 2026-10-04): `bash ~/.claude/config/bmuz/cleanup.sh` — removes helper workspaces whose work is all on the main branch, empties git-ignored check output (`e2e-shots/`…), deletes temporary files (`*.tmp.*`, `e2e/_*.mjs`). Never touches tracked files; keeps (and names) any workspace that still holds work. Run it in the game AND in `dev/framework` if a framework release went out; its line goes in §8.
+
 ## 8. Tell him — always with the clickable public link
 Confirm the link is public (opens without login), put it on its own line as a full URL, and add 2–5 lines on how to test it (with friends too: room codes, what to look for).
 ```
