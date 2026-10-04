@@ -85,3 +85,15 @@ Severity: 🔴 blocked or caused real waste · 🟡 friction / had to improvise 
 64. 🟢 **Windows text tooling** — CRLF working copies broke scripted edits; tool input turns ` ` into an invisible character. *Fix:* starter `.gitattributes` (`* text=auto eol=lf`); invisible characters via `String.fromCharCode`.
 65. 🟢 **e2e:menu needs an outside dev server** while every other e2e starts its own. *Fix:* shared harness (#10/#25).
 66. 🟡 **This log isn't triaged** — 54 items, ~4 marked applied, no review since 10-01. *Fix:* /checkup triages FINDINGS with Muzzy at each milestone (apply / park / drop).
+
+## 2026-10-04 — Testing + delivery took longer than it needed to (v0.6, 13 sprints in one night)  → FIXED in BMUZ 0.3.1
+- Same slow checks ran twice: every helper ran the full e2e set (20–40 min), then Claude re-ran most of it after merging.
+- "Run e2e one at a time (shared ports)" was over-cautious: most scripts already had their own ports; only 3 pairs clashed.
+- No rule for how much checking a change needs; /deliver would re-check and re-review work already checked on the same commit.
+- cleanup.sh: never removed helper workspaces merged into the work branch (only main); wiped e2e-shots mid-run (a false
+  "missing screenshots" failure) and the results pages Muzzy's links point to.
+- Fix (BMUZ 0.3.1): check tiers Fast / Area / Full in PROJECT-FILES.md "Checks"; helpers run Area, Claude runs Full once
+  per feature after merging; `npm run check:full` runs e2e side by side (Glyphtender: 19 checks 12.4 min vs ~31 one at a
+  time, slowest-first → ~10); STATE records `Last full check` + `Reviewed through` so /deliver reuses them; reviews per
+  feature commits; cleanup.sh counts the work branch + leaves fresh (<15 min) check output alone. Template:
+  templates/check-all.mjs.

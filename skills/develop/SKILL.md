@@ -26,6 +26,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - **Small tasks:** do them yourself. **Big ones** (lots of reading, or a fresh head helps): hand to a `general-purpose` subagent with the task, the feature's "Done when", relevant Key facts, and "report what changed and anything surprising." Tasks from different features that don't touch the same files can run in parallel.
 - **After a helper's work is merged** → `bash ~/.claude/config/bmuz/cleanup.sh` (removes its finished workspace — they were 3.9 GB in Glyphtender by v0.3.0).
 - **Helpers in worktrees** start from main, not the work branch: their brief's first step is `git merge --ff-only <work branch>`; tests, lint and git ignore `.claude/` (worktrees live there). Each helper's local servers use their own ports and storage (`wrangler dev --persist-to …`).
+- **Helper briefs ask for the Area check, not Full** (PROJECT-FILES.md "Checks"): Fast + the e2e scripts for what they touched. Claude runs Full once after merging. A helper's report quotes its Area results; don't re-run them after a clean merge — run Fast.
 - **Layout/UI briefs list every size** — 390x844, 360x780, 844x390, a short window ~768x343, ~1100 wide, 1440x900, 1920x1080 — with per-size checks; a layout ask applies at ALL sizes. Look at a desktop shot yourself before saying done.
 - **UI sprints / multi-part work — default pattern:** a framework helper ∥ a game helper when their files don't overlap; one bigger game helper per sprint, not one per task; bugs grouped by the files they touch (one helper per file group, not per bug). A Monitor on SPRINT.md ticks (and framework commits) posts the progress bar as tasks land — re-arm it when it expires.
 - **Design is open** (feel, look, feature behaviour)? That's the diverge part — try 2–3 quick variants when cheap (behind a toggle or tuning value) and let Muzzy pick. Don't guess on taste.
@@ -42,12 +43,12 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - **Stuck** 3 times on one approach → stop, say so plainly, suggest another path (**systematic-debugging** method for real bugs). Found a bug too big to fix now → add it as a 🐞 feature in ROADMAP.
 
 ## 3. Prove it works (never "should work") — follow **verification-before-completion**: evidence before any "done"
-- Tests if the project has them; `npm run build` must pass.
-- Run e2e scripts **one at a time** (they share ports — a crash while two overlap isn't a game bug). Read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe.
+- **Checks by tier** (PROJECT-FILES.md "Checks"): Fast after every task and merge; **Full once per feature** after its merges (`npm run check:full` — side by side, ~10–15 min; link `e2e-shots/checks.html`), then record `Last full check: <commit>` in STATE. No `check:full` yet? Add it from `~/.claude/config/bmuz/templates/check-all.mjs` (give every e2e script its own port first); until then run e2e scripts one at a time.
+- Read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe.
 - Visual change → start the dev server the way `/play` does (`--host`, the port from Key facts — write it there the first time), open it in Playwright, screenshot, look at it yourself, fix, re-shoot. Fixes are commits too (`F08: fix …`).
 - Logic → play it via Playwright or a quick script; console must be clean (a missing-favicon 404 doesn't count).
 - Check the feature's `Check:` line.
-- **Review the feature before showing it:** run `/code-review` (low) on the feature's changes and fix real bugs now — cheaper than finding them at /deliver. (Not in the project's repo folder? Hand the review to a subagent working in the repo.)
+- **Review the feature before showing it:** run `/code-review` (low) on the feature's commits only (`<start>..<end>` — a whole-branch diff is too big to read in one pass) and fix real bugs now — cheaper than finding them at /deliver; record `Reviewed through: <commit>` in STATE. (Not in the project's repo folder? Hand the review to a subagent working in the repo.)
 - Screenshots: also look for things **clipped inside boxes** (scroll areas, panels) — sideways-overflow checks don't catch those.
 
 ## 4. Hand to Muzzy (after each feature, or when he needs to look)

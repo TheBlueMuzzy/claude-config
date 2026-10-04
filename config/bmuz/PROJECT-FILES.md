@@ -96,6 +96,23 @@ Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for 
 ```
 Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships (/deliver checks). organize-assets keeps it up to date.
 
+## Checks — how much to run, and when  (Muzzy, 2026-10-04: "learn from this… move more optimally through testing and delivery")
+Learned in Glyphtender v0.6 (13 sprints in a night): the time went into running the SAME slow checks twice (helper, then
+Claude after the merge) and running every e2e script one at a time. Three tiers, one command each (a web game has
+`npm run check:fast` / `npm run check:full` — template `templates/check-all.mjs`; e2e scripts each get their own port so
+they run side by side, 3 at a time):
+| Tier | What | When | Time (Glyphtender) |
+|---|---|---|---|
+| **Fast** | unit tests · type check + build · lint · golden games / sims if any — together | every task, every merge, before every commit | ~1 min |
+| **Area** | Fast + the e2e scripts for what the change touched (`check:full -- online game`) — Key facts "Checks" maps areas → scripts | a helper finishing a task; a fix | 3–8 min |
+| **Full** | Fast + every e2e script + screenshots, side by side → `e2e-shots/checks.html` (link it) | ONCE per feature, after its merges, before the hand-off — and at /deliver only if code changed since | ~10–15 min |
+Rules:
+- **A helper runs Area, not Full.** Claude runs Full once after merging — that catches the combination problems (two pieces of work that each pass alone) a helper can't see. Never both.
+- **After a merge:** Fast only when the merge was clean and the helpers touched different files; Area for the overlapping area when git had to combine or resolve the same file.
+- **Record it:** after a green Full, write `Last full check: <commit> — all green (<date>)` in STATE Key facts. /deliver reuses it when HEAD is that commit (or only docs / .planning changed since): Fast + smoke + live check, no Full re-run.
+- **Reviews:** `/code-review` (low) per feature, on that feature's commits — a whole-branch diff is too big to read in one pass. Record `Reviewed through: <commit>` in STATE; /deliver reviews only what's newer + runs `/security-review` once on the branch.
+- Never hand Muzzy a command to run — run it, then link the results page.
+
 ## STATE.md  (under ~120 lines)
 ```markdown
 ## ▶ RESUME HERE

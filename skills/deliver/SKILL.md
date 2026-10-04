@@ -16,14 +16,14 @@ Ask only if it's unclear:
 
 ## 2. Make sure it's ready
 - Do `/save`'s STATE + Log step first (always — even with nothing uncommitted), so the log records what's being delivered.
-- Tests + build must pass (**verification-before-completion**: run them fresh, quote the result), plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean). Any open **P0** in BUGS.md blocks the release. Open P1s → list them and ask. Offer a bug sweep if there are several.
-- Run e2e scripts **one at a time** (shared ports — an overlap crash isn't a game bug); read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe.
+- **Checks** (PROJECT-FILES.md "Checks"): the **Fast** tier always, fresh (**verification-before-completion**: quote the result), plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean). **Full** only if code changed since STATE's `Last full check: <commit>` (docs / .planning changes don't count) — otherwise quote that check instead of re-running it. Any open **P0** in BUGS.md blocks the release. Open P1s → list them and ask. Offer a bug sweep if there are several.
+- Read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe.
 - Release stage → tick what's true in TDD §7 Compliance; anything required by the target platform that's still unticked (e.g. privacy policy for app stores) → list it and ask.
 - Features in this delivery not yet approved by Muzzy? Ask once: "F08 hasn't had your OK yet — release anyway?"
 - Release stage checks, scaled to the stage: **alpha** → a quick look (loads fast, no console errors, works on a phone). **beta / 1.0** → the full **optimize**, **accessibility-check** and **web-design-guidelines** (menus/HUD) skills plus a phone test via `/play`. Fix quick wins; list the rest as 🐞/✨ features.
 - **Credits check** (`content/credits.json`, lights from `~/.claude/references/indie-toolkit.md`): every 🟡 asset's credit line shows in the game's Credits screen, no 🔴 asset ships, and no asset file is missing from the list. Anything wrong blocks the release until it's fixed or Muzzy decides.
 - A SPRINT.md whose features are all done → archive it (`Sprint NN done`).
-- **Review before merging:** run the built-in `/code-review` and `/security-review` on the work branch's changes. They need the session to be inside the repo — if it isn't, hand each review to a subagent working in the repo (same scope: real bugs / real exploits only). Fix real bugs and security issues now. List the rest in plain English and ask.
+- **Review before merging:** `/security-review` once on the work branch's changes; `/code-review` only on commits after STATE's `Reviewed through: <commit>` (each feature was reviewed in /develop — don't re-read them). They need the session to be inside the repo — if it isn't, hand each review to a subagent working in the repo (same scope: real bugs / real exploits only). Fix real bugs and security issues now. List the rest in plain English and ask.
 
 ## 3. First release to a platform? Set it up now
 If §6 will need one-time setup (base path, deploy workflow…), do and commit it here on the work branch — so the version tag in §5 contains it. Follow/write the recipe as in §6.

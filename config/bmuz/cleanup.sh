@@ -2,9 +2,11 @@
 # BMUZ cleanup — Claude cleans up after itself (Muzzy, 2026-10-04: "clean up after yourself… make that clean up standard").
 # Runs at /save and /deliver (and after merging a helper's work in /develop). Safe by design:
 #   • NEVER touches a file git tracks.
-#   • Helper workspaces (.claude/worktrees/*) go only when every commit is already on the main branch AND nothing is
+#   • Helper workspaces (.claude/worktrees/*) go only when every commit is already on the main branch or the current
+#     work branch (merged into dev/<milestone>) AND nothing is
 #     uncommitted or untracked in them — otherwise they're kept and named, so the work is never lost.
-#   • Check output (screenshots, reports) goes only from folders git IGNORES — every check makes it fresh again.
+#   • Check output (screenshots, reports) goes only from folders git IGNORES — every check makes it fresh again — and
+#     never while it's fresh (changed in the last 15 min): a check may be running, or its results pages are being looked at.
 #   • Temporary files: untracked, ignored `*.tmp.*` and Claude's scratch checks (`e2e/_*.mjs`).
 # Usage: bash ~/.claude/config/bmuz/cleanup.sh [project-folder] [--dry-run]
 # Prints one line ("🧹 cleaned 3.9 GB — …") or nothing when there was nothing to clean.
@@ -24,17 +26,19 @@ DONE=(); KEPT=()
 # 1. Helper workspaces whose work is all on the main branch
 MAIN=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
 [ -z "$MAIN" ] && MAIN=$(git rev-parse --verify -q main >/dev/null && echo main || echo master)
+CURRENT=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 N=0
 while read -r WT; do
   [ -z "$WT" ] && continue
   B=$(git -C "$WT" rev-parse --abbrev-ref HEAD 2>/dev/null)
-  AHEAD=$(git rev-list --count "$MAIN..$B" 2>/dev/null || echo 1)
+  # (done = every commit is on main OR on the branch the project folder is on — e.g. merged into dev/<milestone>)
+  AHEAD=$(git rev-list --count "$B" --not "$MAIN" "$CURRENT" 2>/dev/null || echo 1)
   CHANGES=$(git -C "$WT" status --porcelain 2>/dev/null | wc -l)
   if [ "$AHEAD" = "0" ] && [ "$CHANGES" = "0" ]; then
     if [ -z "$DRY" ]; then git worktree remove --force "$WT" >/dev/null 2>&1 && git branch -D "$B" >/dev/null 2>&1; fi
     N=$((N + 1))
   else
-    KEPT+=("helper workspace $(basename "$WT") — $AHEAD commit(s) not on $MAIN, $CHANGES uncommitted file(s)")
+    KEPT+=("helper workspace $(basename "$WT") — $AHEAD commit(s) not merged yet, $CHANGES uncommitted file(s) (has work — check it before removing)")
   fi
 done < <(git worktree list --porcelain | awk '/^worktree /{print $2}' | grep '/\.claude/worktrees/')
 [ -z "$DRY" ] && git worktree prune >/dev/null 2>&1
@@ -47,6 +51,9 @@ for name in $OUTPUT_DIRS; do
     [ -z "$D" ] && continue
     git check-ignore -q "$D" || continue
     [ -n "$(git ls-files "$D" | head -1)" ] && continue
+    # A check may still be running, or just made the results pages Muzzy is about to open: leave a folder alone if
+    # anything in it changed in the last 15 minutes (it's cleaned next time).
+    if [ -n "$(find "$D" -type f -mmin -15 2>/dev/null | head -1)" ]; then KEPT+=("check output in $D — fresh (< 15 min old)"); continue; fi
     if [ -n "$(ls -A "$D" 2>/dev/null)" ]; then
       [ -z "$DRY" ] && rm -rf "${D:?}"/* "${D:?}"/.[!.]* 2>/dev/null
       N=$((N + 1))
@@ -72,5 +79,5 @@ if [ ${#DONE[@]} -gt 0 ]; then
   LIST=$(IFS=,; echo "${DONE[*]}" | sed 's/,/, /g')
   if [ -n "$DRY" ]; then echo "🧹 would clean: $LIST"; else echo "🧹 cleaned $(human $FREED) — $LIST"; fi
 fi
-for k in "${KEPT[@]}"; do echo "🧹 kept $k (has work — check it before removing)"; done
+for k in "${KEPT[@]}"; do echo "🧹 kept $k"; done
 exit 0
