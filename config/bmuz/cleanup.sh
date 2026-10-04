@@ -42,6 +42,13 @@ while read -r WT; do
   fi
 done < <(git worktree list --porcelain | awk '/^worktree /{print $2}' | grep '/\.claude/worktrees/')
 [ -z "$DRY" ] && git worktree prune >/dev/null 2>&1
+# …and helper branches whose workspace is already gone, once fully merged (git branch -d refuses anything unmerged)
+for HB in $(git branch --format='%(refname:short)' | grep '^worktree-agent-'); do
+  git worktree list --porcelain | grep -q "branch refs/heads/$HB$" && continue
+  if [ -z "$(git rev-list "$HB" --not "$MAIN" "$CURRENT" 2>/dev/null | head -1)" ]; then
+    [ -z "$DRY" ] && git branch -d "$HB" >/dev/null 2>&1; N=$((N + 1))
+  fi
+done
 [ "$N" -gt 0 ] && DONE+=("$N helper workspace(s)")
 
 # 2. Check output in git-ignored folders (any depth, outside node_modules)
