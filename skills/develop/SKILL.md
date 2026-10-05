@@ -56,7 +56,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - Playwright MCP may drop a `.playwright-mcp/` folder in the directory Claude was started from — delete it when you're done checking.
 - Feature has a `why:` line → end with its one feel question: "Did <moment> feel like <target, in players' words>?" Answer → SPRINT Notes.
 - List his 🙋 tasks and any new `Ask Muzzy:` questions.
-- Offer `/play` for links. Then wait.
+- **Links in the hand-off itself — never just "offer /play":** start the servers it needs (dev server `--host`, plus the online server if online is in it), curl them, and put the PC link, the phone (LAN IP) link and the checks results page in this message. Autonomous runs too: the morning report ends with the links. Then wait.
 - Feedback → fix → re-check → show again. **"Approved"** → feature ✅ done in ROADMAP (one approval covers its tuning too), refresh which features became 🟢 ready, replace STATE RESUME HERE + Doing, commit `F08: done`.
 - Sprint's features all done → if BUGS.md has open P0/P1 or several P2s, offer a **bug sweep** first (`/bug sweep`). Then archive SPRINT.md (`Sprint NN done`) and say one line: "Sprint done. Next: `/sprint` for the next one" — or "`/deliver` — the milestone/alpha musts are complete" when true. (/deliver saves on its own.)
 
