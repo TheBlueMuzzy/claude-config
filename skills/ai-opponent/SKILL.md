@@ -156,6 +156,8 @@ src/ai/
     └── [etc.]            # One file per personality
 ```
 
+**Sign-off before balance sims (Muzzy, 2026-10-07):** rules, boards and award thresholds tuned from AI-vs-AI games are only as good as the AI. Give the game a `content/ai/signoff.json` (`"balanceReady": false`, `"signedOff": ""`) and make every sim that tunes the GAME from AI games (Glyphtender: `ai:balance`, `sim:awards --players ai`) refuse to run until Muzzy flips it — after the Personality Check is green AND he's played it. In the roadmap, those sim features `need:` the sign-off. (Tuning the AI itself — the arena, the Personality Check — is never locked.) Awards are for people: a threshold tuned at a strong AI's level can take awards away from a human's real game — keep Muzzy's recorded games as tests.
+
 ### Step 8: Report to User
 ```
 AI OPPONENT SYSTEM READY

@@ -100,7 +100,7 @@ When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm goi
 - Consider: simpler path? Let the environment solve it?
 - Watch for: adding complexity to fix complexity, each fix creating a new problem
 
-**Reflection on mistakes:** When a bug or mistake reveals a pattern Claude should avoid, Muzzy may say "remember this." Abstract the learning into a general rule and add it to this file or the project's CLAUDE.md.
+**Reflection on mistakes — don't wait to be asked** (Muzzy, 2026-10-07: "intricacies that you've run into and solved, they should remain solved"): whenever a fix or a lesson isn't specific to this game, put it — the same session — as one checklist line in the BMUZ skill / framework module / PROJECT-FILES rule it belongs to (BMUZ-PLAN: "a lesson becomes a module, a checklist line, or nothing"), and say so in one line in the report ("Lesson → develop skill: …"). Game-only lessons stay in the game's TDD/STATE. Goal: fewer repeat mistakes → fewer tokens → faster games. Muzzy may also say "remember this."
 
 ## Skeptical Self-Review
 Before recommending changes, question your own reasoning:

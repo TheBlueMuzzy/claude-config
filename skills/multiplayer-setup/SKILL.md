@@ -69,6 +69,8 @@ src/rooms/...              # framework rooms module (create/join, identity, rejo
 - **Eviction:** an empty in-memory Durable Object is evicted after ~1–2 min — "keep the empty room for 5 min" is an upper bound, not a promise.
 - **Local storage lock:** two `wrangler dev` processes sharing `.wrangler/state` crash with `SQLITE_BUSY`. EVERY local instance gets its own
   `--persist-to` folder: party:dev → `.wrangler/state-dev`, /play → `.wrangler/state-play`, each e2e run → `.wrangler/state-e2e-<port>`.
+- **Generated-file lock (Windows):** a build step that copies a file for the server (e.g. the word list → `party/words.gen.txt`) must skip the copy when the target is already identical — two `wrangler dev` starting at once (side-by-side e2e) otherwise hit `EBUSY` and one server never starts (Glyphtender B023).
+- **Random setup choices (turn order, first player, seat colours):** the server picks them from its own secret random numbers (no extra draw that shifts the others), stores them in the move record's setup so replays match, and `makeRules` gets a "plain" option tests pass to keep the old fixed order — from day one (Glyphtender F46).
 - **Ports:** each game has its own dev port (Roll Better 1999, Glyphtender 1997); e2e runs start their OWN servers on other ports and never kill anyone else's.
 
 **Run and deploy:**
