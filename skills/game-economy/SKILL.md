@@ -44,3 +44,8 @@ Analyze/design economy for: $ARGUMENTS
 - Sinks needed to prevent inflation
 - Faucets needed to prevent frustration
 - Gates for pacing
+
+## Achievements / awards (lesson from Glyphtender F47, 2026-10-07)
+- An achievement tells a player **they did something right** — rarity is a check, not the goal (Muzzy). Tune its rate from real AI games (after the AI sign-off), with the game's **standard settings** (e.g. Glyphtender: two-letter words off), not the old defaults.
+- When one number can't land an award well (it jumps from "every game" to "never"), use **levels** (Bridge → Super Bridge; the higher replaces the lower) before inventing a new formula.
+- Keep the designer's real games as tests (the awards they earned must keep firing); an award an AI earns often is fine if taking it from the AI proves skill.

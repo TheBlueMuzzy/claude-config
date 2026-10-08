@@ -72,6 +72,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - One work branch per delivery (`/develop` makes it: `dev/<milestone>`), merged only by `/deliver`. Tiny fixes can go straight on main.
 - Save early, save often — context can compact at any time
 - A value Muzzy **saved** (Dev Kit, Obsidian, a file edit) is a decision — keep it and commit it, don't question it; only ask if it breaks something.
+- **Say "the game you played on <date>", never "your game"** (Muzzy, 2026-10-07: "this entire thing is 'my game'") — the project is his game; a single playthrough needs its date or a name.
 - **Sprint reports open with a header** (Muzzy, 2026-10-07: "idk really what these sprints were meant to do… idk if you even wrote any new code"): sprint number + goal in plain words, then each feature as ID + what it was meant to do (e.g. "Sprint 17 — settle the last open design questions with AI games · F46: which board, who goes first · F47: how often awards appear"), then **what was built** (new code / content changes / tests) vs **what was only measured or researched**. Only after that, the results.
 - **Progress updates** on multi-step work: show a bar + steps + rough time left, e.g. `████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper)`. Percent = steps done / total; time is an honest guess — say when it's waiting on something. **Re-post the bar each time a step completes** (incl. background helpers — watch their commits with Monitor), not just at start and end
 
