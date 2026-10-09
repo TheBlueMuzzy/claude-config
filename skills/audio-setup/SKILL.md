@@ -22,7 +22,14 @@ format conversion, and mobile audio quirks automatically.
 - React or vanilla JS?
 
 ### Step 2: Choose Audio Library
-Based on project:
+**Web games (React + Vite): use the framework Audio module — not a library, not a hand-rolled manager.**
+Install: `node ../../framework/audio/scripts/install-audio.mjs . --dry-run` then without `--dry-run` (→ `src/audio/` +
+a starter `content/audio.json`). Hook-up, API and where sounds go: `dev/framework/audio/README.md`. Worked example:
+Glyphtender (`src/game/sound.ts` — engine at start, Settings → Audio, kit buttons via the UI kit's `setControlSound`,
+`e2e/audio-log.mjs` reads `window.__audioLog`). Pass the engine its own `rng` (`seededRandom`) if the game seeds
+`Math.random` anywhere (screenshots, replays). The options below are for other stacks only.
+
+Other stacks, based on project:
 - **Howler.js** (recommended for most games): Best browser compatibility, audio sprites, spatial audio
 - **Tone.js**: If procedural/generative audio is needed
 - **Web Audio API directly**: Only if minimal needs
@@ -54,6 +61,7 @@ assets/audio/
 Freesound CC0 only…) are in `~/.claude/references/indie-toolkit.md`. Record each sound's licence.
 
 ### Step 3b: Placeholder SFX made in code (no files needed)
+> **Lesson (Roll Better 2026, Glyphtender 2026-10-09):** Muzzy called code-made sounds "horrible". For anything he'll hear in play, use **real recorded** CC0 sounds (Kenney Impact/Casino/RPG/UI Audio, OpenGameArt CC0 field recordings). Even some "free packs" are synth tones: Kenney *Interface Sounds* and OGA *Cozy Farm SFX* have spectral flatness ≈ 0. Check with ffmpeg `aspectralstats` before picking. Keep ZzFX for throwaway sketches only. Web games: use the framework Audio module (`dev/framework/audio`, design `framework/.planning/design/audio.md`), not a hand-rolled SoundManager.
 Every prototype can have sound on day one. Use **ZzFX** (MIT, under 1 KB, `npm i zzfx`) and keep
 the presets in `content/sfx.json`, so Muzzy can tweak or swap them in the Dev Kit or Obsidian:
 ```json
