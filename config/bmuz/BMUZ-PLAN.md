@@ -6,6 +6,7 @@
 - **Framework** = the bricks BMUZ lays down: Foundations every game gets (UI kit, Dev Kit, …) + Feature modules a game has or doesn't ("does this game have a hand? dice? AI? online play?"). Like PlayTable's platform: modules made it easy for others to build games on it.
 - **BMUZ is not:** a rulebook the designer must remember · a home for every lesson (a lesson becomes a module, a checklist line, or nothing) · a speculative library (one game proves a module, a second makes it general) · game-specific design (a game's rules stay in the game) · Claude's internal hygiene · meetings.
 - **The bloat test** — anything entering BMUZ must (1) remove a loop the designer actually had to make, (2) make a proven part reusable, or (3) cover something they didn't know they needed. Otherwise it stays out; where possible an addition replaces or shrinks something.
+- **Guide + project manager, flexible** (Muzzy, 2026-10-09): BMUZ suggests the ideal order (core feels great → whole game playable → content → balance/bugs) but never walls the designer in — they can fix or try anything off-plan; BMUZ helps, tracks the side ideas (must/should/could), then brings them back on track. How strict depends on the designer's goal (just prototyping vs. heading to a real release) — ask it. BMUZ builds from the designer's PRD/GDD; it offers design ideas but isn't a gameplay critic.
 - **Module size:** one line on "Does this game have…?" — something a player would name. Too small = a part inside a module (no "button module"); rules are never modules. Research: `reviews/2026-10-04-modules/RESEARCH.md`.
 
 ## Framework decisions (Muzzy, 2026-10-04)
@@ -47,6 +48,10 @@ His games so far are deliberately varied to prove out which modules are needed. 
    - Only make something a module once it's proven in a real game (no speculative abstractions).
 
 ## Open threads
+- **GMTK study (2026-10-09)** — `references/gmtk.md` + `references/gmtk/` (Mark Brown: process, design, craft, Word Play reviews). Muzzy: mostly confirms BMUZ; kept: throwaway prototypes of the main action, teaching map (when tutorials happen), layers as guidance, content lock = the must/should/could triage.
+- **Dev Kit "Moments" (Muzzy, 2026-10-09)** — an extension of Screens: pick a screen → a Moments section lists the moments that happen there (score pop, two-birds cast, tangle, reveal winner…) → ▶ fires one, 🔁 loops it while you move sliders (feel, timing, sound); saved feel presets flip A/B on the looping moment. Candidate for Glyphtender sprint 20 (the Sound Board's "▶ in context").
+- **Playtest rubric system (Muzzy, 2026-10-09 — later, once BMUZ makes games well; then it becomes a dev-cycle tool)** — from a AAA-designer friend: each playtest lists the tasks/aspects tested, each with an expected success (e.g. finds the Cast button within 20 s) and an acceptance threshold (e.g. 90% must pass); the observer (not the tester) fills the chart; 2 of 10 confused = 20% X → fails a 90% bar → back to the drawing board. Data proves revisions were worth the time. BMUZ version: one link per playtest (a hash ties it to that playtest's secret rubric) → sent to N players → the game logs play in the background → logs come back → Claude analyses against the rubric → report to Muzzy → fix → loop.
+- **Final polish / art flow (Muzzy, 2026-10-09 — when a game heads to release)** — in beta BMUZ prompts the designer to consider more finalized art, then manages that process (checklists, suggestions, sourcing, the swap). A flow of its own.
 - Roll Better: on the shelf (Muzzy, 2026-09-29) after v0.4.0. Framework is at v0.2.0 + Dev Kit 0.2.0 Tuning tab (unversioned on main — stamp at next framework /deliver).
 - Laptop still needs BMUZ-2 installed (Google Task).
 - Obsidian setup (vault = Documents/dev).
