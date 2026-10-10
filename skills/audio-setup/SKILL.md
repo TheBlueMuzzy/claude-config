@@ -62,6 +62,7 @@ Freesound CC0 only…) are in `~/.claude/references/indie-toolkit.md`. Record ea
 
 ### Step 3b: Placeholder SFX made in code (no files needed)
 > **Lesson (Roll Better 2026, Glyphtender 2026-10-09):** Muzzy called code-made sounds "horrible". For anything he'll hear in play, use **real recorded** CC0 sounds (Kenney Impact/Casino/RPG/UI Audio, OpenGameArt CC0 field recordings). Even some "free packs" are synth tones: Kenney *Interface Sounds* and OGA *Cozy Farm SFX* have spectral flatness ≈ 0. Check with ffmpeg `aspectralstats` before picking. Keep ZzFX for throwaway sketches only. Web games: use the framework Audio module (`dev/framework/audio`, design `framework/.planning/design/audio.md`), not a hand-rolled SoundManager.
+> **Lesson (Glyphtender B026, 2026-10-10):** trim every tap/UI/impact sound to its onset (loudness reaches 10% of peak within ~5 ms; a 3 ms fade-in). Free-pack files often start with 40–90 ms of near-silence, which on top of drag thresholds and device latency feels "really delayed". Swells (whooshes, flourishes) may ramp in on purpose.
 Every prototype can have sound on day one. Use **ZzFX** (MIT, under 1 KB, `npm i zzfx`) and keep
 the presets in `content/sfx.json`, so Muzzy can tweak or swap them in the Dev Kit or Obsidian:
 ```json
