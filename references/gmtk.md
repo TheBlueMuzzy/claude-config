@@ -133,3 +133,14 @@ Full reports with quotes + video ids: `references/gmtk/` — process.md (his own
 - Distributions as histograms.
 - Two-to-three-word headlines.
 - Offer the slider, not a description.
+
+## Muzzy's calls on the BMUZ upgrades (2026-10-09 — nothing implemented until all groups are discussed)
+**Big principle (Muzzy):** BMUZ is a guide AND a project manager for people who may be new to making games — it suggests the ideal order but stays flexible: if the developer wants to fix or try something off-plan, help them, then bring them back on track. How strict to be depends on the developer's goal (just prototyping vs. heading to a real release) — ask it.
+Group 1 (process):
+- ✅ Throwaway prototypes: one-off, simple builds of the main action to prove it out (any number, any length); never built on. (Glyphtender F01 move/cast sketch.)
+- ✅ Teaching map — only when tutorials are actually being made (late).
+- ❌ Hook sentence — dropped.  ❌ "Where's Muzzy in it?" — dropped.
+- ✅ Build in layers (core feels great → whole game playable → content → balance/bugs) — as guidance, not a wall; balancing and fixing happen along the way.
+- ⏸ "Least time" tie-breaker — dropped for now. Muzzy: final polish will be a whole flow of its own — in beta BMUZ should prompt the developer to consider more finalized art and then manage that (checklists, suggestions).
+- ✅ Lock fundamentals before content — a guidance note only, scaled to the developer's goal.
+- ✅ Content lock — not a hard lock: it's the must/should/could system — mid-step ideas get tracked, BMUZ says when to do them and asks how important they are.
