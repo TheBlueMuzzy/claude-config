@@ -45,6 +45,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - **"Don't run tests" still means typecheck before committing** (`npx tsc -b`, seconds): a quick no-test edit once pushed a broken build (Glyphtender b8758a1 — a `//` comment appended inside a one-line object).
 - **Files with backslashes (regexes, Windows paths) → the Write/Edit tool, not a bash heredoc**: a heredoc turned `'\\'` into `'\'` in an .mjs (framework audio, 2026-10-09).
 - **Framework React code gets the game's lint before it ships** (the framework has no linter; Dev Kit 0.8.0's hooks errors only showed in Glyphtender): from the game folder, `npx eslint --stdin --stdin-filename src/devkit/<file>.tsx < ../../framework/devkit/kit/<file>.tsx` — nothing installed.
+- **A framework module's own checks pass before it's installed** (ui-kit 0.4.4 shipped with its own `check-ui` failing — a `'0px'` in layout.tsx): run the module's tests + its check script (ui-kit `check-ui`, devkit `check-devkit`) in the framework, not just the game's.
 - After each task: tick it in SPRINT.md, add surprises to Notes, commit `F08: <task>`. That's all — no STATE edits per task, no version.json (/save does that).
 - A feature's build tasks are done and it works → if it has `(tuning)` tasks left, set it 🎛️ tuning in ROADMAP (features that `~need` it can start now); else go to §4.
 - **Stuck** 3 times on one approach → stop, say so plainly, suggest another path (**systematic-debugging** method for real bugs). Found a bug too big to fix now → add it as a 🐞 feature in ROADMAP.
