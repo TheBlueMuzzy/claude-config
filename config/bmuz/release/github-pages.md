@@ -1,5 +1,5 @@
 # GitHub Pages release recipe (web games, + optional PartyKit server)
-Last used: 2026-10-05 (glyphtender v0.4.1 — server first (wrangler), Pages; CI test timeout hit once, see Gotchas)
+Last used: 2026-10-11 (glyphtender v0.8.0 — site only, server unchanged; Pages, e2e:update + live load PASS)
 
 ## Prerequisites
 - GitHub remote under TheBlueMuzzy; `gh` CLI logged in (`gh auth status`).
