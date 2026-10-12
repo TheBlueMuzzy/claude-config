@@ -1,5 +1,5 @@
 # GitHub Pages release recipe (web games, + optional PartyKit server)
-Last used: 2026-10-11 (glyphtender v0.8.0 — site only, server unchanged; Pages, e2e:update + live load PASS)
+Last used: 2026-10-12 (glyphtender v0.9.0 + v0.9.1 — server first (new secret via `printf '%s' "$KEY" | npx wrangler secret put NAME`, check with `npx wrangler secret list`), then Pages; e2e:update + live load PASS)
 
 ## Prerequisites
 - GitHub remote under TheBlueMuzzy; `gh` CLI logged in (`gh auth status`).
@@ -39,3 +39,4 @@ Last used: 2026-10-11 (glyphtender v0.8.0 — site only, server unchanged; Pages
 - 2026-10-01 glyphtender v0.2.0: moved to PartyServer + wrangler on Muzzy's account (`wrangler login` done on the PC) — see multiplayer-setup. A pre-release review caught a reconnect seat bug.
 - 2026-10-04 glyphtender v0.4.0: ⚠ `VITE_PARTY_HOST=<host> npm run e2e:online` does NOT test the live server — the script always starts its own local wrangler. The live server test is the "Check it's live" step: on the live site, Play online → type a name → Create a room → a 4-letter code appears (Playwright, fresh `?v=` load). The version shows in Settings (not on the menu); to check it from outside: the live JS bundle contains `"X.Y.Z"`. Server + site must go out together when the action shape changes (old phones' moves are refused) — rooms live in memory, so a deploy simply closes rooms in progress.
 - 2026-10-05 glyphtender v0.4.1: the Pages build failed once on a unit test that timed out (5 s default) on GitHub's slower runner — a whole AI-played game took 5.4 s there vs ~2 s on the PC. Heavy whole-game tests need their own timeout (`it(..., fn, 30_000)`). The server was already deployed by then — fine, since the new server accepts the old site's messages.
+- 2026-10-12 glyphtender v0.9.0: the live load logged a 404 — a Dev Kit tab plug fetched a dev-server-only endpoint (`/__words/list`) on the live build. Fixed in v0.9.1 (the plug checks `CAN_SAVE` first). The live check must list failed requests by URL (`page.on('response')`), not just count console errors.
