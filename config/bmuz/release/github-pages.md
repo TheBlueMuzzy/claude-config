@@ -1,11 +1,11 @@
-# GitHub Pages release recipe (web games, + optional PartyKit server)
+# GitHub Pages release recipe (web games, + optional PartyServer room server on Cloudflare)
 Last used: 2026-10-12 (glyphtender v0.9.0 + v0.9.1 — server first (new secret via `printf '%s' "$KEY" | npx wrangler secret put NAME`, check with `npx wrangler secret list`), then Pages; e2e:update + live load PASS)
 
 ## Prerequisites
 - GitHub remote under TheBlueMuzzy; `gh` CLI logged in (`gh auth status`).
 - Free Pages needs the repo **public**.
-- Online games: PartyKit CLI logged in (`npx partykit whoami` → thebluemuzzy). Never commit `.env`.
-- ⚠ **NEW online games can't use PartyKit's shared `*.partykit.dev` any more** (2026-09-30: "exceeded the limit of 10000 Workers custom domains on zone 'partykit.dev'" — the shared zone stopped minting hostnames after the Cloudflare acquisition). Existing projects (roll-better) keep working. New ones: deploy to Muzzy's own free Cloudflare account — PartyKit cloud-prem (`CLOUDFLARE_ACCOUNT_ID=… CLOUDFLARE_API_TOKEN=… npx partykit deploy --domain …`) or partyserver + wrangler (→ `<name>.<account>.workers.dev`). Needs Muzzy's one-time `npx wrangler login`. Until then: ship web-only with "Play online" hidden (unset VITE_PARTY_HOST).
+- Online games: wrangler logged in to Muzzy's Cloudflare (`npx wrangler whoami`; once per machine: `! npx wrangler login`). Server = PartyServer → `<name>.joebrogno.workers.dev` (multiplayer-setup skill). Never commit `.env`.
+- ⚠ **Never PartyKit** — its hosted platform (`*.partykit.dev`, `npx partykit deploy`) shut down 23 Oct 2026. A project still on it gets moved first (multiplayer-setup → "Moving an old PartyKit game").
 
 ## One-time setup per project
 1. Vite `base: '/<repo>/'` in `vite.config.ts`.
@@ -16,7 +16,7 @@ Last used: 2026-10-12 (glyphtender v0.9.0 + v0.9.1 — server first (new secret 
 
 ## Every release
 1. On master after the merge + release commit + tag (see /deliver §4–5).
-2. **Server first, if `party/` changed in the merge** (`git diff <last-tag>..HEAD --stat -- party/ src/engine src/rooms`): `npm run party:deploy` (wrangler → `https://<name>.joebrogno.workers.dev`; legacy Roll Better: `npx partykit deploy`). Server first so a new front end never talks to an old server. Check the new server still accepts the OLD client's messages (players with the old page cached).
+2. **Server first, if `party/` changed in the merge** (`git diff <last-tag>..HEAD --stat -- party/ src/engine src/rooms`): `npm run party:deploy` (wrangler → `https://<name>.joebrogno.workers.dev`). Server first so a new front end never talks to an old server. Check the new server still accepts the OLD client's messages (players with the old page cached).
 3. `git push origin master --tags` → starts the Pages workflow.
 4. `gh run list --limit 1` → `gh run watch <id>` → then confirm with `gh run view <id> --json conclusion,jobs` (don't trust `$?` after a pipe).
 5. Delete the merged work branch locally + on the remote.

@@ -7,7 +7,7 @@
 ## 1. At a glance
 - **Platforms:** <web (desktop + phone browsers) / Android / iOS / Steam>
 - **Stack:** <Vite + TypeScript + React + R3F / vanilla TS + DOM / Unity C#> — why: <1 line>
-- **Where it runs online:** <GitHub Pages / Vercel / PartyKit server / none>
+- **Where it runs online:** <GitHub Pages / Vercel / PartyServer on Muzzy's Cloudflare / none>
 - **Dev Kit tools used:** <Tuning, Time, Snapshots, Bug capture, Perf, Animation…> (catalog: `~/.claude/config/bmuz/DEVKIT.md`) — **recommended next:** <tools this game would benefit from, and why>
 
 ## 2. How it fits together

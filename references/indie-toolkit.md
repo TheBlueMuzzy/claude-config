@@ -71,7 +71,7 @@ Juice references: "Juice it or lose it" (Jonasson & Purho, 2012) · "The Art of 
 | Static web game (hobby) | **GitHub Pages** — current default | 1 GB site, soft 100 GB/month bandwidth | "Not for commercial hosting". Vite `base: '/<repo>/'` |
 | Static web game (commercial OK) | **Cloudflare Pages** | 500 builds/month, 20k files, **25 MiB per file** max. Bandwidth unlimited (unverified) | Big GLBs and audio can hit 25 MiB |
 | Second web platform + audience | **itch.io** | ZIP ≤1,000 files, ≤500 MB extracted, ≤200 MB per file | Recipe: `config/bmuz/release/itch.md` |
-| Multiplayer | **PartyKit** on Cloudflare Durable Objects | ~100k requests/day (WebSocket messages count), 5 GB stored. Over the limit → errors until 00:00 UTC | A busy real-time game can hit 100k/day. See the **multiplayer-setup** skill |
+| Multiplayer | **PartyServer** on Muzzy's own Cloudflare (Workers + Durable Objects, free plan; PartyKit's hosted platform shut down 23 Oct 2026) | ~100k requests/day (WebSocket messages count), 5 GB stored. Over the limit → errors until 00:00 UTC | A busy real-time game can hit 100k/day. See the **multiplayer-setup** skill |
 | Cloud saves / leaderboards | **Supabase** | 2 projects, 500 MB DB, 50k MAU, 5 GB egress | **Pauses after 1 week without activity.** Prototypes fall asleep |
 | Auth / Firestore | **Firebase Spark** | Firestore 50k reads / 20k writes per day. Hosting only 360 MB/day | Host the game elsewhere |
 | ⚠ Avoid | **Netlify Free** | 300 credits/month hard cap | When the credits run out, **every site on the account pauses** until the month resets (credit maths unverified) |

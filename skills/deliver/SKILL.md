@@ -47,7 +47,7 @@ Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all
 - **Nothing to host** (a library like `dev/framework` — games copy it): skip §3, §6, §7; merge, version, tag, push, and in §8 give the repo link and what games get from it.
 - **Not yet** (Muzzy doesn't want it hosted) → record `Release: not set up (declined <date>)` in Key facts and say plainly: "Merged and versioned v0.1.1 — **not live anywhere yet**."
 - **Blocked** (platform chosen but something's missing, e.g. no GitHub repo) → do all the local setup, write the recipe as far as it goes (mark untested steps ⚠), record `Release: <platform> — blocked: <why>` in Key facts, add a `Muzzy:` line saying what unblocks it, and say plainly it's **not live**.
-- Companion servers (e.g. `npx partykit deploy`) only when their code changed — check `git diff` of the merge. Untouched → skip its deploy and say so ("server unchanged — not redeployed").
+- Companion servers (e.g. `npm run party:deploy` — wrangler) only when their code changed — check `git diff` of the merge. Untouched → skip its deploy and say so ("server unchanged — not redeployed").
 - CI deploys (a workflow in `.github/workflows/`) → pushing main started it; watch with `gh run watch` until done.
 
 ## 7. Check it's actually live

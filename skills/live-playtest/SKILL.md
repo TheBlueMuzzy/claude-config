@@ -1,6 +1,6 @@
 ---
 name: live-playtest
-description: Watch a live multiplayer game session by monitoring browser console logs via Playwright. Use when Muzzy is playtesting an online game and wants Claude to observe, summarize rounds, and flag issues in real-time. Works with any Vite + PartyKit (or similar WebSocket server) game.
+description: Watch a live multiplayer game session by monitoring browser console logs via Playwright. Use when Muzzy is playtesting an online game and wants Claude to observe, summarize rounds, and flag issues in real-time. Works with any Vite + PartyServer (or similar WebSocket server) game.
 allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion, mcp__plugin_playwright_playwright__browser_navigate, mcp__plugin_playwright_playwright__browser_evaluate, mcp__plugin_playwright_playwright__browser_console_messages, mcp__plugin_playwright_playwright__browser_snapshot, mcp__plugin_playwright_playwright__browser_tabs
 ---
 
@@ -65,7 +65,7 @@ Report to Muzzy:
 - Anything that looked off
 
 ## What Doesn't Work (Don't Try These)
-- **Starting a second PartyKit dev server** — port is already in use by Muzzy's server. A second instance binds but doesn't get the traffic.
+- **Starting a second room server (`wrangler dev`)** — port is already in use by Muzzy's server. A second instance binds but doesn't get the traffic.
 - **Passive WebSocket spectator** — connecting a raw WebSocket to `ws://localhost:1999/party/<room>` gets a `connected` ack but receives no broadcasts. Server only broadcasts to players who sent a `join` message.
 - **Joining as a player** — would affect the game (extra player slot, receives game_starting, etc.)
 

@@ -1,6 +1,6 @@
 ---
 name: multiplayer-setup
-description: Set up online multiplayer for your game — room codes, matchmaking, real-time sync. Covers PartyServer + wrangler on Muzzy's own Cloudflare (web default, free, used by Glyphtender; PartyKit legacy for Roll Better), Colyseus (self-hosted web), Unity Netcode + UGS (Unity), and Playroom Kit (quick P2P). Use when adding online play to any game.
+description: Set up online multiplayer for your game — room codes, matchmaking, real-time sync. Covers PartyServer + wrangler on Muzzy's own Cloudflare (THE web standard, free — Glyphtender, Roll Better, rooms kit; PartyKit's hosted platform shut down 23 Oct 2026, never use it), Colyseus (self-hosted web), Unity Netcode + UGS (Unity), and Playroom Kit (quick P2P). Use when adding online play to any game.
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch
 ---
 
@@ -35,11 +35,12 @@ Ask the user about their game:
 
 ## Step 2: Implement (based on chosen stack)
 
-### For Web Games (PartyServer on Muzzy's own Cloudflare — the default since 2026-10-01)
-PartyKit's shared `*.partykit.dev` zone is FULL — new projects can't deploy there (10,000-domain limit, 2026-09-30).
-Roll Better keeps working on it; every NEW game uses **PartyServer** (PartyKit's open-source successor) deployed with
+### For Web Games (PartyServer on Muzzy's own Cloudflare — THE standard)
+**Never PartyKit** (`partykit`, `partykit.json`, `npx partykit deploy`, `*.partykit.dev`): its hosted platform shut down on
+23 Oct 2026. Every web game — new or existing — uses **PartyServer** (PartyKit's open-source successor) deployed with
 **wrangler** to Muzzy's own free Cloudflare account → `<game>.joebrogno.workers.dev`. Each room = one Durable Object,
-same `/parties/main/<code>` path PartySocket already uses, so the client code is unchanged. Proven in Glyphtender (TDD D46).
+same `/parties/main/<code>` path PartySocket already uses, so the client code is unchanged. Proven in Glyphtender (TDD D46)
+and Roll Better (TDD D21). The framework rooms module installs all of it (`wrangler.json`, `party/worker.ts`, LiveConnections).
 **Free tier** (see `~/.claude/references/indie-toolkit.md`): ~100k requests/day; every WebSocket message counts.
 
 **Setup (the Glyphtender pattern):**
@@ -56,7 +57,7 @@ npm install partysocket partyserver && npm install -D wrangler
 ```
 party/worker.ts            # class Main extends Server (partyserver) → hands each room to the game's room class; default export fetch → routePartykitRequest
 party/server.ts            # the room itself (framework rooms module RoomServer) — knows nothing about Cloudflare, testable with fakes
-party/liveConnections.ts   # the server's OWN live-socket list (see gotchas)
+src/rooms/server/liveConnections.ts  # the server's OWN live-socket list (see gotchas) — comes with the rooms kit
 src/rooms/...              # framework rooms module (create/join, identity, rejoin, host migration) — dev/framework/rooms
 ```
 - **Server is authoritative**; the same pure engine runs on client and server. Each player gets their OWN view (hidden info stripped) — test every view for secrets.
@@ -81,7 +82,11 @@ src/rooms/...              # framework rooms module (create/join, identity, rejo
 - Deploy: `npm run party:deploy` → `<game>.joebrogno.workers.dev`. Only when `party/` (or the shared engine) changed — **server first, then the site**.
 - The front-end build (deploy.yml) sets `VITE_PARTY_HOST: <game>.joebrogno.workers.dev`; unset = "Play online" hidden on live.
 - Record the run/deploy lines in STATE Key facts.
-- Legacy (Roll Better only): `partykit.json` + `npx partykit deploy` on the shared zone still works for projects that already have their address.
+- **Moving an old PartyKit game** (Roll Better, 2026-10-12 — ~1 h): if the server is a PartyKit `Party.Server` class, keep it and give it a tiny
+  room interface (`id`, `broadcast(msg, without?)`, `getConnection`, `getConnections`) that `party/worker.ts` fills from LiveConnections;
+  add `wrangler.json`; swap `partykit` → `partyserver` + `wrangler` (scripts, e2e `npx wrangler dev --port <p>`, gitignore `.wrangler/` — keep
+  `.partykit/` ignored too or old local state gets committed); point `VITE_PARTY_HOST` in deploy.yml at `<game>.joebrogno.workers.dev`;
+  run the online e2e on `wrangler dev`; deploy the server, then the site. In-memory rooms = no data to export.
 
 ### For Web Games (Colyseus, self-hosted)
 Use it only when Cloudflare's free limits don't fit. It needs an always-on server that you host yourself: **Colyseus Cloud has no free tier.**

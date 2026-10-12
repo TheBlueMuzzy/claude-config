@@ -10,7 +10,7 @@ Rule: **skill = know-how, MCP = hands into another program.** If a good CLI exis
 | context7 | current library docs | best as the `context7@claude-plugins-official` plugin so it syncs |
 
 ## CLI instead of an MCP
-`gh` (GitHub) · `gws` (Google) · `butler` (itch) · `wrangler` / `partykit` (Cloudflare) · `supabase` · `firebase` · `magick` / `sharp` (images) · `curl` Poly Haven API (no key). Obsidian vault, LDtk, Tiled → edit the markdown/JSON files directly.
+`gh` (GitHub) · `gws` (Google) · `butler` (itch) · `wrangler` (Cloudflare) · `supabase` · `firebase` · `magick` / `sharp` (images) · `curl` Poly Haven API (no key). Obsidian vault, LDtk, Tiled → edit the markdown/JSON files directly.
 
 ## Install when a project needs it
 | Trigger | MCP | Watch out |
@@ -19,7 +19,7 @@ Rule: **skill = know-how, MCP = hands into another program.** If a good CLI exis
 | /optimize performance work | Chrome DevTools MCP with `--isolated` | NEVER auto-connect (would attach to Muzzy's real Chrome) |
 | Project uses Supabase | Supabase MCP, read-only, scoped to one project | prompt-injection risk (Supabase's own warning) |
 | Project uses Firebase | Firebase plugin | |
-| Debugging a live PartyKit/Cloudflare deploy | Cloudflare docs/logs MCP | |
+| Debugging a live Cloudflare (PartyServer) deploy | Cloudflare docs/logs MCP | |
 | Live game with crash reporting | Sentry MCP | free-plan access unverified |
 | Pixel-art game + Aseprite owned | Aseprite MCP | Aseprite ≈ $20 |
 | Wants generated placeholder art + runs ComfyUI | official local Comfy MCP | prototypes only |
