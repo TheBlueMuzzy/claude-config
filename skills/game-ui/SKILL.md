@@ -11,6 +11,7 @@ Design: `dev/framework/.planning/design/ui-kit.md`. Say "Using game-ui for this.
 
 ## Rules
 - **If it isn't a button, it must not look like one** (Muzzy's rule). Instructions, status, round labels and other info are plain text (kit `HudText`, 0.1.9+) — no card, outline or drop shadow. Cards/outlines/shadows mean "you can press this".
+- **Every Settings row that's on must change something** (Glyphtender v0.9.2: 12 kit placeholder rows — Graphics quality, Vibration, Tips, Colour-blind mode, Reset progress… — did nothing): a row goes on only when the game reads it (grep its id); ui-kit 0.8.1's installer starts new games that way. Rules for the table (2-letter words, word lists) are New Game / lobby options, not Settings.
 - **Never put a hint inside a button's label** ("Submit a word · place a seed first" wrapped onto 2 lines on a phone — Glyphtender sprint 25): keep the row short and pressable, and let the screen it opens say what's missing.
 - **A switch's ON is the good state** (Muzzy 2026-10-10): name settings so on = positive — "Sound", never "Mute everything" — because a switch sounds rising when turned on and falling when turned off. Menus that grow (New Game's rows) open centred and then only grow DOWN, so the control just tapped stays under the finger (kit `Screen scroll`, 0.4.4).
 - **Never hand-style game UI.** No raw colours, px sizes, font names, absolute positioning or inline
