@@ -30,6 +30,13 @@ Guessing at performance usually fixes the wrong thing. Follow this loop:
    side does nothing. For stutters, look for garbage-collection spikes from creating objects every frame.
 5. **Fix that one thing,** then **re-measure the same scene on the same device.** Keep the fix only
    if the number moved. Then look for the next biggest cost.
+   **Load time on a "slow phone": throttle in a server you control, not Chrome's network throttle** — Chrome's
+   throttle skips the service worker's downloads, so a PWA's precache looks free when on a real phone it shares
+   the pipe with the first screen. Serve the build with gzip (like the host) and count bytes per request; split
+   page vs service-worker bytes with Playwright's `request.serviceWorker()`. Glyphtender's `scripts/perf-audit.mjs`
+   (+ `content/perf.json` budgets) is the worked example — harvest it into the framework before a second game needs it.
+   Usual first-screen wins: the Dev Kit mounted at start in release builds (mount on idle instead), and the
+   precache holding the UI kit's fonts for style presets the game doesn't use.
 6. **Report real numbers:** "Busiest round: 24 ms → 14 ms on Pixel 6 (budget 16.6 ms). Cause:
    140 separate dice materials → shared material." Never say "should be faster".
 

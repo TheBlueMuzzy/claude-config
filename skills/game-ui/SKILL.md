@@ -37,6 +37,11 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    (`--dry-run` first on an update: it lists changed / added / removed kit files). It copies the kit to
    `src/ui/kit/` with a VERSION stamp, creates style.json + settings.json only if missing (never
    overwrites) and adds the kit's font credits to `content/credits.json`. Follow its printed next steps.
+   **Short screens are a size, not an edge case:** shoot every card at 844×390 and 768×343 too — a card too tall for
+   the window scrolls INSIDE itself (kit 0.7.0), never leans on its slot; Glyphtender's Pause "Leave game" hung off
+   the screen for 6 releases because only phone-upright + desktop got looked at (e2e/previews.mjs short-screen guard).
+   **A PWA game:** the kit ships every style's fonts — leave the ones the picked preset doesn't name out of the
+   offline cache (`globIgnores`, worked out from style.json — Glyphtender vite.config.ts `unusedFontGlobs`, ~160 KB).
    **A game that already has UI** (most of them): screenshot its other screens first; wrap its
    page-wide CSS (index.css `button {}`, `* { margin:0; padding:0 }`) in `@layer game-base { … }` or it
    overrides every kit part; mount `<ScreenStack overlay screens={…} />` next to the game (not around
