@@ -51,5 +51,6 @@ Unity games use Unity's own editor instead.
 | **Feel** | screen shake, hit-stop, camera kick presets |
 
 **Built so far** (in `dev/framework/devkit/`, kit 0.5.0 — on branch `dev/devkit-previews` until merged): Console + Search + Color + Tuning (sections) + Snapshots + Bug capture + Screens (previews, dev only). Copy for Claude names the game from `document.title` (Snapshots/Bug capture: from the game adapter).
+Kit 0.13.0 adds the **Text** game tab (`textTab({ file: 'content/text/en.json', data })`, branch `dev/text-tab`): every player-facing string as a text box in collapsible sections, `_help` notes, `{placeholder}` guard (Save waits if one is lost), search, Save = byte-identical layout + the game hot-reloads its words — the "live-edit strings" row of Text & accessibility.
 
 Add new tools to this catalog as games discover the need.
