@@ -8,6 +8,8 @@ Goal: rules and systems specific enough to build, each tied to the feeling it's 
 3. **Trace every core mechanic** with **mda-analyze** trace — one row in the §4 mechanics table: what players end up doing → which target. Mark predictions. Check the traps (snowballing leader, one best strategy, waiting around, too random). A target nothing serves → tell Muzzy.
 4. **Numbers** — rules with odds or balance → a **proto** sim before committing to them. Resources/currencies → **game-economy**. Computer opponents → **ai-opponent**.
 5. **Systems** — §5, only the ones this game has; long ones get their own `design/<system>.md`.
+   - **Plain English must be literally true** (Muzzy, Glyphtender 2026-10-13: an AI that "never makes the second tangle" can be forced to): an AI / system *preference* is written as "tries to / prefers / if it can", plus what happens when it can't ("it always plays a legal turn") — code built from an over-strong sentence soft-locks. Game words players see follow the GDD's wording rules (e.g. Magic is *created*, never *gained*).
+   - **Modes the game can enter** (help/explore, pause, overlays): list what ends them by themselves (idle warnings, bot takeover, disconnect, game end, handoff) and what is held while they're up (tips, timers).
 6. **Look & sound** — §6 with Muzzy (he's the artist — capture his direction, don't invent it).
 
 ## Output
