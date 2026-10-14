@@ -42,6 +42,12 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    **Short screens are a size, not an edge case:** shoot every card at 844×390 and 768×343 too — a card too tall for
    the window scrolls INSIDE itself (kit 0.7.0), never leans on its slot; Glyphtender's Pause "Leave game" hung off
    the screen for 6 releases because only phone-upright + desktop got looked at (e2e/previews.mjs short-screen guard).
+   **Anything that scrolls: prove it with a real finger swipe** (CDP `Input.dispatchTouchEvent`, starting ON the card),
+   not just "scrollHeight > clientHeight" — Glyphtender's New Game measured as scrollable but a phone swipe on the card
+   did nothing (B027, kit 0.8.2). Headless Chrome can't touch-scroll in full screen: turn full screen off in the test.
+   **No native scroll bars** (kit 0.10: ScrollArea hides its bar and fades the edge with more). Headless Chrome never
+   draws scroll bars, so a screenshot can't show one: check styles instead — any box that can scroll must have
+   `scrollbar-width: none` (Glyphtender e2e/shots.mjs nativeScrollBars).
    **A PWA game:** the kit ships every style's fonts — leave the ones the picked preset doesn't name out of the
    offline cache (`globIgnores`, worked out from style.json — Glyphtender vite.config.ts `unusedFontGlobs`, ~160 KB).
    **A game that already has UI** (most of them): screenshot its other screens first; wrap its

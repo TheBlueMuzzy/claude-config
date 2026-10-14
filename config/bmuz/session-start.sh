@@ -14,6 +14,14 @@ if [ "$SOURCE" = "startup" ] || [ -z "$SOURCE" ]; then
   fi
 fi
 
+# The global setup (CLAUDE.md, skills, BMUZ config) behind the other machine's? (startup only; any folder)
+# Muzzy, 2026-10-13: "I'm not going to remember to type that exactly" — so it's a nudge to say /sync, never a git command
+if { [ "$SOURCE" = "startup" ] || [ -z "$SOURCE" ]; } && [ -z "$BMUZ_NO_PULL" ] && [ -d "$HOME/.claude-config/.git" ]; then
+  GIT_TERMINAL_PROMPT=0 timeout 20 git -C "$HOME/.claude-config" fetch --quiet 2>/dev/null
+  BEHIND=$(git -C "$HOME/.claude-config" rev-list --count 'HEAD..@{u}' 2>/dev/null)
+  [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ] && echo "⚙️ Global setup: $BEHIND update(s) from the other machine — tell Muzzy in one line and offer /sync (or just run it if he's about to work)."
+fi
+
 cd "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null || exit 0
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   # Started in a folder that holds projects (e.g. dev/games) — reviews, RESUME HERE and sync only work inside one
