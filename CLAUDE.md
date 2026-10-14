@@ -115,6 +115,12 @@ Projects with `version.json` use X.Y.Z.B versioning — see `~/.claude/reference
 ## Google Workspace CLI (`gws`)
 
 Access to Drive, Docs, Sheets, Slides, and Tasks via `gws` CLI.
+
+**Two accounts — pick the right one without asking:**
+- `joebrogno@gmail.com` (personal, default) → plain `gws ...` (config `~/.config/gws`)
+- `muzzymade@gmail.com` (work/freelance) → `GOOGLE_WORKSPACE_CLI_CONFIG_DIR=~/.config/gws-muzzy gws ...`
+- Work/freelance projects (e.g. folders ending `_work`, client board games) → muzzymade. A project's CLAUDE.md may name its account. Unsure, or a file 404s/is read-only → check owner with `gws drive files get --params '{"fileId":"ID","fields":"owners(emailAddress),capabilities(canEdit)"}'` on both and use the one that can edit.
+- The claude.ai Google Drive MCP is one account only — prefer `gws` when the file may be on the other account.
 Calendar has a dedicated MCP tool — prefer that for calendar tasks.
 **Do NOT use Gmail MCP tools** — Muzzy has intentionally denied email access.
 
