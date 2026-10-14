@@ -31,7 +31,7 @@ Follow the template in `~/.claude/config/bmuz/PROJECT-FILES.md`:
 ## 4b. Sync the shared setup (PC ↔ laptop)
 Run `bash ~/.claude/config/bmuz/config-sync.sh status` (pulls `~/.claude-config` first).
 - **INCOMING** (the other machine pushed config) → apply it first: `cd ~/.claude-config && bash setup.sh`, then re-run status.
-- **CHANGED** lines (this machine's global setup — CLAUDE.md, skills, config, references, HUB.md… — differs from the repo) → show the list in one line and ask: *"Your global setup changed here (CLAUDE.md, HUB.md…) — sync it to the other machine?"* Yes → `bash ~/.claude/config/bmuz/config-sync.sh push "<plain summary>"`. If a CHANGED file was also changed by INCOMING, show both versions and ask which to keep.
+- **CHANGED** lines (this machine's global setup — CLAUDE.md, skills, config, references, HUB.md… — differs from the repo) → push it without asking (Muzzy, 2026-10-14: "always sync to the laptop"): `bash ~/.claude/config/bmuz/config-sync.sh push "<plain summary>"`, and name what synced in one line of the report. If a CHANGED file was also changed by INCOMING, show both versions and ask which to keep.
 - "only in repo" lines are usually things retired on purpose — mention once, never delete without asking (retire via RETIRED.txt).
 - Nothing printed → say nothing.
 
