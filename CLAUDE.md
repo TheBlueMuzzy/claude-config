@@ -78,6 +78,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 
 ## Code Quality
 - **Verify your work** — run tests, check output, confirm behavior. Never assume code works without checking. Visual work → Playwright screenshot and look at it yourself.
+- **Be independent: finish tasks for real** (Muzzy, 2026-10-14) — after a big action, check first-hand that what you're about to say is true and the task is actually complete (audit the content itself, not just tests), or ask. Never make Muzzy be the one who asks "did you check?"
 - **Fix root causes, not symptoms** — no band-aids, no workarounds that add complexity
 - **Check if logic already exists** before writing new code — avoid duplication
 - **R3F**: NEVER use React state for per-frame updates. Mutate refs in useFrame.
