@@ -8,23 +8,30 @@ Why this file exists (Muzzy, 2026-10-18): Goops got the Dev Kit installed but no
 
 ## Dev Kit (every web game — `framework/devkit`)
 The Dev Kit's job is to change the RUNNING game live. A game is wired for it when:
-1. **Live content.** Every value the game reads from `content/` follows Dev Kit edits without a reload:
-   - tuning → `liveTuning('file', json)` / `useLiveTuning` (read `.current` at the moment of use, never copied at load);
-   - pure rules/engine code takes its config by reference or through a setter, so it stays pure AND live (seeded tests
-     stay deterministic);
-   - words → `content/text/en.json` hot-reloads (Text tab); look → `content/ui/style.json` through the UI kit's `applyStyle`.
-   - Guard: the Dev Kit's live-tuning guard test runs in the game's own tests (a direct `content/tuning` import fails it).
-2. **Two clocks.** The game separates the **rules clock** (anything that can change what happens: falling, timers, AI
-   moves, physics that decides results, rule-carrying animations) from the **looks clock** (blinks, pulses, glows, idle
-   jiggle). Rule: *if the end of an animation changes the game, it's on the rules clock.* Game-logic timers never use
-   raw `setTimeout`/`setInterval` — they run on the rules clock, so pausing it stops them.
+1. **Live content — by default.** The Dev Kit's Vite plugin (0.18.0) hands the game every `content/tuning/*.json`
+   import as a live object (`liveFile`: a getter per key that reads the latest Dev Kit edit), so the game imports its
+   tuning as usual and it follows the sliders. What the game must do: **read values where they're used**, never copy
+   them once at load (`const speed = tank.cameraSpeed` at the top of a file, `{ ...file }` in a constructor, a `?raw`
+   import, a named JSON import). Pure engine code that takes its config by reference and reads it per tick is live AND
+   pure (seeded tests stay deterministic). Hot loops that read thousands of values a frame copy the file once per frame.
+   - `liveTuning` / `useLiveTuning` stay for files outside content/tuning and for code that wants to know WHEN an edit
+     arrives; words → `content/text/en.json` hot-reloads (Text tab); look → `content/ui/style.json` via `applyStyle`.
+   - Guard: the game's own tests run `copiedAtLoad(srcFiles)` (`src/devkit/tuning/liveGuard.ts`) — it fails on the
+     copies above; copies inside constructors/factories it can't see → prove a few knobs live in an e2e.
+2. **Two clocks — the shared ones** (`src/devkit/gameClock.ts`, safe in every build). The **rules clock** runs
+   anything that can change what happens (falling, timers, AI moves, physics that decides results); the **looks clock**
+   runs presentation (blinks, pulses, glows, idle jiggle). Rule: *if the end of an animation changes the game, it's on
+   the rules clock.* The game: ticks its engine by `dt × rulesClock.rate`, sets `rulesClock.scale` for its own pause /
+   slow motion, uses `rulesClock.after/every/now` instead of `setTimeout`/`setInterval`/`performance.now` for game
+   logic, and takes frame time and pulses from `looksClock` (so a full pause resumes without a jump).
 3. **Adapter** (`src/devkit-game/<game>Adapter.ts`, registered in `tabs.ts`): `getState` / `setState` (plain JSON; junk
-   refused with a plain reason) · `canRestore` · `onEvent` (short lines) · `describe` · **`pause('full' | 'half' | null)`**
-   + the modes it supports. Online games: restore and pause greyed out (can't pause other players).
-4. **Pause buttons work** (Dev Kit "Time" tool): **⏸ Full pause** — everything frozen (the Dev Kit holds rAF, CSS/Web
-   animations and audio itself; the adapter stops the game's own rule timers and its frame clocks so nothing jumps on
-   resume) · **◐ Half pause** — the rules clock stops, the looks clock runs (watch a pulse while nothing moves on).
-   Slow motion and step-one-frame (catalog Tier 1 "Time") sit on the same rules clock.
+   refused with a plain reason) · `canRestore` · `onEvent` (short lines) · `describe` · `pauseModes: ['full','half']`
+   (or just read rulesClock) · optional `pause(mode)` for machinery the clocks don't reach (a physics engine, an AI
+   worker) · optional `canPause` (default `canRestore`). Online games: restore and pause greyed out.
+4. **Pause buttons work** (Dev Kit 0.18.0, left of the panel title; P cycles): **⏸ Full pause** — the Dev Kit holds
+   the page's animation frames, pauses CSS/Web animations, media and AudioContexts, and stops both clocks; a live edit
+   while frozen redraws one frame · **◐ Half pause** — only the rules clock stops (watch a pulse while nothing moves
+   on). Slow motion and step-one-frame (catalog "Time") will sit on the same clocks.
 5. **Seeded randomness** with a fixed mode for checks (`?seed=`), so snapshots and captures replay.
 6. **Screens previews** for gated screens (end report, rank-up, errors) — `src/devkit-game/previews.tsx`.
 7. **Hotkeys skip text boxes** (input / textarea / select / contenteditable).
