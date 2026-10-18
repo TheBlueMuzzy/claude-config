@@ -56,6 +56,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - **Stuck** 3 times on one approach → stop, say so plainly, suggest another path (**systematic-debugging** method for real bugs). Found a bug too big to fix now → add it as a 🐞 feature in ROADMAP.
 
 - **Every new system honours the module contracts** (`~/.claude/config/bmuz/MODULE-CONTRACTS.md`): reads `content/` through live hooks (Dev Kit edits apply while it runs — never only after a reload), keeps its timers on the rules clock (so both Dev Kit pauses stop it), and gives the adapter what it needs. Installing a module = wiring its hooks in the same task (Goops 2026-10-18: Dev Kit installed, nothing live — Muzzy: "the purpose of the devkit is to affect things live").
+- **Installing a module = proving its main promise in THIS game, end to end** (Dev Kit: move a Tuning slider → the running game changes; pause → it stops). A green install + green tests proved nothing in Goops (2026-10-18).
 - **Game hotkeys skip keys typed into a text box** (input / textarea / select / contenteditable) — otherwise the Dev Kit's search (or any name field) triggers game actions and loses letters (Goops 2026-10-18: "curve" → "cuv"). Dev Kit 0.17.1 also keeps its own keys inside.
 
 ## 3. Prove it works (never "should work") — follow **verification-before-completion**: evidence before any "done"
