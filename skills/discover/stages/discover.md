@@ -9,6 +9,10 @@ Goal: understand the space before narrowing. More options, not fewer. Size it to
 4. **Hunches** — a rule or odds question worth checking? A quick **proto** sim.
 5. **Directions** — 2–4 rough takes on the core loop, one line each. Don't pick yet.
 
+**A remake of an existing game:** carry the old design docs (story, progression, systems) into `design/` and link them from the GDD *before* asking Muzzy anything. Only ask what the old docs leave open. "Not built" ≠ "not designed" (Goops, 2026-10-16).
+
+**Feel/look question? → `/sketch`** (rules in `~/.claude/skills/sketch/SKILL.md`). **Comparing approaches (a "lab")?** Write one shared brief first (same board, controls, knob names, checks) so each sketch differs only in what's being tested; build them in parallel; each lands as a tab in the planner's Sketches section (`/ppp`, list only finished ones with `--only=`). Ask Muzzy for his two endpoints early: it cut Goops' goo round from 5 guesses to A vs B (2026-10-16). Tuning knobs never cover what they tune: dock the panel beside the sketch (Muzzy tunes on the PC) and keep the view full size; give it 3 presets (+ Preset, tap to load) and a "Copy values for Claude" button so his tuning reaches the plan.
+
 ## Output
 - Create `.planning/GDD.md` from `~/.claude/config/bmuz/templates/GDD.md`; fill §1 Pitch (rough), §2 targets (rough), §9 open questions. Header: `Current phase: Discover`.
 - Longer notes (reference breakdowns, directions) → `.planning/research/discovery.md`.

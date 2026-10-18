@@ -24,9 +24,15 @@ flowchart LR
 - <e.g. rules code never touches the screen; the screen only reads state>
 - <e.g. every tweakable value lives in content/, never hardcoded>
 
+## 2c. Module contracts (one block per framework module the game uses — checklist: `~/.claude/config/bmuz/MODULE-CONTRACTS.md`)
+- **Dev Kit:** live content (<how tuning / text / style reach the running game; how the engine's config stays live and pure>) · two clocks (<what's on the rules clock, what's on the looks clock>) · adapter (<getState/setState, onEvent, describe, pause modes>) · seeded mode · Screens previews · hotkeys skip text boxes
+- **UI kit:** <style preset, fonts, settings rows the game reads>
+- **<Audio / Table / AI / Rooms>:** <what the game provides>
+
 ## 2b. Game-specific systems (include the ones this game has)
 **Multiplayer** — who's in charge of what (client or server) · message list (name → sent by → what it does) · reconnect and seat rules · what each deploy contains (front end vs server).
 **Physics / simulation** — the feel numbers (gravity, bounce, damping…) live in `content/tuning/`; how "settled" is detected; how results are read.
+**Real-time / visual physics** — say which layer decides the rules (grid / game model) and which only shows them (springs, soft bodies, particles). Visuals read the rules and never feed positions back, so switching the effects off changes no result. (Goops v1: goo physics deciding the falling piece's position caused the I-piece locking bug.)
 **Timers** — every timer in one table, so two timers never fight:
 | Timer | Length | Owned by (client/server) | Starts when | On expiry |
 |---|---|---|---|---|

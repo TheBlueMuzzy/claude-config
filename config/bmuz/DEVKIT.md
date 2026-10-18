@@ -3,6 +3,7 @@
 Developer tools that live **inside** every web game — in development, and in release builds until 1.0.
 Press **`** (or triple-tap on a phone) to open the console. Tabs across the top, one per tool.
 
+**Its purpose: change the RUNNING game live** — a game is only wired when its content reads are live and its clocks pausable (`MODULE-CONTRACTS.md`).
 **The one rule:** every tool edits **data files** in `content/` (JSON), never code. So Muzzy's changes are saved,
 versioned in git, readable by Claude, and also editable by hand in Obsidian.
 Every panel has **Save** (write to the JSON file) and **Copy for Claude** (a plain-English summary of what changed).
@@ -25,7 +26,7 @@ Unity games use Unity's own editor instead.
 | **Console** | the ` overlay itself, tabs, quick-action buttons — ✅ framework module `devkit/` (from Roll Better F60): panel + save endpoint + release check `npm run check:devkit` (both ways) + switch `content/devkit.json` |
 | **Tuning** | sliders/fields/toggles for any value in `content/tuning/` — ✅ framework module `devkit/` (kit 0.2.0, F48): every number as slider + box, groups, checkboxes, `_ranges`, ↺, Save/Copy for Claude; live in the game via `liveTuning` / `useLiveTuning` (a plain `devkit:tuning` event, safe in release). Kit 0.5.0: collapsible **sections** with counts + chips (remembered per game), readable names — each file's `_labels` / `_sections` beside `_help` (order: `content/devkit.json` `sectionOrder`), `#rrggbb` values get a colour picker |
 | **Search** | ✅ kit 0.5.0 (Glyphtender, Muzzy: "it's SOO hard to find attributes"): a box under the tabs filters every settings tab live — substring anywhere in a word, camelCase split, all words must match; searches key, label, help, section, file; highlighted, counted, grouped by tab + section; tap a section title to jump there; ✕ / Esc clear. **Every game: give each tuning key a plain-English `_labels` entry and a `_sections` home** |
-| **Time** | pause · slow motion 0.1×–2× · step one frame |
+| **Time** | **⏸ Full pause** (everything frozen) · **◐ Half pause** (rules clock stopped, looks clock running — needs the game's adapter `pause('half')`) beside the panel title (Goops, Dev Kit 0.18.0 — building) · slow motion 0.1×–2× · step one frame (same rules clock). The game's side: `MODULE-CONTRACTS.md` |
 | **Snapshots** | save "this exact moment" and restore it; jump to any round/level/scene — ✅ framework module `devkit/` (kit 0.3.0, Glyphtender F16): name + Save moment, Restore / Copy for Claude / Save to file (`content/snapshots/`), files listed too; restore off when `canRestore()` is false (online). Needs the game adapter (`registerDevKitGame` in `src/devkit-game/tabs.ts`) |
 | **Bug capture** | ● record · 📍 mark "it happened here" · send → `/bug` with the last ~60 s of events, game state, version, device — ✅ framework module `devkit/` (kit 0.3.0, Glyphtender F17): rolling 60 s window (events + state every 5 s, Record remembered), Send → `.planning/bugs/capture-<date>-<time>.json` in dev, Copy for Claude everywhere. Same game adapter (`onEvent` feeds the log) |
 | **Perf** | fps, memory, warnings when something spikes |

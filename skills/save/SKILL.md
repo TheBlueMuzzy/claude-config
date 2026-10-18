@@ -28,6 +28,9 @@ Follow the template in `~/.claude/config/bmuz/PROJECT-FILES.md`:
 - Commit with a plain summary. Push the current branch (set upstream if new).
 - No remote? If Key facts says `Remote: none (declined …)`, don't offer again. Otherwise offer once to create one (`gh repo create TheBlueMuzzy/<folder> --private --source . --push`); if he declines, record that.
 
+## 4a. Refresh the project planner (if STATE Key facts has a `Planner (PPP):` link)
+Run `node ~/.claude/config/bmuz/templates/ppp/build-ppp.mjs .` and republish `.planning/ppp.html` to that link with the Artifact tool (`url` = the link). Any command that changes ROADMAP / SPRINT / BUGS does the same.
+
 ## 4b. Sync the shared setup (PC ↔ laptop)
 Run `bash ~/.claude/config/bmuz/config-sync.sh status` (pulls `~/.claude-config` first).
 - **INCOMING** (the other machine pushed config) → apply it first: `cd ~/.claude-config && bash setup.sh`, then re-run status.

@@ -4,6 +4,7 @@
 - Artist and designer, not a professional engineer
 - Good with logic, not abstract coding patterns
 - Prefers **human-readable code** over clever abstractions
+- **Explain genre jargon in plain words the first time** ("wall kick" = what a piece does when you rotate it against something) — he had to look one up (2026-10-17)
 - Values **targeted, minimal changes** — don't refactor beyond what's asked
 - Always provide **terminal commands ready to copy/paste**
 - **New app or tool walkthroughs: ONE step at a time** — give a single step, wait for Muzzy to say it's done (or send a screenshot), then the next. No bulk lists of directions.
@@ -34,15 +35,17 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 | Stage 2 | `/define` | lock it in → GDD (design + scope per release), TDD (engineering plan), feature map with dependencies |
 | Stage 3 | `/develop` | "go" → build the sprint on the work branch, tests, tuning, prove it works, wait for "approved" |
 | Stage 4 | `/deliver` | smoke test, merge, version, release per platform recipe, live link |
+| View | `/ppp` | the project planner page (game at a glance, milestones %, every item's stage) — opens in the browser |
 | View | `/roadmap` | milestones, features, what needs what, % of musts, open bugs |
 | View | `/sprint` | current sprint tasks (🤖 Claude / 🙋 Muzzy), or plan the next one |
 | View | `/gdd` | the game design as a digest; `/gdd what if…` to change it |
 | View | `/tdd` | the engineering plan as a digest; `/tdd what if…` to weigh Muzzy's approach |
 | Tool | `/play` | run it, desktop + phone links, watch the console |
+| Tool | `/sketch` | a throwaway playable sketch to prove a feel/look/idea: knobs beside it, 3 presets, "Copy values for Claude", a tab in the planner |
 | Tool | `/save` | update STATE.md, commit, push → safe to clear or switch machines |
 | Tool | `/bug` | report (P0–P3), list, or bug sweep |
 
-`/bmuz` shows the menu. Rules + planning model: `~/.claude/config/bmuz/PROJECT-FILES.md`. Dev Kit catalog: `DEVKIT.md`. Obsidian: `OBSIDIAN.md` (vault = `Documents/dev`).
+`/bmuz` shows the menu. Rules + planning model: `~/.claude/config/bmuz/PROJECT-FILES.md`. Dev Kit catalog: `DEVKIT.md`. What a game must wire for each framework module (live hooks, rules/looks clocks, pause): `MODULE-CONTRACTS.md`. Obsidian: `OBSIDIAN.md` (vault = `Documents/dev`).
 - **Be the hands-off partner:** route plain English to the right command yourself, end every hand-off with the next command, and just run it when the next step is obvious. Muzzy shouldn't have to remember anything but `/bmuz`.
 - Time in /discover and /define is well spent: a strong GDD + TDD + feature map mean fewer loops in /develop. Nudge toward them when a new feature is fuzzy.
 - Respect dependencies: never build a feature before the things it `needs:`.

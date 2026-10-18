@@ -1,6 +1,6 @@
 ---
 name: bmuz
-description: Show Muzzy's game-making menu — the 11 BMUZ commands (Double Diamond stages, views, tools) and, on request, the specialist skills Claude uses behind them. Use when Muzzy types /bmuz, asks "what can you do", "what are my commands", or seems unsure what to do next.
+description: Show Muzzy's game-making menu — the 13 BMUZ commands (Double Diamond stages, views, tools) and, on request, the specialist skills Claude uses behind them. Use when Muzzy types /bmuz, asks "what can you do", "what are my commands", or seems unsure what to do next.
 ---
 
 # BMUZ — the menu
@@ -15,6 +15,7 @@ STAGES (in order)
   /deliver    Merge, version, release to the platform, live link
 
 VIEWS (anytime)
+  /ppp        The project planner page — opens in your browser
   /roadmap    What's left and what needs what
   /sprint     What's happening now — my tasks 🤖 and yours 🙋
   /gdd        The game design, one screen   (/gdd what if …)
@@ -22,6 +23,7 @@ VIEWS (anytime)
 
 TOOLS (anytime)
   /play       Run it — desktop + phone links
+  /sketch     Try a feel or idea as a quick playable sketch, with knobs
   /save       Commit + push — safe to walk away
   /bug        Report a bug, see the list, or "bug sweep"
 
@@ -33,7 +35,7 @@ Your docs in Obsidian: dev/<game>/.planning/ (STATE.md = where we are)
 ```
 
 ## `/bmuz specialists` (or "what else can you do?")
-List the specialist skills — Claude uses these on its own inside the commands; Muzzy never needs to remember them. Read each skill's `description` in `~/.claude/skills/` (skip the 12 BMUZ skills above and `synced/`), grouped:
+List the specialist skills — Claude uses these on its own inside the commands; Muzzy never needs to remember them. Read each skill's `description` in `~/.claude/skills/` (skip the 13 BMUZ skills above and `synced/`), grouped:
 - **Design (in /discover, /define, /develop tuning):** mda-analyze, proto, game-economy, ai-opponent
 - **Building (in /develop):** game-ui (every screen, menu and HUD), tuning-setup, game-feel, save-system, audio-setup, multiplayer-setup, externalize-text, localize, systematic-debugging (behind /bug)
 - **Releasing (in /deliver):** optimize, accessibility-check, organize-assets

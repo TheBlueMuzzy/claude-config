@@ -14,6 +14,12 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` first (layout, planning model, ROA
 - **GDD from /discover** (`Current phase: Discover`) → run the three parts below in order, one per sitting if Muzzy likes.
 - **GDD complete** (`Current phase: Complete`) → ask what to rethink: a section of the GDD, the scope, or adding/reshaping features. Edit just that — and update ROADMAP.md to match (new features get IDs, types, scope, needs).
 
+## 1b. Gap walk (always, before the three parts — Muzzy, 2026-10-16: "walk me through the steps to fill in the gaps after analyzing what you do have")
+1. **Analyze first, ask second.** Read the GDD, `research/`, `design/` (and for a remake, the old docs + code). Check every GDD section and every feature against: settled · drafted (Claude's guess, needs a yes) · open · conflicting (docs vs code, old vs new).
+2. **Show the gap map once:** one short table — what's settled (no questions), and the gaps in walk order. Order = what blocks the most comes first: feel targets → core rules → scope/release → systems → content/story → tutorial (last; it teaches the settled rules) → look & sound.
+3. **Walk one gap at a time:** what we already have (quote it) · what's missing · Claude's recommendation + 2–3 options (AskUserQuestion when the options are clear, open question when it's taste) · write the answer into the GDD/design doc straight away, commit, then the next gap. Never a bulk list of questions.
+4. A gap that needs a feel test (a `/sketch` for feel/look, `proto` for numbers) → start it, skip ahead, come back. Muzzy can say "stop here" any time — STATE RESUME HERE names the next gap.
+
 ## 2. The three parts
 1. **Define** — `stages/define.md`: sharp pitch, design principles, **experience targets** (mda-analyze), success criteria, **scope** (Must per release · Should · Could · Won't).
 2. **Design** — `stages/design.md`: mechanics, systems, art & audio direction. Pull in **proto** for rules/odds, **game-economy** for resources, **ai-opponent** for bots, **mda-analyze** to trace each mechanic to the experience targets.

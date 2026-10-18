@@ -20,6 +20,8 @@ Full doc: .planning/GDD.md (open it in Obsidian)
 ```
 Pull every line from the GDD, ROADMAP ❓ features, and `git log -- .planning/GDD.md` — never invent. Flag stale sections if Key facts lists "GDD out of date: §…".
 
+**Whole-game map** ("big, simple overview", "show me the beats", a remake or a fresh /define): publish a one-page visual artifact instead of chat text: pitch, the story in Muzzy's words, feel targets, pillars, core loop, screens, story arc, **every feature with a status chip** (settled · kept · new · gap N) and the gap-walk progress. Republish it to the same URL as gaps close (Muzzy, 2026-10-16, Goops).
+
 ## `/gdd <section or topic>` → that part
 Show the section in plain English, trimmed to what matters, with the file + heading so Muzzy can open it in Obsidian.
 
