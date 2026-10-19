@@ -61,7 +61,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - Ideas that aren't for right now → ROADMAP → Ideas with the date; say "Noted in the roadmap's Ideas."
 - Small tweaks and fixes don't need a task — just do them, committed on whatever branch you're on (main is fine for tiny fixes). Sprints are for features that take real work.
 - Old GSD projects (`.planning/PROJECT.md`, `phases/`) get converted the first time we work in them — see PROJECT-FILES.md.
-- Undo ("undo that"): something just done this session → rewind (Esc Esc); anything committed → `git revert` (never `reset --hard`, never force-push, never delete branches). Show what will be undone first.
+- Undo ("undo that"): something just done this session → rewind (Esc Esc); anything committed → `git revert` (never `reset --hard`, never force-push, only fully merged branches get deleted — hooks enforce these: `config/bmuz/HOOKS.md`). Show what will be undone first.
 
 ## Laptop ↔ Desktop Sync (MANDATORY)
 - **Machine to-do:** if `~/Documents/dev/HUB.md` has a "📌 Machine to-do" section for this machine (PC = user Muzzy, laptop = user joebr), do it first — one item at a time, tick each, then remove the section and `/save` so it syncs back.
@@ -76,6 +76,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - Save early, save often — context can compact at any time
 - A value Muzzy **saved** (Dev Kit, Obsidian, a file edit) is a decision — keep it and commit it, don't question it; only ask if it breaks something.
 - **Say "the game you played on <date>", never "your game"** (Muzzy, 2026-10-07: "this entire thing is 'my game'") — the project is his game; a single playthrough needs its date or a name.
+- **Every hand-off = the hand-off card** (Muzzy, 2026-10-18: "I never want to see it any other way going forward!"): `config/bmuz/templates/handoff.md` — Done · You'll see · Try it (links) · Proof · Questions · Next `/command` — what it covers. A Stop hook checks it after any turn with work (or the progress line while work is still running).
 - **Sprint reports open with a header** (Muzzy, 2026-10-07: "idk really what these sprints were meant to do… idk if you even wrote any new code"): sprint number + goal in plain words, then each feature as ID + what it was meant to do (e.g. "Sprint 17 — settle the last open design questions with AI games · F46: which board, who goes first · F47: how often awards appear"), then **what was built** (new code / content changes / tests) vs **what was only measured or researched**. Only after that, the results.
 - **Progress updates** on multi-step work: show a bar + steps + rough time left + **the clock time it was posted** (run `date` first), e.g. `████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted 10:44 PM`. Muzzy, 2026-10-13: "I don't have a time to reference if I walk away and come back" — and comparing the posted times with when steps really finish makes the estimates better. Percent = steps done / total; time is an honest guess — say when it's waiting on something. **Re-post the bar each time a step completes** (incl. background helpers — watch their commits with Monitor), not just at start and end
 

@@ -17,10 +17,12 @@ const FAST = [
   ['unit tests', 'npx vitest run'],
   ['build', 'npm run -s build'],
   ['lint', 'npm run -s lint'],
+  ['framework (code)', 'node src/devkit/check-framework.mjs --static'],   // framework modules' promises, code-reading part (Dev Kit 0.19+)
   // ['golden games', 'npm run -s check:golden'],   ← plus any quick game-specific check (sims, golden games)
 ]
 // e2e: [name, script, args] — every one on its own ports (see each script's header for what it checks)
 const E2E = [
+  ['framework', 'src/devkit/check-framework.mjs', '--port 5409'],   // every installed module's promises in the running game (live tuning, both pauses, snapshots, hotkeys, UI at 7 sizes) — = npm run check:framework
   // ['game', 'e2e/game-shots.mjs', 'e2e-shots 5401'],   ← one line per e2e script; give EACH its own port(s)
   // ['online', 'e2e/online-shots.mjs', 'e2e-shots 5404 1995'],   (online: its own Vite AND wrangler/party port)
   // ['screenshots', 'e2e/shots.mjs', 'check'],

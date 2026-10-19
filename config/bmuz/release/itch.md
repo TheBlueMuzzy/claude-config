@@ -20,7 +20,7 @@ Last used: never. Written ahead from the 2026-09-28 research, so steps marked �
 
 ## Every release
 1. Build: `npm run build` (or `npx vite build --base=./`, see setup 1).
-2. Push: `butler push dist <user>/<game>:html5 --userversion X.Y.Z`
+2. Smoke pass first: `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` → commit `.planning/smoke-pass` (a hook blocks `butler push` without it — HOOKS.md). Push: `butler push dist <user>/<game>:html5 --userversion X.Y.Z`
    - The channel name tags the platform: `html5` for web, `windows`, `osx`, `linux`, `android` for downloads. Keep the same channel every time; butler only uploads what changed.
    - `butler status <user>/<game>` shows when itch has finished processing.
 3. First upload only: in Edit game → Uploads, tick **"This file will be played in the browser"** on the html5 upload. ⚠

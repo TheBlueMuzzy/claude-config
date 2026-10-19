@@ -6,6 +6,9 @@
     "deny": [
       "mcp__claude_ai_Gmail"
     ],
+    "ask": [
+      "mcp__claude-in-chrome"
+    ],
     "defaultMode": "auto"
   },
   "hooks": {
@@ -16,6 +19,51 @@
             "type": "command",
             "command": "bash \"$HOME/.claude/config/bmuz/session-start.sh\"",
             "timeout": 45
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/guard-git.mjs\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/commit-typecheck.mjs\"",
+            "timeout": 180
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/live-push.mjs\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/check-ui-edit.mjs\"",
+            "timeout": 40
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/handoff-check.mjs\"",
+            "timeout": 20
           }
         ]
       }

@@ -103,7 +103,8 @@ Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 �
 Learned in Glyphtender v0.6 (13 sprints in a night): the time went into running the SAME slow checks twice (helper, then
 Claude after the merge) and running every e2e script one at a time. Three tiers, one command each (a web game has
 `npm run check:fast` / `npm run check:full` — template `templates/check-all.mjs`; e2e scripts each get their own port so
-they run side by side, 3 at a time):
+they run side by side, 3 at a time). Hooks enforce parts of this (`HOOKS.md`): type check before every commit, check:fast
+before /develop hands back, a smoke pass before anything goes live:
 | Tier | What | When | Time (Glyphtender) |
 |---|---|---|---|
 | **Fast** | unit tests · type check + build · lint · golden games / sims if any — together | every task, every merge, before every commit | ~1 min |

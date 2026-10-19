@@ -5,6 +5,10 @@ contracts") for every module the game uses, the first milestone gets a 🧱 feat
 true for every new system. Each module's README has the details; this is the checklist.
 Why this file exists (Muzzy, 2026-10-18): Goops got the Dev Kit installed but nothing in the game was wired to it —
 "the purpose of the devkit is to affect things live. I thought that was clear."
+**Checked, not just written down (framework F61, Dev Kit 0.19+):** `npm run check:framework` in the game runs every
+installed module's own `conformance.mjs` against these promises and says what to wire and where. It's a row in check:fast
+(`--static`) and check:full (browser), and /deliver runs it. The adapter's optional `conformance: { startPlay, query }`
+lets the play checks get from the menu into live play.
 
 ## Dev Kit (every web game — `framework/devkit`)
 The Dev Kit's job is to change the RUNNING game live. A game is wired for it when:

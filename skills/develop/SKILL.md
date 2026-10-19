@@ -1,6 +1,12 @@
 ---
 name: develop
 description: Double Diamond stage 3 — build the current sprint's tasks in order, trying options where the design is open, checking its own work with tests and screenshots, and tuning once things work, then stopping for Muzzy's approval. Use when Muzzy types /develop, or says "go", "build it", "do it", "keep going", "continue", "next task", or gives feedback/tweaks on something being built.
+hooks:
+  Stop:
+    - hooks:
+        - type: command
+          command: node "$HOME/.claude/config/bmuz/hooks/stop-check-fast.mjs"
+          timeout: 360
 ---
 
 # /develop — build the solution (diverge, then settle)
@@ -69,6 +75,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - **e2e finds an element by its own tag** (`[data-bot-draft]`), never "the first image in the layer" — a new sibling broke e2e:ai that way (Glyphtender sprint 23, F64's ghost preview).
 - **Parallel helpers share dev-server ports:** check what's listening before picking one and write the port in the script header; a CDP swipe must be quick (~10 ms a step) or it outlasts the game's swipe window; tap a slider "end" at 10%/90% of its track, not the edge (Goops F24).
 - **Touch-emulated e2e:** in Chrome's touch emulation the first tap after a CDP touch drag loses its click (pointer + touch events arrive, no click) — tap a neutral spot once after each drag, and never read that as a game bug without a real phone (Glyphtender sprint 27). An `aria-disabled` control needs `click({ force: true })` — Playwright waits for "enabled" (sprint 26).
+- **"What's on top here?" tests: `elementFromPoint` / `elementsFromPoint` skip `pointer-events: none`** — HUD words usually are, so an overlap/tap check looks straight through them; make everything hit-testable for that moment (framework F61: a crack count slid over the score passed until fixed — ui-kit `uiProblems.mjs` does it).
 - Read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe. PowerShell too: `$LASTEXITCODE` after `cmd | Select-Object` can read 0 for a failed command — redirect to a file (`*> out.txt`), then read the code (Goops F21: eslint). Goops 2026-10-17: misreading a piped check this way shipped a kit change that broke the kit's own rules.
 - **e2e "can I press it?" = what's under its centre** (`el.contains(document.elementFromPoint(centre))`), never its box vs the container's — a clip mask hides an item whose box still "fits" (Glyphtender sprint 29: the Dev Kit's AI tab sat 0.4 px past a carousel page, the test called it in view and timed out; five scripts had copied that check).
 - **A tap that changes what's under the finger** (a panel that pops back, a menu that opens) waits ~350 ms before changing it — the tap's own trailing click lands after, on whatever appeared there (Glyphtender sprint 29: a phone pick re-picked a row of the panel that came back).
@@ -79,6 +86,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - Screenshots: also look for things **clipped inside boxes** (scroll areas, panels) — sideways-overflow checks don't catch those.
 
 ## 4. Hand to Muzzy (after each feature, or when he needs to look)
+- **Always the hand-off card** (`~/.claude/config/bmuz/templates/handoff.md` — Done · You'll see · Try it · Proof · Questions · Next `/command` — what it covers). A Stop hook sends any other ending back after a work turn. The bullets below fill its sections.
 - Describe what changed from the player's side (3–6 bullets) and what the screenshots showed (he can't see Playwright's images — describe them). Say exactly what to try.
 - Playwright MCP may drop a `.playwright-mcp/` folder in the directory Claude was started from — delete it when you're done checking.
 - Feature has a `why:` line → end with its one feel question: "Did <moment> feel like <target, in players' words>?" Answer → SPRINT Notes.
