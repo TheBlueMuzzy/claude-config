@@ -21,6 +21,10 @@ always runs. Scripts: `~/.claude/config/bmuz/hooks/` · wiring: `~/.claude/setti
 | 13 | When Claude finishes a turn (F67) | Work committed while a sprint runs, but SPRINT.md untouched → **sent back** to log it as a task. Planner page rebuilt but not republished → sent back to republish | Every request shows up in the planner |
 | 14 | Before a `F08: done` commit (hook 1's guard-git, F72) | **Refuses** it when STATE.md isn't in the commit and hasn't changed since F08's first commit. Also refuses (F75) when STATE's `Reviewed through:` line, or `Last full check:` in a project with check:full, wasn't written or changed during F08 | A fresh session (or the other machine) resumes from RESUME HERE, so it has to be current. And every feature gets the same review and full check, enforced by code instead of memory |
 | 15 | After Claude edits or writes a code file (.ts, .tsx, .js, .jsx, .mjs) in a game or the framework (F70) | Runs that project's own ESLint on **just that file** (~1–2 s) and **tells Claude** about any errors, to fix in the same task. Warnings aren't repeated. In the framework nothing is skipped; a game keeps skipping its kit copies (those are fixed in the framework). No ESLint installed there yet → it stays quiet (never downloads anything) | Framework code was never linted: games skip their kit copies, so Dev Kit 0.8.0's errors only showed up inside Glyphtender |
+| 16 | Before `git commit` (guard-git, F78) | **Refuses** a commit that would include a `.env` (`.env.example` is fine), a key (`*.pem`, `*.key`), `credentials.json`, `client_secret*.json`, `secrets.json`, wrangler's `.dev.vars`, or `.playwright-mcp/` — also when it's added on the same line (`git add -A && git commit`). The same list /save refuses (`NEVER_COMMIT` in hooks/lib.mjs) | Once pushed, a secret is on GitHub for good |
+| 17 | Before `git checkout -- <file>`, `git checkout .`, `git checkout <branch> -- <file>`, `git checkout -f <branch>`, `git restore <file>` (guard-git, F78) | When those files have uncommitted changes: **asks Muzzy** (a permission prompt, not a refusal), naming the files whose work would be lost. Plain branch switches, `git checkout -b`, `git restore --staged` (only unstages) and files with nothing uncommitted pass quietly | Uncommitted work thrown away can't come back (Goops F17 lost cracks.ts this way) |
+| 18 | When Claude finishes a turn (stop-cleanup, F78) | Deletes a `.playwright-mcp/` folder (the browser tool's leftover screenshots/snapshots) in the session's folder and its project root. Only that exact folder name, only a real folder — nothing else. Never sends Claude back | It cluttered games and slipped toward commits |
+| 19 | When a session starts in a game (session-start.sh, F77) | Compares each framework copy's `src/…/VERSION` (UI kit, Dev Kit, audio, table, ai, rooms) with the framework checkout's `<module>/kit/VERSION` and prints ONE line: "Framework updates available: UI kit 0.19.0 → 0.19.2, … — say 'update the framework pieces'…". All current, a game ahead of the checkout, or no framework folder → nothing. No network, well under a second | Games quietly fell behind the framework; now every session says so |
 | — | Always | Gmail stays fully blocked (unchanged) | Muzzy's choice |
 
 ## Scripts — fragile jobs as one command (F69)
@@ -31,10 +35,11 @@ plain words. The skills call them; you never need to type them. Folder: `~/.clau
 |---|---|---|
 | `install-module.mjs <module> <game>` | Installs / updates a framework module: the module's own tests first, the dry run, the install, then that module's checks in the game | the module's own tests or checks are red · the game doesn't keep the module's promises yet (says what to wire) |
 | `release.mjs <update\|milestone\|major> "<summary>"` | Version bump, history line, package.json, the `Release vX.Y.Z` commit and its tag — never pushes | uncommitted code · not on main · the tag already exists |
-| `save.mjs "<summary>"` | Build +1, old Log lines to the archive, commit, push — and "safe to switch machines" only once GitHub has the commit | a `.env` or secret would be committed · the push failed (says NOT safe) |
+| `save.mjs "<summary>"` | Runs cleanup.sh first (its 🧹 line shown; a failing cleanup only warns — F78), adds a BMUZ project's missing `.gitignore` lines (`.claude/worktrees/`, `.planning/ppp.html`) and says so, build +1, old Log lines to the archive, commit, push — and "safe to switch machines" only once GitHub has the commit | a `.env` or secret would be committed · the push failed (says NOT safe) |
 | `archive-sprint.mjs` | Files a finished sprint and commits `Sprint NN done` | a feature isn't approved yet |
 | `musts-check.mjs <stage>` | Lists the `must:<stage>` features still open before a release | — (exit 1 = some open) |
 | `stop-servers.mjs <port\|name>` | Ends a local server's whole process tree (on Windows, killing only the port lets wrangler restart it) | — (never touches Claude, a shell or an editor) |
+| `cleanup.sh [project]` (bash) | Finished helper workspaces, old check output, temp files — and Claude's scratch place `~/Documents/dev/.scratch/<project>-<what>/` (throwaway game copies, proof shots): entries untouched for 24 h go (F78). Never a tracked file | — (keeps and names anything that still holds work) |
 | `templates/check-all.mjs` (in each game) | A full check run takes a lock | another full check run is still going |
 
 **Proof:** `node ~/.claude/config/bmuz/scripts/test-scripts.mjs` (throwaway repos; real servers for stop-servers).
@@ -45,7 +50,7 @@ script (the game loads and one turn/round plays, console clean) and, only if it 
 script gets told to add one (point it at an e2e that already plays a round).
 
 **Proof:** `node ~/.claude/config/bmuz/hooks/test-hooks.mjs` — feeds every hook "should refuse" and "should allow"
-cases in throwaway repos (227 checks, ~2 min). Each hook was also tried for real in a headless Claude session (2026-10-18).
+cases in throwaway repos (264 checks, ~2 min). Each hook was also tried for real in a headless Claude session (2026-10-18).
 Changing a hook → also try it with the chained commands Claude really types (`git add -A && git commit`, `commit && push`):
 a hook sees the whole line BEFORE any of it runs — the commit gate's first real try slipped through that way.
 
@@ -58,6 +63,6 @@ hook looked); the sprint nudge sent Claude looking for SPRINT.md in the wrong fo
 
 **Plan files by hand:** `node ~/.claude/config/bmuz/hooks/plan-lint.mjs <project>` lists every problem (the hook itself only mentions new ones).
 
-**Switching one off:** delete its block in `~/.claude/settings.json` (hooks 1, 3, 4, 6–13, 15 — the PreToolUse/PostToolUse/UserPromptSubmit/Stop
-entries) or the `hooks:` lines at the top of `skills/develop/SKILL.md` (hook 5); type `/hooks` to see what's loaded.
+**Switching one off:** delete its block in `~/.claude/settings.json` (hooks 1, 3, 4, 6–13, 15–18 — the PreToolUse/PostToolUse/UserPromptSubmit/Stop
+entries; 19 lives in session-start.sh) or the `hooks:` lines at the top of `skills/develop/SKILL.md` (hook 5); type `/hooks` to see what's loaded.
 Everything goes to the laptop with /sync.

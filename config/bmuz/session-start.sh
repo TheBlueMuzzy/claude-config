@@ -72,6 +72,24 @@ BRANCH=$(git branch --show-current 2>/dev/null)
 DIRTY=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 echo "Branch: $BRANCH   Uncommitted files: $DIRTY"
 
+# Framework pieces behind the newest? (F77) In a game: each copy's src/.../VERSION vs the framework checkout's
+# <module>/kit/VERSION (BMUZ_FRAMEWORK overrides where it is). No framework folder, or all current → quiet. No network.
+FW="${BMUZ_FRAMEWORK:-$HOME/Documents/dev/framework}"
+if [ -f package.json ] && [ -d "$FW" ]; then
+  UPDATES=""
+  # game copy : framework module : name Muzzy knows
+  for PIECE in "ui/kit:ui-kit:UI kit" "devkit:devkit:Dev Kit" "audio:audio:Audio" "table:table:Table" "ai/kit:ai:AI" "rooms:rooms:Rooms"; do
+    COPY=${PIECE%%:*}; REST=${PIECE#*:}; MODULE=${REST%%:*}; NAME=${REST#*:}
+    [ -f "src/$COPY/VERSION" ] && [ -f "$FW/$MODULE/kit/VERSION" ] || continue
+    HAVE=$(head -1 "src/$COPY/VERSION" | tr -d '\r' | awk '{print $1}')
+    NEWEST=$(head -1 "$FW/$MODULE/kit/VERSION" | tr -d '\r' | awk '{print $1}')
+    [ -n "$HAVE" ] && [ -n "$NEWEST" ] && [ "$HAVE" != "$NEWEST" ] || continue
+    # behind only when the framework's is the higher version (a game ahead of this checkout says nothing)
+    [ "$(printf '%s\n%s\n' "$HAVE" "$NEWEST" | sort -V | tail -1)" = "$NEWEST" ] && UPDATES="$UPDATES${UPDATES:+, }$NAME $HAVE → $NEWEST"
+  done
+  [ -n "$UPDATES" ] && echo "Framework updates available: $UPDATES — say 'update the framework pieces' and Claude installs them with install-module."
+fi
+
 STATE=.planning/STATE.md
 if [ -f "$STATE" ]; then
   if grep -q "RESUME HERE" "$STATE"; then

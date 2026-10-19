@@ -17,6 +17,7 @@ export function runHook(script, input) {
   if (!text) return { result: 'allow', message: out.stderr || '' }
   const json = JSON.parse(text)
   if (json.hookSpecificOutput?.permissionDecision === 'deny') return { result: 'deny', message: json.hookSpecificOutput.permissionDecisionReason }
+  if (json.hookSpecificOutput?.permissionDecision === 'ask') return { result: 'ask', message: json.hookSpecificOutput.permissionDecisionReason }
   if (json.decision === 'block') return { result: 'block', message: json.reason }
   return { result: 'allow', message: text }
 }
@@ -616,8 +617,114 @@ function testStopPlanCheck() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F78: no secret in a commit; ask before checkout / restore throws uncommitted changes away
+function testGuardGitSafety() {
+  console.log('guard-git — safety guards (F78)')
+  const { root, repo } = makeRepo()
+  const g = cmd => runHook('guard-git.mjs', bash(repo, cmd))
+  sh(repo, 'checkout', '-q', 'dev/open')
+  writeFileSync(join(repo, '.env'), 'SECRET=1\n')
+  expect('`git add -A && git commit` with an unignored .env → blocked', g('git add -A && git commit -m "wip"'), 'deny')
+  expect('`git add .env && git commit` → blocked', g('git add .env && git commit -m "wip"'), 'deny')
+  expect('a commit that leaves the .env out (nothing added) → allowed', g('git commit -m "wip"'), 'allow')
+  rmSync(join(repo, '.env'))
+  writeFileSync(join(repo, '.env.example'), 'SECRET=\n')
+  expect('.env.example → allowed', g('git add -A && git commit -m "example"'), 'allow')
+  rmSync(join(repo, '.env.example'))
+  mkdirSync(join(repo, '.playwright-mcp')); writeFileSync(join(repo, '.playwright-mcp', 'shot.png'), 'x')
+  const pw = g('git add -A && git commit -m "wip"')
+  expect('.playwright-mcp/ leftovers in the commit → blocked', pw, 'deny')
+  expect('…says what and why in plain words', { result: /\.playwright-mcp\/shot\.png/.test(pw.message) && /never go into git/.test(pw.message) ? 'ok' : 'no', message: pw.message }, 'ok')
+  expect('`git add .playwright-mcp && git commit` (the folder named) → blocked', g('git add .playwright-mcp && git commit -m "wip"'), 'deny')
+  rmSync(join(repo, '.playwright-mcp'), { recursive: true })
+  writeFileSync(join(repo, 'server.pem'), 'key')
+  expect('a key file (*.pem) → blocked (PowerShell)', runHook('guard-git.mjs', pwsh(repo, 'git add -A; git commit -m "k"')), 'deny')
+  rmSync(join(repo, 'server.pem'))
+  mkdirSync(join(repo, 'config')); writeFileSync(join(repo, 'config', 'credentials.json'), '{}')
+  expect('credentials.json in a subfolder → blocked', g('git add -A && git commit -m "y"'), 'deny')
+  rmSync(join(repo, 'config'), { recursive: true })
+
+  // ask before throwing uncommitted changes away
+  writeFileSync(join(repo, 'a.txt'), 'edited, never committed\n')
+  const co = g('git checkout -- a.txt')
+  expect('`git checkout -- a.txt` over an uncommitted edit → asks', co, 'ask')
+  expect('…names the file and what is lost', { result: /a\.txt/.test(co.message) && /for good/.test(co.message) ? 'ok' : 'no', message: co.message }, 'ok')
+  expect('`git checkout .` → asks', g('git checkout .'), 'ask')
+  expect('`git checkout a.txt` (a file, not a branch) → asks', g('git checkout a.txt'), 'ask')
+  expect('`git checkout main -- a.txt` → asks', g('git checkout main -- a.txt'), 'ask')
+  expect('`git restore a.txt` → asks', g('git restore a.txt'), 'ask')
+  expect('`git restore .` (PowerShell) → asks', runHook('guard-git.mjs', pwsh(repo, 'git restore .')), 'ask')
+  expect('`git checkout -f main` → asks', g('git checkout -f main'), 'ask')
+  expect('bare `git checkout -f` (no branch) → asks (review)', g('git checkout -f'), 'ask')
+  expect('bare `git checkout --force` → asks (review)', g('git checkout --force'), 'ask')
+  expect('`git restore --staged a.txt` (only unstages) → allowed', g('git restore --staged a.txt'), 'allow')
+  expect('a plain branch switch `git checkout main` → allowed', g('git checkout main'), 'allow')
+  expect('`git checkout -b dev/new` → allowed', g('git checkout -b dev/new'), 'allow')
+  expect('`git checkout -- c.txt` (no uncommitted changes there) → allowed', g('git checkout -- c.txt'), 'allow')
+  expect('ask + a force-push later on the same line → the refusal wins', g('git checkout -- a.txt && git push -f'), 'deny')
+  sh(repo, 'add', 'a.txt')
+  expect('staged edit, `git checkout -- a.txt` (copies the staged version back: nothing lost) → allowed', g('git checkout -- a.txt'), 'allow')
+  expect('staged edit, `git checkout HEAD -- a.txt` → asks', g('git checkout HEAD -- a.txt'), 'ask')
+  expect('staged edit, `git restore --staged --worktree a.txt` → asks', g('git restore --staged --worktree a.txt'), 'ask')
+  rmSync(root, { recursive: true, force: true })
+}
+
+// F78: the end-of-turn cleanup deletes .playwright-mcp/ and nothing else
+function testStopCleanup() {
+  console.log('stop-cleanup — Playwright leftovers go at the end of a turn')
+  const { root, repo } = makeRepo()
+  const sub = join(repo, 'src')
+  mkdirSync(join(repo, '.playwright-mcp')); writeFileSync(join(repo, '.playwright-mcp', 'page.yml'), 'x')
+  mkdirSync(join(sub, '.playwright-mcp'), { recursive: true })
+  mkdirSync(join(repo, 'playwright-mcp-notes')); mkdirSync(join(repo, '.playwright'))
+  const out = runHook('stop-cleanup.mjs', { cwd: sub, hook_event_name: 'Stop', stop_hook_active: true })
+  expect('never sends Claude back', out, 'allow')
+  expect('.playwright-mcp/ in the project root → deleted (cwd was a subfolder)', { result: existsSync(join(repo, '.playwright-mcp')) ? 'still there' : 'gone', message: '' }, 'gone')
+  expect('…and the one in the session folder itself', { result: existsSync(join(sub, '.playwright-mcp')) ? 'still there' : 'gone', message: '' }, 'gone')
+  expect('look-alike folders (.playwright, playwright-mcp-notes) and files untouched', { result: existsSync(join(repo, '.playwright')) && existsSync(join(repo, 'playwright-mcp-notes')) && existsSync(join(repo, 'a.txt')) ? 'kept' : 'lost', message: '' }, 'kept')
+  writeFileSync(join(repo, '.playwright-mcp'), 'a file, not a folder')
+  runHook('stop-cleanup.mjs', { cwd: repo, hook_event_name: 'Stop' })
+  expect('a FILE named .playwright-mcp is left alone', { result: existsSync(join(repo, '.playwright-mcp')) ? 'kept' : 'lost', message: '' }, 'kept')
+  expect('no folder at all / no cwd → quiet', runHook('stop-cleanup.mjs', { hook_event_name: 'Stop' }), 'allow')
+  rmSync(root, { recursive: true, force: true })
+}
+
+// F77: the session start names framework pieces that are behind the framework's newest
+function testSessionStartUpdates() {
+  console.log('session-start — "framework updates available" (F77)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-start-'))
+  const fw = join(root, 'framework')
+  const game = join(root, 'game')
+  const put = (path, text) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text) }
+  put(join(fw, 'ui-kit', 'kit', 'VERSION'), '0.19.2\n')
+  put(join(fw, 'devkit', 'kit', 'VERSION'), '0.20.3\n')
+  put(join(fw, 'ai', 'kit', 'VERSION'), '0.2.1\n')
+  put(join(game, 'package.json'), '{}')
+  put(join(game, 'src', 'ui', 'kit', 'VERSION'), '0.19.0\ncommit b3626bf\n')
+  put(join(game, 'src', 'devkit', 'VERSION'), '0.20.3\r\ncommit 7e80f0a\r\n')
+  put(join(game, 'src', 'ai', 'kit', 'VERSION'), '0.10.0 (framework b3626bf)\n') // ahead of this checkout (0.10 > 0.2)
+  execFileSync('git', ['init', '-q', game])
+  const start = (framework) => {
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: game, BMUZ_NO_PULL: '1' }
+    if (framework) env.BMUZ_FRAMEWORK = framework.split('\\').join('/'); else delete env.BMUZ_FRAMEWORK
+    const r = spawnSync('bash', [join(HOOKS, '..', 'session-start.sh')], { input: '{"source":"startup"}', encoding: 'utf8', env, timeout: 60_000 })
+    const line = (r.stdout || '').split('\n').find(l => l.startsWith('Framework updates available')) || ''
+    return { result: line ? 'named' : 'quiet', message: line || r.stdout || r.stderr || '' }
+  }
+  const behind = start(fw)
+  expect('a copy behind the framework → named in one line', behind, 'named')
+  expect('…"UI kit 0.19.0 → 0.19.2" and how to update; current Dev Kit and an ahead AI not named', { result: behind.message.includes('UI kit 0.19.0 → 0.19.2') && /install-module/.test(behind.message) && !/Dev Kit|AI/.test(behind.message) ? 'ok' : 'no', message: behind.message }, 'ok')
+  put(join(game, 'src', 'ui', 'kit', 'VERSION'), '0.19.2\ncommit x\n')
+  expect('every copy current → quiet', start(fw), 'quiet')
+  put(join(game, 'src', 'ui', 'kit', 'VERSION'), '0.18.9\n')
+  expect('no framework folder on this machine → quiet', start(join(root, 'nope')), 'quiet')
+  rmSync(join(game, 'package.json'))
+  expect('not a game (no package.json) → quiet', start(fw), 'quiet')
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'guard-git': testGuardGit, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck }
+const suites = { 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck }
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

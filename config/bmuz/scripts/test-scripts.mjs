@@ -1,7 +1,7 @@
 // Proves every BMUZ script does its job — or refuses before changing anything (F69).
 // Run: node ~/.claude/config/bmuz/scripts/test-scripts.mjs [suite]   (throwaway folders + repos in the temp folder)
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -127,7 +127,8 @@ function testSave() {
   console.log('save — commit, push, and only then "safe"')
   const root = mkdtempSync(join(tmpdir(), 'bmuz-save-'))
   const repo = makeRepo(root)
-  const save = (...a) => script('save.mjs', a, { cwd: repo })
+  const scratch = join(root, '.scratch') // never the real ~/Documents/dev/.scratch
+  const save = (...a) => script('save.mjs', a, { cwd: repo, env: { BMUZ_SCRATCH: scratch.split('\\').join('/') } })
   write(join(repo, 'version.json'), JSON.stringify({ name: 'T', version: '0.3.0', build: 4, history: [] }, null, 2) + '\n')
   const log = Array.from({ length: 13 }, (_, i) => `- 2026-10-${String(30 - i).padStart(2, '0')} — entry ${i + 1}`)
   write(join(repo, '.planning', 'STATE.md'), ['# State', '## ▶ RESUME HERE', 'x', '## Log', ...log, ''].join('\n'))
@@ -140,9 +141,33 @@ function testSave() {
   const archive = readFileSync(join(repo, '.planning', 'archive', 'log.md'), 'utf8')
   expect('…3 older lines moved to archive/log.md, newest first', /entry 11\n- .*entry 12\n- .*entry 13/.test(archive), archive)
   expect('…GitHub has the commit', sh(repo, 'rev-parse', 'HEAD') === sh(repo, 'rev-parse', 'origin/main'))
+  // F78: a BMUZ project's .gitignore gets the lines every project needs, committed with the save
+  const ignore = readFileSync(join(repo, '.gitignore'), 'utf8')
+  expect('F78: no .gitignore → made with .claude/worktrees/ + .planning/ppp.html (LF), said in the output', ignore.includes('.claude/worktrees/\n') && ignore.includes('.planning/ppp.html\n') && !ignore.includes('\r') && /\.gitignore now ignores/.test(first.out), `${ignore}\n${first.out}`)
+  expect('…committed with the save', sh(repo, 'show', '--name-only', '--format=', 'HEAD').split('\n').includes('.gitignore'))
+  write(join(repo, '.gitignore'), 'node_modules/\r\n/.planning/ppp.html\r\ndist') // CRLF, no final line break, one line already there
+  const again = save('ignore lines')
+  const crlf = readFileSync(join(repo, '.gitignore'), 'utf8')
+  expect('…an existing CRLF file: only the missing line appended, in CRLF, nothing doubled', again.code === 0 && crlf === 'node_modules/\r\n/.planning/ppp.html\r\ndist\r\n# BMUZ: helper worktrees + the rebuilt planner page are never committed\r\n.claude/worktrees/\r\n' && /now ignores \.claude\/worktrees\/\)/.test(again.out), JSON.stringify(crlf) + again.out)
+  write(join(repo, 'e.txt'), 'x\n')
+  const quiet = save('nothing to add')
+  expect('…all there → .gitignore left alone, nothing said', quiet.code === 0 && !/gitignore/.test(quiet.out) && readFileSync(join(repo, '.gitignore'), 'utf8') === crlf, quiet.out)
+  // F78: save runs cleanup.sh itself — temp files and .scratch entries untouched for 24 h go, fresh ones stay
+  write(join(repo, 'notes.tmp.txt'), 'scratch\n')
+  write(join(scratch, 'game-spike', 'index.html'), 'old copy')
+  write(join(scratch, 'game-proof', 'shot.png'), 'fresh')
+  const old = new Date(Date.now() - 48 * 3600 * 1000)
+  utimesSync(join(scratch, 'game-spike', 'index.html'), old, old); utimesSync(join(scratch, 'game-spike'), old, old)
+  const cleaned = save('cleanup runs')
+  expect('F78: save runs cleanup — the temp file is gone (never committed), its 🧹 line shown', cleaned.code === 0 && !existsSync(join(repo, 'notes.tmp.txt')) && /🧹 cleaned/.test(cleaned.out) && !sh(repo, 'show', '--name-only', '--format=', 'HEAD').includes('notes.tmp.txt'), cleaned.out)
+  expect('…a .scratch entry untouched for 2 days → removed; one from just now → kept', !existsSync(join(scratch, 'game-spike')) && existsSync(join(scratch, 'game-proof', 'shot.png')) && /old scratch folder/.test(cleaned.out), cleaned.out)
+  write(join(root, 'bad-cleanup.sh'), 'echo "disk on fire"\nexit 3\n')
+  write(join(repo, 'f.txt'), 'x\n')
+  const failing = script('save.mjs', ['cleanup broke'], { cwd: repo, env: { BMUZ_CLEANUP: join(root, 'bad-cleanup.sh'), BMUZ_SCRATCH: scratch } })
+  expect('…cleanup fails → a warning, the save still happens', failing.code === 0 && /⚠ cleanup didn't finish/.test(failing.out) && /disk on fire/.test(failing.out) && /safe to switch machines/.test(failing.out), failing.out)
   write(join(repo, '.env'), 'SECRET=1\n')
   const env = save('oops')
-  expect('.env not ignored → refused, nothing committed', env.code === 1 && /\.env/.test(env.out) && sh(repo, 'log', '-1', '--format=%s') === 'Lobby shows seats', env.out)
+  expect('.env not ignored → refused, nothing committed', env.code === 1 && /\.env/.test(env.out) && sh(repo, 'log', '-1', '--format=%s') === 'cleanup broke', env.out)
   rmSync(join(repo, '.env'))
   write(join(repo, '.env.example'), 'SECRET=\n')
   expect('.env.example is fine to commit', save('example env').code === 0)
@@ -164,7 +189,7 @@ function testSave() {
   expect('GitHub has newer commits → "NOT safe", says git pull', behind.code === 1 && /NOT safe/.test(behind.out) && /git pull/.test(behind.out), behind.out)
   const local = join(root, 'local'); mkdirSync(local); execFileSync('git', ['init', '-q', '-b', 'main', local])
   sh(local, 'config', 'user.email', 't@e.st'); sh(local, 'config', 'user.name', 't'); write(join(local, 'a.txt'), 'a')
-  const noRemote = script('save.mjs', ['first'], { cwd: local })
+  const noRemote = script('save.mjs', ['first'], { cwd: local, env: { BMUZ_SCRATCH: scratch.split('\\').join('/') } })
   expect('no GitHub remote → "Saved locally … NOT safe"', noRemote.code === 0 && /NOT safe/.test(noRemote.out), noRemote.out)
   rmSync(root, { recursive: true, force: true })
 }

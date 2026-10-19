@@ -8,6 +8,8 @@
 #   • Check output (screenshots, reports) goes only from folders git IGNORES — every check makes it fresh again — and
 #     never while it's fresh (changed in the last 15 min): a check may be running, or its results pages are being looked at.
 #   • Temporary files: untracked, ignored `*.tmp.*` and Claude's scratch checks (`e2e/_*.mjs`).
+#   • Claude's scratch place `~/Documents/dev/.scratch/`: entries untouched for 24 h (F78).
+# /save runs it by itself (save.mjs, F78) — no need to remember it there.
 # Usage: bash ~/.claude/config/bmuz/cleanup.sh [project-folder] [--dry-run]
 # Prints one line ("🧹 cleaned 3.9 GB — …") or nothing when there was nothing to clean.
 
@@ -81,6 +83,22 @@ done < <( { find . -name '*.tmp.*' -type f -not -path '*/node_modules/*' -not -p
 
 AFTER=$(size "$ROOT")
 FREED=$(( BEFORE - AFTER ))
+
+# 4. Claude's scratch place (F78): ~/Documents/dev/.scratch/<project>-<what>/ holds throwaway game copies and proof
+#    shots. An entry goes once nothing in it changed for 24 hours (a spike in use is kept). Only the direct entries of
+#    a folder named .scratch — never anything else outside the project. BMUZ_SCRATCH overrides where it is (tests).
+SCRATCH="${BMUZ_SCRATCH:-$HOME/Documents/dev/.scratch}"
+N=0
+if [ "$(basename "$SCRATCH")" = ".scratch" ] && [ -d "$SCRATCH" ]; then
+  for E in "$SCRATCH"/* "$SCRATCH"/.[!.]*; do
+    [ -e "$E" ] && [ ! -L "$E" ] || continue
+    [ -n "$(find "$E" -mmin -1440 2>/dev/null | head -1)" ] && continue # something in it changed in the last 24 h
+    K=$(size "$E")
+    if [ -z "$DRY" ]; then rm -rf "${E:?}" 2>/dev/null || continue; fi
+    FREED=$(( FREED + K )); N=$((N + 1))
+  done
+fi
+[ "$N" -gt 0 ] && DONE+=("$N old scratch folder(s) in .scratch/")
 human() { awk -v k="$1" 'BEGIN { if (k >= 1048576) printf "%.1f GB", k/1048576; else if (k >= 1024) printf "%.0f MB", k/1024; else printf "%d KB", k }'; }
 if [ ${#DONE[@]} -gt 0 ]; then
   LIST=$(IFS=,; echo "${DONE[*]}" | sed 's/,/, /g')

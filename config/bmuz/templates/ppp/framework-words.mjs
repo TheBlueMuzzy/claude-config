@@ -36,6 +36,7 @@ export const CHECK_WORDS = {
   'every 🟡 credit is shown': ['Some art, sound or fonts need their creator named on the Credits screen, and they aren\'t there yet.', 'Claude fixes it.'],
   'the game\'s UI code keeps the kit\'s rules (check-ui)': ['Some screens use one-off colours or sizes instead of the game\'s chosen style, so they may not match.', 'Claude fixes it.'],
   'check-ui runs in check:fast': ['The style rules aren\'t checked automatically after each change yet.', 'Claude fixes it.'],
+  'every Settings row that\'s switched on is read by the game': ['Some switches in the Settings screen do nothing when a player changes them.', 'Claude wires them up, or hides them until they work.'],
   'nothing overlaps': ['On some screen sizes, parts of the screen sit on top of each other.', 'Claude fixes it.'],
   'nothing is clipped or wider than the screen': ['On some screen sizes, something is cut off or runs off the edge.', 'Claude fixes it.'],
   'every tap target is at least 44 px': ['Some buttons are too small to tap easily on a phone.', 'Claude fixes it.'],

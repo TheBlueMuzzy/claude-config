@@ -9,16 +9,23 @@
 //   since the feature's first commit — otherwise a fresh Claude (or the laptop) resumes from a stale RESUME HERE.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { readInput, deny, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage } from './lib.mjs'
+//   no commit includes a secret or Playwright's leftovers (F78): .env, keys, credentials, .playwright-mcp/ —
+//   the same list save.mjs refuses (NEVER_COMMIT in lib.mjs).
+//   `git checkout -- <file>` / `git checkout .` / `git restore <file>` over uncommitted changes → Muzzy is ASKED
+//   first (F78): it throws those changes away for good (Goops F17 lost cracks.ts this way). Branch switches stay free.
+import { readInput, deny, ask, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage, NEVER_COMMIT } from './lib.mjs'
 
 const input = readInput()
 const command = input.tool_input?.command
 if (!command) process.exit(0)
 
 const calls = gitCalls(command, input.cwd)
+const asks = [] // asked only after every call on the line was checked — a refusal later on the line still wins
 for (const [index, call] of calls.entries()) {
   const { dir, sub, args } = call
 
+  if (sub === 'commit' && !args.includes('--dry-run')) checkNoSecrets(calls, index)
+  if (sub === 'checkout' || sub === 'restore' || sub === 'switch') { const why = discardsChanges(call); if (why) asks.push(why) }
   if (sub === 'commit' && !args.includes('--dry-run')) checkFeatureCommitOnMain(calls, index, command)
   if (sub === 'commit' && !args.includes('--dry-run')) checkDoneSavesState(calls, index, command)
   if (sub === 'merge') checkMergeIntoMain(calls, index)
@@ -40,7 +47,63 @@ for (const [index, call] of calls.entries()) {
 
   if (sub === 'branch') checkLocalDeletes(dir, args)
 }
+if (asks.length) ask(asks.join('\n\n'))
 process.exit(0)
+
+// A commit never includes .env, keys, credentials or .playwright-mcp/ (F78).
+function checkNoSecrets(calls, index) {
+  const top = git(calls[index].dir, 'rev-parse', '--show-toplevel')
+  if (!top) return
+  const bad = commitFiles(calls, index, resolve(top)).filter(f => NEVER_COMMIT.test(f))
+  if (!bad.length) return
+  deny(`Blocked: this commit would include ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? ', …' : ''} — secrets (passwords, keys) or Playwright's leftover screenshots must never go into git: once pushed, they're on GitHub for good. Add ${bad.length > 1 ? 'them' : 'it'} to .gitignore (or delete .playwright-mcp/), \`git reset -q -- <file>\` if already staged, then commit again.`)
+}
+
+// Would this checkout / restore / switch throw away uncommitted changes? Returns the plain-words reason, or null.
+//   git checkout -- a.ts · git checkout . · git checkout main -- a.ts · git checkout a.ts (a file, not a branch)
+//   git restore a.ts (not `--staged` alone: that only unstages) · git checkout -f <branch> · git switch -f <branch>
+// The lost changes: with no source, the working copy's unsaved edits (git diff); with a source (a branch / commit, or
+// restore --staged --worktree), everything uncommitted in those files (git diff HEAD). New untracked files are never touched.
+function discardsChanges({ dir, sub, args }) {
+  const top = git(dir, 'rev-parse', '--show-toplevel')
+  if (!top) return null
+  const dash = args.indexOf('--')
+  const before = dash >= 0 ? args.slice(0, dash) : args
+  const after = dash >= 0 ? args.slice(dash + 1) : []
+  const short = before.filter(a => /^-[a-zA-Z]+$/.test(a)).join('')
+  const force = short.includes('f') || before.includes('--force') || before.includes('--discard-changes')
+  if (before.includes('-p') || before.includes('--patch')) return null // asks hunk by hunk itself
+  let paths = []
+  let source = false
+  if (sub === 'switch') {
+    if (!force) return null
+    paths = ['.']; source = true
+  } else if (sub === 'restore') {
+    const WITH_VALUE = new Set(['-s', '--source', '--pathspec-from-file'])
+    const staged = short.includes('S') || before.includes('--staged')
+    const worktree = short.includes('W') || before.includes('--worktree')
+    if (staged && !worktree) return null // only unstages — the edits stay in the file
+    paths = [...before.filter((a, i) => !a.startsWith('-') && !WITH_VALUE.has(before[i - 1])), ...after]
+    source = staged || before.some(a => a === '-s' || a === '--source' || a.startsWith('--source='))
+  } else {
+    if (['-b', '-B', '--orphan'].some(o => before.includes(o))) return null // makes a new branch: nothing is overwritten
+    const WITH_VALUE = new Set(['--conflict', '--pathspec-from-file'])
+    const words = before.filter((a, i) => !a.startsWith('-') && !WITH_VALUE.has(before[i - 1]))
+    const isRef = (w) => git(dir, 'rev-parse', '--verify', '--quiet', `${w}^{commit}`) !== null
+    if (dash >= 0) { paths = after; source = words.length > 0 } // git checkout [<branch>] -- <files>
+    else if (words.length && isRef(words[0])) {
+      if (words.length > 1) { paths = words.slice(1); source = true } // git checkout main a.ts
+      else if (force) { paths = ['.']; source = true } // git checkout -f main: drops every uncommitted change
+      else return null // a plain branch switch — git itself refuses if it would overwrite changes
+    } else if (!words.length && force) { paths = ['.']; source = true } // bare `git checkout -f`: drops every uncommitted change (review)
+    else paths = words // git checkout . / git checkout a.ts
+  }
+  if (!paths.length) return null
+  const lost = (git(dir, 'diff', ...(source ? ['HEAD'] : []), '--name-only', '--', ...paths) || '').split('\n').filter(Boolean)
+  if (!lost.length) return null
+  const command = `git ${sub} ${args.join(' ')}`.trim()
+  return `\`${command}\` would throw away the uncommitted changes in ${lost.slice(0, 5).join(', ')}${lost.length > 5 ? ` and ${lost.length - 5} more` : ''} — for good: they were never committed, so git can't bring them back (Goops F17 lost cracks.ts this way). Only allow it if Muzzy really means to drop that work; to keep a copy first: \`git stash\`, or commit it.`
+}
 
 // `git branch -D x` (or -d with --force): only when x is already fully merged.
 // Plain `git branch -d x` is left alone — git itself refuses it when x has unmerged work.

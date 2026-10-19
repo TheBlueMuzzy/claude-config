@@ -23,11 +23,25 @@ export function deny(reason) {
   process.exit(0)
 }
 
+// Before a tool call runs: show Muzzy a permission prompt with the reason, so he decides (F78). Not a refusal.
+export function ask(reason) {
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: reason },
+  }))
+  process.exit(0)
+}
+
 // After a tool ran: show Claude a message next to the result (the tool has already happened).
 export function tellClaude(reason) {
   process.stdout.write(JSON.stringify({ decision: 'block', reason }))
   process.exit(0)
 }
+
+// --- files that must never be committed (F78) ------------------------------------
+// One list for guard-git (refuses the commit) and save.mjs (refuses the save): .env files (but .env.example / .sample /
+// .template are fine), keys (*.pem, *.key), credentials.json, client_secret*.json, secrets.json, wrangler's local
+// secrets (.dev.vars), and Playwright's leftovers (.playwright-mcp/). Paths are repo-relative with forward slashes.
+export const NEVER_COMMIT = /(^|\/)(\.env(\.(?!example$|sample$|template$)[^/]*)?|.*\.pem|.*\.key|credentials\.json|client_secret.*\.json|secrets\.json|\.dev\.vars|\.playwright-mcp(\/.*)?)$/
 
 // --- reading the conversation log (Stop hooks) ----------------------------------
 

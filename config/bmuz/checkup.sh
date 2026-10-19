@@ -61,12 +61,16 @@ echo; echo "== 7. Every game gets the same safety kit (F79 — a ✗ names the f
 for g in "$HOME"/Documents/dev/games/*/; do
   [ -f "$g/package.json" ] || continue
   name=$(basename "$g"); miss=""
+  # framework copies sit at src/<piece>/VERSION or one deeper (src/ui/kit/VERSION, src/ai/kit/VERSION) — review fix
+  pieces=""; ls "$g"/src/*/VERSION "$g"/src/*/kit/VERSION >/dev/null 2>&1 && pieces=1
   if [ -f "$g/scripts/check-all.mjs" ] && ! grep -q "check-lock" "$g/scripts/check-all.mjs"; then
     miss="$miss · check-all.mjs has no one-run-at-a-time lock (copy it from config/bmuz/templates/check-all.mjs)"; fi
   if grep -q '"check:fast"' "$g/package.json" && [ -d "$g/.git" ] && git -C "$g" remote get-url origin >/dev/null 2>&1 && [ ! -f "$g/.github/workflows/checks.yml" ]; then
     miss="$miss · no GitHub checks (copy config/bmuz/templates/checks.yml to .github/workflows/)"; fi
-  if ls "$g"/src/*/VERSION >/dev/null 2>&1 && ! grep -q '"check:framework"' "$g/package.json"; then
+  if [ -n "$pieces" ] && ! grep -q '"check:framework"' "$g/package.json"; then
     miss="$miss · framework pieces but no check:framework (reinstall the Dev Kit with install-module.mjs)"; fi
+  if [ -n "$pieces" ] && grep -q '"check:framework"' "$g/package.json" && ! grep -qs "check-framework.mjs --static\|check:framework -- --static" "$g/scripts/check-all.mjs" "$g/package.json"; then
+    miss="$miss · check:fast doesn't run the framework's code checks (add the 'framework (code)' line from config/bmuz/templates/check-all.mjs)"; fi
   [ -z "$miss" ] && echo "  ✓ $name" || echo "  ✗ $name$miss"
 done
 

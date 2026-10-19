@@ -36,7 +36,7 @@ Run `bash ~/.claude/config/bmuz/config-sync.sh status` (pulls `~/.claude-config`
 - Nothing printed → say nothing.
 
 ## 3c. Clean up
-- **Clean up after yourself** (Muzzy, 2026-10-04): `bash ~/.claude/config/bmuz/cleanup.sh` — removes helper workspaces whose work is all on the main branch, empties git-ignored check output (`e2e-shots/`…), deletes temporary files (`*.tmp.*`, `e2e/_*.mjs`). Never touches tracked files; keeps (and names) any workspace that still holds work. Its one line goes in the report.
+- **Cleanup runs by itself** (Muzzy, 2026-10-04 "clean up after yourself"; automatic since F78): save.mjs runs cleanup.sh. That removes finished helper workspaces, git-ignored check output, temporary files and old `~/Documents/dev/.scratch/` entries. Its 🧹 line goes in the report.
 
 ## 4. Tell him
 Two or three lines, player's-eye:
