@@ -56,6 +56,11 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 - AI seats think on the rules clock (half pause stops a bot mid-think); personalities live in `content/ai/`.
 - Online (Rooms): the server owns the truth; Dev Kit tools that affect play are offline-only.
 
+## Saves (any game that remembers anything — `framework/saves`)
+- Every save goes through `createSave` (key starts with the game's name); game code never touches `localStorage` / `sessionStorage` itself — except the rooms module's `rooms:` ids and files listed in `content/saves.json` `storageAllowed` with why ② (check:framework Saves "the game saves through the module" lists every other line and fails).
+- A default change that should reach old saves is an **upgrade step** (`version` + 1), never just a new `fresh` value ③ (whether a default should reach old saves is a design call) — then ② (check:framework fails until the new version has a golden save, and a golden save's `expect` proves the old one gets the new default).
+- A **golden save per version** in `tests/saves/<key>-v<N>.json`, each save listed in `tests/saves/saves.test.ts` ② (check:framework Saves: a missing version fails; the save test — golden saves load, round trip, damaged saves, full storage — runs inside it).
+
 ## When a new module is made
 Add its section here (what the game must provide, how it's checked) in the same commit as the module, and a
 "What a game must provide" section to the module's README.
