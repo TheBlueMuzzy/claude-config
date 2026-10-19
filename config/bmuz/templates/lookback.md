@@ -15,6 +15,7 @@ without one, or if an item's home doesn't exist.
    - **Went wrong** — a bug that reached Muzzy, a check that missed it, a loop of fixes, a wrong guess.
    - **Done more than once** — the same steps by hand in several sprints, the same fix in two games, a question asked twice.
    - **Built for one game, others need it** — a part, a tool, a script, a test helper that's not game-specific.
+   - **Promised but not landed:** take every review list or plan this milestone worked from (`~/.claude/config/bmuz/reviews/…`, a TDD plan, a research doc) and check each item against the real code: landed (where), or not. A "not" gets a home like any other item, and a quiet partial build counts as "not". This came from 2026-10-19: F69 built the installer without the lint step on the Oct 18 list, nobody logged it, and Muzzy found it (audit: `reviews/2026-10-18-reliability/AUDIT-2026-10-19.md`).
 3. **Give each a home**, strongest first — something that runs beats something to remember:
    `hook` (`~/.claude/config/bmuz/hooks/`) · `check` (a module's conformance / check:fast) · `script` (one command for a
    fragile job) · `module` (a framework kit piece) · `checklist` (one line in the skill / PROJECT-FILES rule it belongs to)

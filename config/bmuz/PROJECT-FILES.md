@@ -113,6 +113,7 @@ before /develop hands back, a smoke pass before anything goes live:
 | **Area** | Fast + the e2e scripts for what the change touched (`check:full -- online game`) — Key facts "Checks" maps areas → scripts | a helper finishing a task; a fix | 3–8 min |
 | **Full** | Fast + every e2e script + screenshots, side by side → `e2e-shots/checks.html` (link it) | ONCE per feature, after its merges, before the hand-off — and at /deliver only if code changed since | ~10–15 min |
 Rules:
+- **GitHub re-checks every push** (F70): `.github/workflows/checks.yml` (from `templates/checks.yml`) runs check:fast + check:framework on every branch push — red cross = broken commit. /deliver refuses to merge or release while the branch's latest run is red or still running (`scripts/checks-gate.mjs`, and `release.mjs` again after the merge).
 - **A helper runs Area, not Full.** Claude runs Full once after merging — that catches the combination problems (two pieces of work that each pass alone) a helper can't see. Never both.
 - **After a merge:** Fast only when the merge was clean and the helpers touched different files; Area for the overlapping area when git had to combine or resolve the same file.
 - **Record it:** after a green Full, write `Last full check: <commit> — all green (<date>)` in STATE Key facts. /deliver reuses it when HEAD is that commit (or only docs / .planning changed since): Fast + smoke + live check, no Full re-run.

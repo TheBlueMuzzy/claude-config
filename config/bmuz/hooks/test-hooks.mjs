@@ -119,7 +119,39 @@ function testGuardGit() {
   const log = join(root, 'session.jsonl')
   writeFileSync(log, JSON.stringify({ type: 'user', message: { content: '<command-name>/deliver</command-name>' } }) + '\n')
   expect('merge during /deliver → allowed', runHook('guard-git.mjs', { ...bash(repo, 'git merge --no-ff dev/open -m "Release"'), transcript_path: log }), 'allow')
+  expect('"F08: done" in a repo without .planning/STATE.md → allowed (not a BMUZ project)', g('git commit -m "F08: done"'), 'allow')
   rmSync(root, { recursive: true, force: true })
+
+  // F72: a feature's "done" commit leaves STATE.md telling the truth
+  const bmuz = makeRepo()
+  const d = cmd => runHook('guard-git.mjs', bash(bmuz.repo, cmd))
+  sh(bmuz.repo, 'checkout', '-q', 'dev/open')
+  mkdirSync(join(bmuz.repo, '.planning')); writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F09 next\n')
+  sh(bmuz.repo, 'add', '.'); sh(bmuz.repo, 'commit', '-q', '-m', 'STATE: start')
+  writeFileSync(join(bmuz.repo, 'notes.md'), 'one\n'); sh(bmuz.repo, 'add', '.'); sh(bmuz.repo, 'commit', '-q', '-m', 'F09: first task')
+  writeFileSync(join(bmuz.repo, 'notes.md'), 'two\n')
+  expect('"F09: done" with STATE untouched since F09 started → blocked', d('git commit -am "F09: done"'), 'deny')
+  expect('…a PowerShell here-string message too', runHook('guard-git.mjs', pwsh(bmuz.repo, "git commit -am @'\r\nF09: done — Muzzy approved\r\n'@")), 'deny')
+  expect('"F09: tick task 2" (not done) → allowed', d('git commit -am "F09: tick task 2"'), 'allow')
+  writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F09 done, F10 next\n')
+  expect('F75: "F09: done" with STATE changed but no "Reviewed through" → blocked', d('git add -A && git commit -m "F09: done"'), 'deny')
+  writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F09 done, F10 next\nReviewed through: abc1234\n')
+  expect('"F09: done" with STATE.md (+ a new review line) in the commit → allowed', d('git add -A && git commit -m "F09: done"'), 'allow')
+  sh(bmuz.repo, 'commit', '-q', '-am', 'STATE: F09 done')
+  expect('"F09: done" when STATE changed in a commit since F09 started → allowed', d('git commit --allow-empty -m "F09: done"'), 'allow')
+  writeFileSync(join(bmuz.repo, 'notes.md'), 'three\n'); sh(bmuz.repo, 'commit', '-q', '-am', 'F11: first task')
+  expect('"F11 + F12: done" with STATE older than F11 → blocked', d('git commit --allow-empty -m "F11 + F12: done"'), 'deny')
+  writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F11 done\nReviewed through: abc1234\n')
+  expect('F75: STATE changed but the review line is the SAME as before F11 → blocked', d('git add -A && git commit -m "F11: done"'), 'deny')
+  writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F11 built; next: /code-review, then write Reviewed through\nReviewed through: abc1234\n')
+  expect('F75 (review fix): prose MENTIONING "Reviewed through" changed, the real line didn\'t → blocked', d('git add -A && git commit -m "F11: done"'), 'deny')
+  writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F11 done\n**Reviewed through:** def5678\n')
+  expect('F75: review line updated during F11, no check:full in the project → allowed', d('git add -A && git commit -m "F11: done"'), 'allow')
+  writeFileSync(join(bmuz.repo, 'package.json'), '{ "scripts": { "check:full": "node x" } }\n'); sh(bmuz.repo, 'add', 'package.json'); sh(bmuz.repo, 'commit', '-q', '-m', 'add check:full')
+  expect('F75: a project WITH check:full but no "Last full check" → blocked', d('git add -A && git commit -m "F11: done"'), 'deny')
+  writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F11 done\n**Reviewed through:** def5678\n**Last full check:** def5678 — 2026-10-19 37/37\n')
+  expect('F75: both lines updated during F11 → allowed', d('git add -A && git commit -m "F11: done"'), 'allow')
+  rmSync(bmuz.root, { recursive: true, force: true })
 }
 
 function testGuardEdits() {
@@ -343,6 +375,44 @@ function testCheckUiEdit() {
   rmSync(root, { recursive: true, force: true })
 }
 
+function testLintEdit() {
+  console.log('lint-edit — ESLint on the one file Claude just edited')
+  // A tiny project: a flat config with one plain rule (no plugins), and node_modules/eslint linked to Glyphtender's
+  // real eslint (a junction — nothing downloaded, Glyphtender untouched).
+  const realEslint = join(HOOKS, '..', '..', '..', '..', 'Documents', 'dev', 'games', 'glyphtender', 'node_modules', 'eslint')
+  if (!existsSync(realEslint)) { console.log('  (skipped: Glyphtender has no node_modules/eslint on this machine)'); return }
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-lint-'))
+  const makeProject = (name, packageName, withEslint = true) => {
+    const dir = join(root, name)
+    mkdirSync(join(dir, 'src'), { recursive: true })
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: packageName }))
+    writeFileSync(join(dir, 'eslint.config.mjs'), "export default [{ ignores: ['kit/**'] }, { files: ['**/*.{js,mjs,ts}'], rules: { 'no-unused-vars': 'error', 'no-console': 'warn' } }]\n")
+    if (withEslint) { mkdirSync(join(dir, 'node_modules')); symlinkSync(realEslint, join(dir, 'node_modules', 'eslint'), 'junction') }
+    return dir
+  }
+  const edit = (file, tool = 'Edit') => runHook('lint-edit.mjs', { hook_event_name: 'PostToolUse', tool_name: tool, tool_input: { file_path: file } })
+  const write = (file, text) => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, text); return file }
+  const BAD = 'const unused = 1\nexport const used = 2\n'
+
+  const game = makeProject('game', 'some-game')
+  expect('clean file → quiet', edit(write(join(game, 'src', 'good.js'), 'export const a = 1\n')), 'allow')
+  expect('only a warning (console.log) → quiet', edit(write(join(game, 'src', 'warn.js'), 'console.log(1)\nexport const a = 1\n')), 'allow')
+  const bad = edit(write(join(game, 'src', 'bad.js'), BAD), 'Write')
+  expect('unused variable → Claude told', bad, 'block')
+  expect('…names the file, line and rule', { result: /src\/bad\.js:1:7/.test(bad.message) && /no-unused-vars/.test(bad.message) ? 'ok' : 'no', message: bad.message }, 'ok')
+  expect('a game keeps its ignores (its kit copy) → quiet', edit(write(join(game, 'kit', 'copy.js'), BAD)), 'allow')
+  expect('file under node_modules / dist → skipped', edit(write(join(game, 'dist', 'out.js'), BAD)), 'allow')
+  expect('not a code file (.css) → skipped', edit(write(join(game, 'src', 'a.css'), 'a { }\n')), 'allow')
+
+  const framework = makeProject('framework', 'game-framework')
+  expect('framework checkout: nothing ignored (--no-ignore) → Claude told', edit(write(join(framework, 'kit', 'part.js'), BAD)), 'block')
+
+  const bare = makeProject('bare', 'not-installed', false)
+  expect('no local eslint (never downloads) → skipped quietly', edit(write(join(bare, 'src', 'bad.js'), BAD)), 'allow')
+  expect('no eslint setup above the file → skipped', edit(write(join(root, 'loose', 'bad.js'), BAD)), 'allow')
+  rmSync(root, { recursive: true, force: true })
+}
+
 function testHandoffCheck() {
   console.log('handoff-check — every hand-off uses the card')
   const root = mkdtempSync(join(tmpdir(), 'bmuz-handoff-'))
@@ -547,7 +617,7 @@ function testStopPlanCheck() {
 }
 
 const only = process.argv[2]
-const suites = { 'guard-git': testGuardGit, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck }
+const suites = { 'guard-git': testGuardGit, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck }
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

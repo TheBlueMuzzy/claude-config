@@ -5,8 +5,10 @@
 //   feature work never lands on main outside /deliver (F67): no `F08: …` commit with code on the default branch,
 //   no merging a work branch into it — /develop works on dev/<milestone>, /deliver merges. Plan/doc commits and
 //   tiny fixes (no `F08:` in the message) stay fine on main.
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+//   a feature's `F08: done` commit leaves STATE.md telling the truth (F72): STATE is in that commit, or was changed
+//   since the feature's first commit — otherwise a fresh Claude (or the laptop) resumes from a stale RESUME HERE.
+import { existsSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { readInput, deny, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage } from './lib.mjs'
 
 const input = readInput()
@@ -18,6 +20,7 @@ for (const [index, call] of calls.entries()) {
   const { dir, sub, args } = call
 
   if (sub === 'commit' && !args.includes('--dry-run')) checkFeatureCommitOnMain(calls, index, command)
+  if (sub === 'commit' && !args.includes('--dry-run')) checkDoneSavesState(calls, index, command)
   if (sub === 'merge') checkMergeIntoMain(calls, index)
 
   if (sub === 'reset' && args.includes('--hard')) {
@@ -96,6 +99,42 @@ function checkFeatureCommitOnMain(calls, index, raw) {
   const code = commitFiles(calls, index, resolve(top)).filter(f => !/^\.planning(\/|$)/.test(f) && !/\.md$/i.test(f)) // `git add .planning` names the folder itself
   if (!code.length) return
   deny(`Blocked: a ${feature} commit with code (${code.slice(0, 3).join(', ')}${code.length > 3 ? ', …' : ''}) on ${target}. Feature work goes on the work branch (\`dev/<milestone>\`, /develop makes it) and reaches ${target} only through /deliver. Switch to the work branch and commit there — or, if this is really a tiny fix, commit it without the "${feature}:" prefix.`)
+}
+
+// `F08: done` (or `F08 + F09: done`) in a BMUZ project: STATE.md is part of the commit, or a commit since the
+// feature's first one changed it.
+function checkDoneSavesState(calls, index, raw) {
+  const { dir, args } = calls[index]
+  const ids = (commitMessage(raw, args).match(/^\s*(F\d+[a-z]?(?:\s*\+\s*F\d+[a-z]?)*)\s*:\s*done\b/i) || [])[1]
+  if (!ids) return
+  const top = git(dir, 'rev-parse', '--show-toplevel')
+  if (!top) return
+  const root = resolve(top)
+  if (!existsSync(join(root, '.planning', 'STATE.md'))) return // not a BMUZ project
+  const feature = ids.match(/F\d+[a-z]?/)[0]
+  const first = (git(root, 'log', '--format=%H', '--reverse', `--grep=^${feature}:`) || '').split('\n')[0]
+  if (!commitFiles(calls, index, root).includes('.planning/STATE.md')) {
+    const lastState = (git(root, 'log', '-1', '--format=%H', '--', '.planning/STATE.md') || '')
+    if (!(first && lastState && git(root, 'merge-base', '--is-ancestor', first, lastState) !== null)) {
+      deny(`Blocked: "${feature}: done" but .planning/STATE.md hasn't changed since ${feature} started, so RESUME HERE still describes the old work. A fresh session, or the other machine, would pick up from there. Replace RESUME HERE + "Doing" (what's done, what's next), add STATE.md to this commit, then /save (F72).`)
+    }
+  }
+  // F75: the feature's code review and full check really happened. Each line must have been written or changed
+  // since the feature started (its value is a commit, sometimes from two repos, so "changed during this feature" is
+  // the test). A project without a check:full script has no full check to record.
+  const now = readFileSync(join(root, '.planning', 'STATE.md'), 'utf8')
+  const before = (first && git(root, 'show', `${first}^:.planning/STATE.md`)) || ''
+  // the real line only — it starts the line ("Reviewed through: …", "**Last full check:** …", "- Reviewed through: …"),
+  // never the words inside a sentence ("next: /code-review, then write Reviewed through")
+  const line = (text, label) => (text.match(new RegExp(`^[-\\s]*\\*{0,2}${label}:?\\*{0,2}:[^\\n]*|^[-\\s]*\\*{0,2}${label}:[^\\n]*`, 'im')) || [''])[0].trim()
+  let hasFull = false
+  try { hasFull = !!JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts?.['check:full'] } catch { /* no package.json */ }
+  const stale = [['Reviewed through', '/code-review (low) on this feature\'s commits, then `Reviewed through: <commit>`'],
+    ...(hasFull ? [['Last full check', '`npm run check:full` once, then `Last full check: <commit> — <date> <result>`']] : [])]
+    .filter(([label]) => { const n = line(now, label); return !n || n === line(before, label) })
+  if (stale.length) {
+    deny(`Blocked: "${feature}: done" but STATE.md's ${stale.map(([l]) => `"${l}"`).join(' and ')} ${stale.length > 1 ? 'weren\'t' : 'wasn\'t'} updated during ${feature}, so ${stale.length > 1 ? 'they describe' : 'it describes'} older work. Every feature gets the same treatment before it's done: ${stale.map(([, how]) => how).join('; ')}. Then write the line${stale.length > 1 ? 's' : ''} into STATE.md and commit again (F75).`)
+  }
 }
 
 function checkMergeIntoMain(calls, index) {

@@ -1,5 +1,8 @@
 // Run the BMUZ skill tests (F71) — every `~/.claude/skills/<skill>/evals/` suite, or the ones named.
-//   node ~/.claude/config/bmuz/scripts/test-skills.mjs [skill …] [--case <name>] [--max-cost-usd 5]
+//   node ~/.claude/config/bmuz/scripts/test-skills.mjs --muzzy-said-yes [skill …] [--case <name>] [--max-cost-usd 5]
+// --muzzy-said-yes is required: without it the script refuses before spending anything. Pass it ONLY after Muzzy said
+// yes in this conversation (/checkup asks). A helper ran the full suite unasked on 2026-10-19 ($1.39); written rules
+// weren't enough, so the script enforces it.
 // Each case is a real Claude session in a throwaway copy of the practice game (config/bmuz/evals/fixture-game.sh),
 // scored by its graders — it costs plan usage (~$0.20 a case). Muzzy's rule (2026-10-19, "A"): run only after skill
 // edits or a model update, and only when he says yes (/checkup offers it).
@@ -11,6 +14,10 @@ import { run, say, ok, refuse, args } from './lib.mjs'
 
 const SKILLS = join(homedir(), '.claude', 'skills')
 const { words, flags } = args()
+if (!flags.has('--muzzy-said-yes')) {
+  refuse('skill tests cost plan usage (~$0.20 a case), so they only run when Muzzy has said yes',
+    'ask Muzzy first (/checkup offers it, with the cost); after his yes, run again with --muzzy-said-yes')
+}
 const argv = process.argv.slice(2)
 const value = (name, fallback) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : fallback }
 const caseFilter = value('--case')

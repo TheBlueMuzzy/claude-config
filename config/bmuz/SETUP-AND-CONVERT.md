@@ -10,6 +10,7 @@ If the folder has no `.planning/STATE.md`:
 4. Create `.planning/STATE.md` from the template (Stage: discover, RESUME HERE: "New project — next: /discover, or /define if you already know what you want") (ideas go in ROADMAP's Ideas section — no VISION.md).
 5. Commit `Set up <Name> with BMUZ`. No tag (tags come from /deliver). Note the default branch name (main or master) in Key facts.
 6. No git remote? Ask once: "Want me to make a private GitHub repo so it's backed up and synced to the laptop?" Yes → `gh repo create TheBlueMuzzy/<folder> --private --source . --push` (for a web game that'll live on GitHub Pages, mention free Pages needs the repo public — ask which). No → write `Remote: none (declined <date>)` in Key facts and never ask again unless Muzzy brings it up.
+7. **GitHub re-checks every push** (F70): on GitHub, and once the game has `package.json` with `check:fast` (`templates/check-all.mjs`) → copy `~/.claude/config/bmuz/templates/checks.yml` to `.github/workflows/checks.yml`, commit `GitHub checks on every push`, push, and watch the first run go green (`gh run watch --exit-status`). Before then, /develop adds it with check:fast. /deliver refuses to merge a red branch.
 Say what you did in two lines. Don't lecture.
 
 ## Old GSD layout — what every verb does before conversion

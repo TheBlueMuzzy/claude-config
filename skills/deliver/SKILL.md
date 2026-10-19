@@ -29,6 +29,7 @@ If §6 will need one-time setup (base path, deploy workflow…), do and commit i
 
 ## 4. Merge
 - Main branch = `main` or `master` (see Key facts). Already on main with nothing to merge → skip to §5.
+- **GitHub must be green first** (F70): push the branch, then `node ~/.claude/config/bmuz/scripts/checks-gate.mjs <branch>`. Red, still running, or the latest commit never checked → it refuses with the run link: say it in plain words ("GitHub found something broken on this branch: <link>"), fix it on the branch, push, wait for green — never merge around it. No Checks workflow / no gh → it warns; say so in §8 and offer to add `templates/checks.yml`.
 - `git checkout <main>`, `git pull` (only if there's a remote), `git merge --no-ff <branch>`. Conflicts → resolve if obvious (`version.json` → take main's, then bump in §5), otherwise explain and ask.
 - Delete the merged branch locally (and on the remote, if any).
 
@@ -36,7 +37,7 @@ If §6 will need one-time setup (base path, deploy workflow…), do and commit i
 - **Patch notes:** read the commits since the last version tag (`git log <last-tag>..HEAD --oneline`) and write 3–8 player-facing bullets: what players will notice, no code talk. A one-line version goes in the `history` summary. The bullets become §8's "New:" lines, ready to paste into an itch devlog.
 - ROADMAP: milestone ✅ with date if finished; release line updated ("alpha — released 2026-11-02"). After a release stage, set `Release target:` to the next stage — if it has no musts yet: "beta — musts not set (/define)".
 - STATE: version, Live line (with release stage), Stage = deliver, RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)".
-- Then `node ~/.claude/config/bmuz/scripts/release.mjs <update|milestone|major> "<history summary>"` — bumps Z / Y / X (build → 0), adds the history entry, syncs package.json + lock, commits `Release vX.Y.Z: …` with your ROADMAP/STATE edits, tags it. (`--dry-run` first tells you the number for STATE.) It refuses uncommitted code or a work branch. Push with tags after the smoke pass (§2).
+- Then `node ~/.claude/config/bmuz/scripts/release.mjs <update|milestone|major> "<history summary>"` — bumps Z / Y / X (build → 0), adds the history entry, syncs package.json + lock, commits `Release vX.Y.Z: …` with your ROADMAP/STATE edits, tags it. (`--dry-run` first tells you the number for STATE.) It refuses uncommitted code, a work branch, or a just-merged branch that's red / unchecked on GitHub. Push with tags after the smoke pass (§2).
 
 ## 6. Release it — follow the platform's recipe
 Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all projects). The project's Key facts says which platform(s) it releases to.

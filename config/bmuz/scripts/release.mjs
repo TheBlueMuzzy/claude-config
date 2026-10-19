@@ -2,12 +2,13 @@
 //   node ~/.claude/config/bmuz/scripts/release.mjs <update|milestone|major> "<one-line summary>" [--dry-run]
 //     update    → Z (0.9.2 → 0.9.3)      milestone → Y (0.9.3 → 0.10.0; a release stage too)      major → X (only when Muzzy says 1.0)
 // Refuses before changing anything when: the project has no version.json, there's uncommitted work, it isn't on the
-// default branch (/deliver merges first), or the tag already exists. Then: bump (build → 0), add the history entry,
+// default branch (/deliver merges first), the tag already exists, or the work branch just merged is red / unchecked on
+// GitHub (F70 — no Checks workflow or no gh = a warning, not a refusal). Then: bump (build → 0), add the history entry,
 // sync package.json + package-lock.json, commit "Release vX.Y.Z: <summary>", tag vX.Y.Z (annotated, so
 // `git push --follow-tags` carries it). It never pushes: /deliver pushes after the smoke pass.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { git, run, say, ok, refuse, readJson, writeJson, args, projectDir, exists, changedFiles } from './lib.mjs'
+import { git, run, say, ok, refuse, readJson, writeJson, args, projectDir, exists, changedFiles, requireGreenChecks } from './lib.mjs'
 import { defaultBranch } from '../hooks/lib.mjs'
 
 const KINDS = { update: 2, milestone: 1, stage: 1, major: 0 } // which part of X.Y.Z goes up
@@ -38,6 +39,10 @@ for (let i = at + 1; i < 3; i++) parts[i] = 0
 const next = parts.join('.')
 const tag = `v${next}`
 if (git(root, 'rev-parse', '--verify', '--quiet', `refs/tags/${tag}`) !== null) refuse(`tag ${tag} already exists`, 'look at `git tag` — was this release already made?')
+// Just merged a work branch? Its last commit must be green on GitHub (F70; checks-gate.mjs asked before the merge too).
+// Released straight from main (a tiny fix) → nothing merged to ask about; GitHub checks main after the push.
+const merged = git(root, 'rev-parse', '--verify', '--quiet', 'HEAD^2')
+if (merged) requireGreenChecks(root, { commit: merged })
 
 const date = new Date().toISOString().slice(0, 10)
 say(`${version.version}.${version.build ?? 0} → ${next}.0 (${kind}) — "${summary}"`)

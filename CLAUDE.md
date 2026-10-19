@@ -94,6 +94,7 @@ When errors occur, ALWAYS: (1) translate to plain English, (2) explain why in no
 When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm going to bed — finish it" (or equivalent) on a big task:
 - Don't ask questions — make reasonable calls and write them in the sprint's Notes / STATE.md. Taste calls you can't infer → leave as `Ask Muzzy:` and keep going on other tasks.
 - Work through `/sprint` → `/develop` feature by feature; commit after every task; `/save` after every feature.
+- **One fresh helper per feature** (F72): it gets STATE RESUME HERE plus the feature's SPRINT section and builds it. This chat only plans, merges, runs the full check, reviews and saves, so it stays small all night.
 - Prove everything works (tests, build, screenshots) before moving on.
 - Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
 - STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.

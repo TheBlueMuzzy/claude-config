@@ -9,7 +9,7 @@
 //   4. the module's code checks in the game: check:framework --static --only <module>
 // The installer prints the hand-wiring steps left; this script repeats where to look.
 import { join } from 'node:path'
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { FRAMEWORK, run, say, ok, refuse, tail, readJson, args, projectDir, exists } from './lib.mjs'
 
 const CHECK_ID = { devkit: 'devkit', 'ui-kit': 'ui', audio: 'audio', table: 'table', ai: 'ai', rooms: 'rooms' }
@@ -25,7 +25,11 @@ if (!installer) refuse(`no installer in ${join(moduleDir, 'scripts')}`)
 
 // 1. the module's own checks, in the framework
 const scripts = readJson(join(moduleDir, 'package.json'))?.scripts ?? {}
-for (const name of ['test', 'typecheck', 'check-ui'].filter(n => scripts[n])) {
+// lint (F70): the framework's one ESLint setup lives at its root. Games ignore their kit copies, so this is the only
+// place framework code is linted before it ships.
+if (!scripts.lint) say(`! ${module} has no "lint" script (a framework older than the linter) — installing without the lint check`)
+else if (!exists(FRAMEWORK, 'node_modules/eslint')) refuse(`the framework's linter isn't installed, so ${module} can't be checked`, `run \`npm install\` once in ${FRAMEWORK}, then try again`)
+for (const name of ['test', 'typecheck', 'check-ui', 'check-devkit', 'lint'].filter(n => scripts[n])) {
   say(`… ${module}: npm run ${name}`)
   const result = run('npm', ['run', name], { cwd: moduleDir })
   if (result.code !== 0) refuse(`${module}'s own "${name}" fails in the framework, so it isn't installed:\n${tail(result.out)}`, `fix it in ${moduleDir} first (a module ships green)`)
@@ -51,5 +55,9 @@ if (!runner) {
   const check = run('node', [runner, '--static', '--only', CHECK_ID[module]], { cwd: game })
   if (check.code !== 0) refuse(`installed, but the game doesn't keep ${module}'s promises yet:\n${tail(check.out, 25)}`, 'wire what the failures name (MODULE-CONTRACTS.md), then run `npm run check:framework`')
   ok(`${module}'s code checks pass in the game`)
+}
+// the same safety kit in every game (F79): an old check-all.mjs without the one-run-at-a-time lock gets named
+if (exists(game, 'scripts/check-all.mjs') && !readFileSync(join(game, 'scripts', 'check-all.mjs'), 'utf8').includes('check-lock')) {
+  say(`! scripts/check-all.mjs has no one-run-at-a-time lock — copy it from ~/.claude/config/bmuz/templates/check-all.mjs (two check runs at once break each other)`)
 }
 say(`\nNext: do the wiring steps the installer printed above, then prove the module's main promise in the game (develop skill: "Installing a module = proving its main promise").`)

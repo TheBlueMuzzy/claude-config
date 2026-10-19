@@ -2,7 +2,7 @@
 
 Each key skill has cases in `~/.claude/skills/<skill>/evals/<case>/` (prompt.md · case.yaml · setup.sh · graders/*.md).
 Every case starts from the practice game in `fixture-game.sh`. Run them with
-`node ~/.claude/config/bmuz/scripts/test-skills.mjs [skill] [--case <name>]` (~$0.20 a case, only when Muzzy says yes in /checkup).
+`node ~/.claude/config/bmuz/scripts/test-skills.mjs --muzzy-said-yes [skill] [--case <name>]` (refuses without the flag) (~$0.20 a case, only when Muzzy says yes in /checkup).
 On Windows they run inside WSL2's Ubuntu.
 
 ## Writing a case — what bit us (2026-10-19)

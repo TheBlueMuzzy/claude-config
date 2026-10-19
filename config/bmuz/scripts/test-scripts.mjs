@@ -69,6 +69,19 @@ function testInstallModule() {
   const unwired = install('audio', '.')
   expect("installed but the game doesn't keep its promises → says so (exit 1)", unwired.code === 1 && /no volume setting/.test(unwired.out), unwired.out)
   expect('not a game folder → refused', install('audio', root).code === 1)
+  // F70: the framework's linter runs as one of the module's own checks
+  rmSync(join(game, 'src', 'devkit'), { recursive: true, force: true })
+  write(join(audio, 'package.json'), JSON.stringify({ scripts: { test: 'node -e "0"', lint: 'node -e "process.exit(require(\'fs\').existsSync(\'LINTRED\') ? 1 : 0)"' } }))
+  const noEslint = install('audio', '.', '--dry-run')
+  expect('a lint script but the framework root has no eslint installed → refused, says to npm install', noEslint.code === 1 && /npm install/.test(noEslint.out), noEslint.out)
+  write(join(fw, 'node_modules', 'eslint', 'package.json'), '{}')
+  write(join(audio, 'LINTRED'), '')
+  const lintRed = install('audio', '.')
+  expect("module's lint red → refused before installing", lintRed.code === 1 && /own "lint" fails/.test(lintRed.out), lintRed.out)
+  rmSync(join(audio, 'LINTRED'))
+  write(join(game, 'scripts', 'check-all.mjs'), '// an old copy\n')
+  const lintGreen = install('audio', '.')
+  expect('lint green → installed; an old check-all.mjs without the lock is named (F79)', lintGreen.code === 0 && /audio: lint/.test(lintGreen.out) && /no one-run-at-a-time lock/.test(lintGreen.out), lintGreen.out)
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -275,8 +288,59 @@ async function testPppFramework() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F70: /deliver won't merge or release while GitHub's Checks run is red. gh is faked (BMUZ_GH): FAKE_GH = "fail" or
+// the JSON gh would print; every call's arguments land in FAKE_GH_LOG.
+function testChecksGate() {
+  console.log('checks-gate — GitHub must be green before merge / release')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-checks-'))
+  const repo = makeRepo(root)
+  const fake = join(root, 'fake-gh.mjs')
+  const log = join(root, 'gh.log')
+  write(fake, [
+    "import { appendFileSync } from 'node:fs'",
+    "appendFileSync(process.env.FAKE_GH_LOG, process.argv.slice(2).join(' ') + '\\n')",
+    "if (process.env.FAKE_GH === 'fail') { console.error('gh: To get started with GitHub CLI, please run: gh auth login'); process.exit(4) }",
+    'console.log(process.env.FAKE_GH)',
+  ].join('\n'))
+  const URL = 'https://github.com/x/y/actions/runs/1'
+  const runs = (status, conclusion) => JSON.stringify([{ status, conclusion, url: URL, headSha: 'abc' }])
+  const env = (answer) => ({ BMUZ_GH: fake, FAKE_GH: answer, FAKE_GH_LOG: log })
+  const gate = (answer, ...a) => script('checks-gate.mjs', a, { cwd: repo, env: env(answer) })
+
+  const none = gate(runs('completed', 'failure'))
+  expect('no Checks workflow → warning that says how to add it, not a refusal', none.code === 0 && /no GitHub Checks workflow/.test(none.out) && /templates\/checks\.yml/.test(none.out), none.out)
+  expect('…and GitHub isn\'t even asked', !existsSync(log))
+  write(join(repo, '.github', 'workflows', 'checks.yml'), 'name: Checks\non: push\n'); sh(repo, 'add', '.'); sh(repo, 'commit', '-q', '-m', 'checks')
+  const noGh = gate('fail')
+  expect('gh missing / not logged in → warning, not a refusal', noGh.code === 0 && /⚠/.test(noGh.out) && /gh auth login/.test(noGh.out), noGh.out)
+  const never = gate('[]')
+  expect('commit never checked (not pushed) → refused', never.code === 1 && /hasn't checked/.test(never.out), never.out)
+  const running = gate(runs('in_progress', ''))
+  expect('still running → refused, with the run link', running.code === 1 && /still checking/.test(running.out) && running.out.includes(URL), running.out)
+  const red = gate(runs('completed', 'failure'))
+  expect('red → refused in plain words, with the run link', red.code === 1 && /is red \(failure\)/.test(red.out) && red.out.includes(URL), red.out)
+  const green = gate(runs('completed', 'success'))
+  const tip = sh(repo, 'rev-parse', 'HEAD')
+  const asked = readFileSync(log, 'utf8').trim().split('\n').at(-1)
+  expect('green → ✓ carries on', green.code === 0 && /✓ .*green/.test(green.out), green.out)
+  expect('…asked about the branch\'s latest commit on the Checks workflow', asked.includes(`--commit ${tip}`) && asked.includes('--branch main') && asked.includes('--workflow Checks'), asked)
+  expect('unknown branch → refused', gate(runs('completed', 'success'), 'dev/nope').code === 1)
+
+  // release.mjs: after `git merge --no-ff <work branch>`, the merged commit must be green too
+  write(join(repo, 'version.json'), JSON.stringify({ name: 'T', version: '0.1.0', build: 0, history: [] }) + '\n'); sh(repo, 'add', '.'); sh(repo, 'commit', '-q', '-m', 'version')
+  sh(repo, 'checkout', '-q', '-b', 'dev/x'); write(join(repo, 'b.txt'), 'b\n'); sh(repo, 'add', '.'); sh(repo, 'commit', '-q', '-m', 'work')
+  const work = sh(repo, 'rev-parse', 'HEAD')
+  sh(repo, 'checkout', '-q', 'main'); sh(repo, 'merge', '-q', '--no-ff', '-m', 'merge dev/x', 'dev/x')
+  const relRed = script('release.mjs', ['update', 'x'], { cwd: repo, env: env(runs('completed', 'failure')) })
+  expect('release after merging a red branch → refused, nothing changed', relRed.code === 1 && /is red/.test(relRed.out) && JSON.parse(readFileSync(join(repo, 'version.json'), 'utf8')).version === '0.1.0' && !sh(repo, 'tag'), relRed.out)
+  expect('…it asked about the merged branch\'s last commit', readFileSync(log, 'utf8').trim().split('\n').at(-1).includes(`--commit ${work}`))
+  const relGreen = script('release.mjs', ['update', 'x'], { cwd: repo, env: env(runs('completed', 'success')) })
+  expect('release after merging a green branch → released', relGreen.code === 0 && sh(repo, 'tag') === 'v0.1.1', relGreen.out)
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, save: testSave, 'sprint-helpers': testSprintHelpers, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework }
+const suites = { 'install-module': testInstallModule, release: testRelease, 'checks-gate': testChecksGate, save: testSave, 'sprint-helpers': testSprintHelpers, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework }
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

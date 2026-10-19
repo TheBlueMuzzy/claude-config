@@ -66,6 +66,11 @@
           },
           {
             "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/lint-edit.mjs\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
             "command": "node \"$HOME/.claude/config/bmuz/hooks/plan-lint.mjs\"",
             "timeout": 30
           }
