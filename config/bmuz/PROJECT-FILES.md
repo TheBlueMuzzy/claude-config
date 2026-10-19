@@ -34,6 +34,8 @@ RELEASE     prototype → alpha → beta → 1.0     done = all its musts done
 
 ## Project Planner Page (PPP) — pilot on Goops (2026-10-16; full rules in BMUZ-PLAN "Project Planner Page")
 A read-only visual home page per game, **drawn** from GDD/ROADMAP/SPRINT/BUGS/STATE by `templates/ppp/build-ppp.mjs` (never a second source of truth) → `.planning/ppp.html` (gitignored) → published as a private Artifact; link in STATE Key facts (`Planner (PPP):`); /save republishes. Pilot rules (ROADMAP): states 💡 Idea → 🔍 Discover → 📐 Define → 🔨 Develop → 🚀 Deliver → ✅ Done (+ 💤 Maybe later, ✖ Won't) · % only on milestones = done / all items · Milestone 0 "Design decided" holds the open ❓ questions · `## Parking lot` = 💡 homeless ideas + 💤 maybe-later · end-of-musts checkpoint: leftover should/could → yes stays, no → parking lot · always challenge new things mid-milestone. The old state set below still draws (mapped). Becomes the standard once the pilot holds up.
+**Every section Muzzy sees is written for a non-engineer:** plain words that say whether anything needs doing, and who does it ("A newer Dev Kit is out. Claude updates it in the next /develop"). No version numbers, commands, file or test names unless he opens a "details" fold. Healthy means one green line. (Muzzy 2026-10-19, about the Framework row: "I don't know what I'm looking at … I can't make any decisions based on what is present.")
+**A feature that isn't approved at sprint end gets carried over:** rename its SPRINT heading to `## Carried to sprint NN — <name> (Fxx)` with the reason, and it goes into the next sprint (archive-sprint only reads `## Fxx` headings).
 
 ## ROADMAP.md
 ```markdown
