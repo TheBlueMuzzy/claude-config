@@ -156,6 +156,7 @@ function testGuardEdits() {
   expect('python -c writing a .js with a backslash → blocked', b("python -c \"open('a.js','w').write('a\\\\nb')\""), 'deny')
   expect('sed -i with a backslash on a .mjs → blocked (2026-10-18)', b("sed -i 's/^const A = 1$/const A = \\/^v\\\\d+$\\//' hooks/x.mjs"), 'deny')
   expect('sed -i on a .md whose new text names a .mjs → allowed (found in use)', b("sed -i 's/^- Next: `\\/sprint`/- Next: `\\/develop` — install-module.mjs/' .planning/STATE.md"), 'allow')
+  expect('sed -i with two "; "-joined edits on a .md naming a .mjs → allowed (found in use)', b("sed -i 's/^- \\[ \\] 🤖 2. `build-ppp.mjs` x/y/; s/^- \\[ \\] 🤖 3. a/b/' .planning/SPRINT.md"), 'allow')
   expect('sed -i with a backslash on a .md → allowed', b("sed -i 's/^- \\[ \\] 🤖 2/- [x] 🤖 2/' .planning/SPRINT.md"), 'allow')
   expect('node --input-type=module -e writing a .mjs with a backslash → blocked (2026-10-18)', b("node --input-type=module -e \"import { writeFileSync } from 'node:fs'; writeFileSync('a.mjs', 'const r = /\\\\d/')\""), 'deny')
   // from the review (2026-10-18)

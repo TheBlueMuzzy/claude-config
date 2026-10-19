@@ -9,6 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { STATES, TYPES, readRoadmap, readBugs, isOpenBug } from './plan-reader.mjs';
 
 const projectDir = path.resolve(process.argv[2] || '.');
@@ -153,6 +154,29 @@ const sketches = (fs.existsSync(sketchDir) ? fs.readdirSync(sketchDir).filter(f 
 });
 const openBugs = readBugs(bugs).filter(isOpenBug).map(b => [null, b.id, b.priority, b.status, b.next]);
 const bugCounts = ['P0', 'P1', 'P2', 'P3'].map(p => `${p} ${openBugs.filter(b => b[2] === p).length}`).join(' · ');
+
+// ---------- Framework health (F66): each installed module's version vs the framework's newest + the last check:framework ----------
+// A module copy = src/<x>/VERSION or src/<x>/kit/VERSION (like check-framework.mjs finds them). Results: e2e-shots/framework.json.
+const FRAMEWORK_DIR = process.env.BMUZ_FRAMEWORK || path.join(os.homedir(), 'Documents', 'dev', 'framework');
+const MODULE_INFO = { devkit: ['Dev Kit', 'devkit'], ui: ['UI kit', 'ui-kit'], ai: ['AI', 'ai'], audio: ['Audio', 'audio'], table: ['Table', 'table'], rooms: ['Rooms', 'rooms'] };
+const firstWord = (file) => { try { return fs.readFileSync(file, 'utf8').trim().split(/\s/)[0]; } catch { return ''; } };
+const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
+const health = (() => { try { return JSON.parse(read('e2e-shots/framework.json')); } catch { return {}; } })();
+const lastRun = health.full || health.static || null;
+const frameworkModules = Object.entries(MODULE_INFO).map(([id, [name, folder]]) => {
+  const version = firstWord(path.join(projectDir, 'src', id, 'VERSION')) || firstWord(path.join(projectDir, 'src', id, 'kit', 'VERSION'));
+  if (!version) return null;
+  const latest = firstWord(path.join(FRAMEWORK_DIR, folder, 'kit', 'VERSION'));
+  const run = lastRun?.modules?.find(m => m.id === id);
+  return { id, name, version, latest, update: latest && newer(latest, version), run };
+}).filter(Boolean);
+const ago = (iso) => { const days = Math.floor((Date.now() - Date.parse(iso)) / 86400000); return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`; };
+const updates = frameworkModules.filter(m => m.update).length;
+const failing = frameworkModules.filter(m => m.run?.failed.length).length;
+const frameworkHint = [
+  updates ? `${updates} update${updates > 1 ? 's' : ''} available` : 'all current',
+  lastRun ? `${failing ? `${failing} failing` : 'checks pass'} · ${ago(lastRun.date)}${health.full ? '' : ' (code checks only)'}` : 'not checked yet',
+].join(' · ');
 
 // ---------- render ----------
 const pct = (m) => { const counted = m.items.filter(i => !['later', 'wont'].includes(i.state.key)); const done = counted.filter(i => i.state.key === 'done').length; return { done, total: counted.length, p: counted.length ? Math.round(100 * done / counted.length) : 0 }; };
@@ -348,6 +372,10 @@ ${sketches.length ? `<details class="band" data-key="sketches"><summary><h2>Sket
 
 <details class="band" data-key="bugs"><summary><h2>Bugs</h2><span class="hint">${openBugs.length ? bugCounts : 'none open'}</span></summary>
   <div class="band-body">${openBugs.length ? '<ul>' + openBugs.map(b => `<li><span class="id">${b[1]} · ${b[2]}</span>${inline(b[4])}</li>`).join('') + '</ul>' : '<p class="empty">No open bugs logged.</p>'}</div></details>
+
+${frameworkModules.length ? `<details class="band" data-key="framework"><summary><h2>Framework</h2><span class="hint">${esc(frameworkHint)}</span></summary>
+  <div class="band-body"><ul>${frameworkModules.map(m => `<li><span class="id">${esc(m.name)}</span>${esc(m.version)}${m.update ? ` → <strong>${esc(m.latest)} available</strong>` : m.latest ? ' · current' : ''}${m.run ? ` · ${m.run.failed.length ? `✗ ${m.run.failed.length} not kept: ${esc(m.run.failed.join(' · '))}` : `✓ ${m.run.passed} checks`}` : ''}</li>`).join('')}</ul>
+  <p class="why">${lastRun ? `Last <code>npm run check:framework</code>: ${esc(ago(lastRun.date))}${lastRun.commit ? ` at ${esc(lastRun.commit)}` : ''}${health.full ? '' : ' — code checks only; the full run also plays the game at every size'}.` : 'Run <code>npm run check:framework</code> to see which promises each module keeps here.'}${updates ? ' Updates: <code>install-module.mjs &lt;module&gt; .</code>' : ''}</p></div></details>` : ''}
 
 <details class="band" data-key="log"><summary><h2>Log</h2><span class="hint">latest saves</span></summary>
   <div class="band-body">${md(log) || '<p class="empty">No saves yet.</p>'}</div></details>

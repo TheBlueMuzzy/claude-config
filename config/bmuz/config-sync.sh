@@ -15,7 +15,7 @@ FILES="CLAUDE.md QUICKSTART.md settings.json statusline.sh statusline.ps1"
 DIRS="agents config references skills"
 # Machine-specific or auto-made files that must never sync
 # obsidian-vault lives only in the repo on purpose (OBSIDIAN.md copies it into dev/.obsidian on a new machine)
-NOISE='active-project\.json|last-checkup|/skills/synced/|node_modules|\.last-complete-round|obsidian-vault'
+NOISE='active-project\.json|last-checkup|/skills/synced/|node_modules|\.last-complete-round|obsidian-vault|/evals/results'
 
 list_changes() {
   for f in $FILES; do
