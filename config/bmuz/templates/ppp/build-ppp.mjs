@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { STATES, TYPES, readRoadmap, readBugs, isOpenBug } from './plan-reader.mjs';
+import { frameworkStatus, newer } from './framework-words.mjs';
 
 const projectDir = path.resolve(process.argv[2] || '.');
 const outFile = (process.argv[3] && !process.argv[3].startsWith('--') ? process.argv[3] : null) || path.join(projectDir, '.planning', 'ppp.html');
@@ -160,7 +161,6 @@ const bugCounts = ['P0', 'P1', 'P2', 'P3'].map(p => `${p} ${openBugs.filter(b =>
 const FRAMEWORK_DIR = process.env.BMUZ_FRAMEWORK || path.join(os.homedir(), 'Documents', 'dev', 'framework');
 const MODULE_INFO = { devkit: ['Dev Kit', 'devkit'], ui: ['UI kit', 'ui-kit'], ai: ['AI', 'ai'], audio: ['Audio', 'audio'], table: ['Table', 'table'], rooms: ['Rooms', 'rooms'] };
 const firstWord = (file) => { try { return fs.readFileSync(file, 'utf8').trim().split(/\s/)[0]; } catch { return ''; } };
-const newer = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; };
 const health = (() => { try { return JSON.parse(read('e2e-shots/framework.json')); } catch { return {}; } })();
 const lastRun = health.full || health.static || null;
 const frameworkModules = Object.entries(MODULE_INFO).map(([id, [name, folder]]) => {
@@ -170,13 +170,8 @@ const frameworkModules = Object.entries(MODULE_INFO).map(([id, [name, folder]]) 
   const run = lastRun?.modules?.find(m => m.id === id);
   return { id, name, version, latest, update: latest && newer(latest, version), run };
 }).filter(Boolean);
-const ago = (iso) => { const days = Math.floor((Date.now() - Date.parse(iso)) / 86400000); return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`; };
-const updates = frameworkModules.filter(m => m.update).length;
-const failing = frameworkModules.filter(m => m.run?.failed.length).length;
-const frameworkHint = [
-  updates ? `${updates} update${updates > 1 ? 's' : ''} available` : 'all current',
-  lastRun ? `${failing ? `${failing} failing` : 'checks pass'} · ${ago(lastRun.date)}${health.full ? '' : ' (code checks only)'}` : 'not checked yet',
-].join(' · ');
+// What Muzzy sees: plain sentences (framework-words.mjs). The technical facts go in the "details" fold below them.
+const fw = frameworkStatus(frameworkModules, health);
 
 // ---------- render ----------
 const pct = (m) => { const counted = m.items.filter(i => !['later', 'wont'].includes(i.state.key)); const done = counted.filter(i => i.state.key === 'done').length; return { done, total: counted.length, p: counted.length ? Math.round(100 * done / counted.length) : 0 }; };
@@ -288,6 +283,11 @@ details[open] > summary::before { transform: rotate(90deg); }
 .you, .scope, .state, .wait, .id { overflow-wrap: normal; white-space: nowrap; }
 .you { flex: none; font-family: var(--mono); font-size: .68rem; background: var(--idea); color: var(--card); padding: 0 6px; border-radius: 6px; }
 .map > summary { display: flex; gap: 8px; color: var(--muted); font-size: .85rem; padding: 6px 2px; }
+.fw-ok { color: var(--done); font-weight: 700; background: var(--card-2); border-radius: 10px; padding: 10px 12px; }
+.fw-list { list-style: none; padding: 0; gap: 6px; }
+.fw-list li { display: flex; gap: 10px; align-items: baseline; background: var(--card-2); border-radius: 10px; padding: 10px 12px; }
+.fw-list li.fw-you { box-shadow: inset 3px 0 0 var(--idea); }
+.fold-body { display: grid; gap: 6px; padding: 4px 2px 2px; font-size: .88rem; }
 .map pre { overflow-x: auto; background: var(--card-2); border-radius: 10px; padding: 12px; margin: 0; }
 .g-pitch { display: grid; gap: 12px; }
 .g-hero { font-family: var(--display); font-weight: 600; font-size: clamp(1.1rem, 3.2vw, 1.4rem); line-height: 1.3; text-wrap: balance; }
@@ -373,9 +373,11 @@ ${sketches.length ? `<details class="band" data-key="sketches"><summary><h2>Sket
 <details class="band" data-key="bugs"><summary><h2>Bugs</h2><span class="hint">${openBugs.length ? bugCounts : 'none open'}</span></summary>
   <div class="band-body">${openBugs.length ? '<ul>' + openBugs.map(b => `<li><span class="id">${b[1]} · ${b[2]}</span>${inline(b[4])}</li>`).join('') + '</ul>' : '<p class="empty">No open bugs logged.</p>'}</div></details>
 
-${frameworkModules.length ? `<details class="band" data-key="framework"><summary><h2>Framework</h2><span class="hint">${esc(frameworkHint)}</span></summary>
-  <div class="band-body"><ul>${frameworkModules.map(m => `<li><span class="id">${esc(m.name)}</span>${esc(m.version)}${m.update ? ` → <strong>${esc(m.latest)} available</strong>` : m.latest ? ' · current' : ''}${m.run ? ` · ${m.run.failed.length ? `✗ ${m.run.failed.length} not kept: ${esc(m.run.failed.join(' · '))}` : `✓ ${m.run.passed} checks`}` : ''}</li>`).join('')}</ul>
-  <p class="why">${lastRun ? `Last <code>npm run check:framework</code>: ${esc(ago(lastRun.date))}${lastRun.commit ? ` at ${esc(lastRun.commit)}` : ''}${health.full ? '' : ' — code checks only; the full run also plays the game at every size'}.` : 'Run <code>npm run check:framework</code> to see which promises each module keeps here.'}${updates ? ' Updates: <code>install-module.mjs &lt;module&gt; .</code>' : ''}</p></div></details>` : ''}
+${frameworkModules.length ? `<details class="band" data-key="framework"><summary><h2>Framework</h2><span class="hint">${esc(fw.hint)}</span></summary>
+  <div class="band-body">${fw.healthy ? `<p class="fw-ok">${esc(fw.green)}</p>` : `<ul class="fw-list">${fw.lines.map(l => `<li class="fw-${l.who}"><span aria-hidden="true">${l.who === 'you' ? '🙋' : '🔧'}</span><span>${esc(l.text)}</span></li>`).join('')}</ul>`}${fw.planned.length ? `<ul class="fw-list">${fw.planned.map(l => `<li class="fw-planned"><span aria-hidden="true">📌</span><span>${esc(l.text)}</span></li>`).join('')}</ul>` : ''}
+  <details class="map fold" data-key="framework-details"><summary>Technical details (for Claude)</summary><div class="fold-body">
+  <ul>${frameworkModules.map(m => `<li><span class="id">${esc(m.name)}</span>${esc(m.version)}${m.update ? ` → <strong>${esc(m.latest)} available</strong>` : m.latest ? ' · current' : ' · newest unknown'}${m.run ? ` · ${m.run.failed.length ? `✗ ${m.run.failed.length} not kept: ${esc(m.run.failed.join(' · '))}` : `✓ ${m.run.passed} checks`}` : ''}</li>`).join('')}</ul>
+  <p class="why">${lastRun ? `Last <code>npm run check:framework</code>${health.full ? '' : ' <code>--static</code>'}: ${esc(lastRun.date)} (${esc(fw.ago)})${lastRun.commit ? ` at ${esc(lastRun.commit)}` : ''}${lastRun.only ? ` · only ${esc(lastRun.only.join(', '))}` : ''}${health.full ? '' : ' — code checks only; the full run also plays the game at every size'}. Results: <code>e2e-shots/framework.json</code>.` : 'No <code>e2e-shots/framework.json</code>: run <code>npm run check:framework</code> to see which promises each module keeps here.'}${frameworkModules.some(m => m.update) ? ' Updates: <code>node ~/.claude/config/bmuz/scripts/install-module.mjs &lt;module&gt; .</code>' : ''} Newest versions read from <code>${esc(FRAMEWORK_DIR)}</code> (<code>BMUZ_FRAMEWORK</code> overrides).</p></div></details></div></details>` : ''}
 
 <details class="band" data-key="log"><summary><h2>Log</h2><span class="hint">latest saves</span></summary>
   <div class="band-body">${md(log) || '<p class="empty">No saves yet.</p>'}</div></details>

@@ -225,8 +225,58 @@ async function testStopServers() {
   rmSync(root, { recursive: true, force: true })
 }
 
+async function testPppFramework() {
+  console.log('ppp-framework — the planner\'s Framework row in plain words (F66)')
+  const { frameworkStatus, checkSentence, CHECK_WORDS } = await import('../templates/ppp/framework-words.mjs')
+  const now = Date.parse('2026-10-19T12:00:00Z')
+  const run = (failed = {}, date = '2026-10-19T08:00:00Z') => ({ date, commit: '', only: null, modules: ['devkit', 'ui'].map((id) => ({ id, version: '1.0.0', passed: 3, failed: failed[id] ?? [], skipped: 0 })) })
+  const current = [{ id: 'devkit', version: '1.0.0', latest: '1.0.0' }, { id: 'ui', version: '1.0.0', latest: '1.0.0' }]
+
+  const ok = frameworkStatus(current, { full: run() }, now)
+  expect('healthy → ONE green line, hint "all good"', ok.healthy && ok.lines.length === 0 && ok.green === '✅ Framework pieces are up to date and working (checked today).' && ok.hint === 'all good', JSON.stringify(ok))
+  const patch = frameworkStatus([{ id: 'devkit', version: '1.0.0', latest: '1.0.1' }, current[1]], { full: run() }, now)
+  expect('one small update → "A newer Dev Kit is out (small fixes). Claude updates it in the next /develop."', patch.lines.length === 1 && patch.lines[0].text === 'A newer Dev Kit is out (small fixes). Claude updates it in the next /develop.' && patch.hint === '1 thing to sort — Claude handles it', JSON.stringify(patch))
+  const never = frameworkStatus(current, {}, now)
+  expect('never checked → says so, Claude runs the checks', !never.healthy && /haven't been checked/.test(never.lines[0].text) && /Claude runs the checks/.test(never.lines[0].text), JSON.stringify(never))
+  const old = frameworkStatus(current, { full: run({}, '2026-10-07T08:00:00Z') }, now)
+  expect('checked 12 days ago → "may be out of date"', old.lines.length === 1 && old.lines[0].text.startsWith('Last checked 12 days ago, so this may be out of date.'), JSON.stringify(old))
+  const gapRun = run()
+  gapRun.modules[0].knownGaps = [{ name: '◐ half pause stops the rules, not the looks', why: 'Turns move on when animations finish, so half pause can\'t hold them yet', roadmap: 'F89' }]
+  const gap = frameworkStatus(current, { full: gapRun }, now)
+  expect('a known gap → still healthy, one 📌 "Planned for later (F89 on the roadmap): …" line', gap.healthy && gap.planned.length === 1 && gap.planned[0].text === 'Planned for later (F89 on the roadmap): Turns move on when animations finish, so half pause can\'t hold them yet.' && gap.hint === 'all good · 1 planned for later', JSON.stringify(gap))
+  const closedRun = run()
+  closedRun.modules[0].gapsToRemove = ['◐ half pause stops the rules, not the looks']
+  const closed = frameworkStatus(current, { full: closedRun }, now)
+  expect('a known gap that passes now → Claude takes it off the list', !closed.healthy && /takes it off/.test(closed.lines[0].text) && closed.lines[0].who === 'claude', JSON.stringify(closed))
+  const quick = frameworkStatus(current, { static: run() }, now)
+  expect('only the quick check ran → not healthy, Claude runs the full one', !quick.healthy && /quick check/.test(quick.lines[0].text), JSON.stringify(quick))
+  const fails = frameworkStatus(current, { full: run({ devkit: ['a snapshot restores exactly', 'no errors in the console'], ui: ['no errors in the console', 'nothing 🔴 ships'] }) }, now)
+  expect('failures → one sentence each, a repeat said once, 🔴 needs you', fails.lines.length === 3 && fails.lines.filter((l) => l.who === 'you').length === 1 && fails.hint === '3 things to sort — 1 needs you', JSON.stringify(fails))
+  expect('a failing snapshot check → plain words, Claude fixes it', checkSentence('a snapshot restores exactly', 'devkit').text === 'Loading a Dev Kit snapshot doesn\'t bring back exactly the same moment of play. Claude fixes it.')
+  const unknown = checkSentence('the frobnicator agrees (selfTest2)', 'audio')
+  expect('unknown check → a generic sentence naming the piece, never the raw check name', unknown.text === 'One of the sound kit\'s checks didn\'t pass. Claude looks into it in the next /develop.' && !/frobnicator/.test(unknown.text), unknown.text)
+  const tech = /\d+\.\d+\.\d+|npm |\.mjs|\.json|check:|selfTest|canRestore|content\//
+  const leaky = Object.keys(CHECK_WORDS).map((k) => checkSentence(k, 'ui').text).filter((s) => tech.test(s))
+  expect('no sentence names a version, command, file or test', leaky.length === 0, leaky.join('\n'))
+
+  // the whole page: a game with two current pieces and a passing full check → the row shows only the green line
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-ppp-'))
+  const game = join(root, 'game'), fwDir = join(root, 'framework')
+  write(join(game, '.planning', 'ROADMAP.md'), '# Test — Roadmap\nRelease target: alpha\n## v0.1 — First  ← current\n- 🔨 F01 🎮 Thing — must:alpha\n')
+  write(join(game, 'src', 'devkit', 'VERSION'), '1.0.0\ncommit abc\n'); write(join(game, 'src', 'ui', 'kit', 'VERSION'), '1.0.0\n')
+  write(join(fwDir, 'devkit', 'kit', 'VERSION'), '1.0.0\n'); write(join(fwDir, 'ui-kit', 'kit', 'VERSION'), '1.0.0\n')
+  write(join(game, 'e2e-shots', 'framework.json'), JSON.stringify({ full: run({}, new Date().toISOString()) }))
+  const build = () => { spawnSync('node', [join(SCRIPTS, '..', 'templates', 'ppp', 'build-ppp.mjs'), game], { encoding: 'utf8', env: { ...process.env, BMUZ_FRAMEWORK: fwDir } }); const h = readFileSync(join(game, '.planning', 'ppp.html'), 'utf8'); const s = h.indexOf('data-key="framework"'); return h.slice(s, h.indexOf('<details class="map fold"', s)) }
+  const shown = build()
+  expect('page, healthy → the row shows the one green line and no version numbers', /✅ Framework pieces are up to date and working \(checked today\)\./.test(shown) && !/fw-list/.test(shown) && !/\d+\.\d+\.\d+/.test(shown), shown)
+  write(join(fwDir, 'devkit', 'kit', 'VERSION'), '1.1.0\n')
+  const behind = build()
+  expect('page, an update out → a plain sentence, still no version numbers before the details fold', /A newer Dev Kit is out \(new features and fixes\)/.test(behind) && !/\d+\.\d+\.\d+/.test(behind), behind)
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, save: testSave, 'sprint-helpers': testSprintHelpers, 'stop-servers': testStopServers }
+const suites = { 'install-module': testInstallModule, release: testRelease, save: testSave, 'sprint-helpers': testSprintHelpers, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework }
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)
