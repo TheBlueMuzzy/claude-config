@@ -2,7 +2,7 @@
 // decides, and answers with JSON on stdout. Plain Node, no packages — runs the same on the PC and the laptop.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { resolve, isAbsolute } from 'node:path'
+import { resolve, isAbsolute, relative } from 'node:path'
 
 // The tool call Claude Code sends: { cwd, tool_name, tool_input: { command | file_path }, ... }
 export function readInput() {
@@ -29,10 +29,48 @@ export function tellClaude(reason) {
   process.exit(0)
 }
 
+// --- reading the conversation log (Stop hooks) ----------------------------------
+
+// What Claude did since Muzzy's last message: { startedAt, tools: [{ name, input, cwd }], lastText }.
+export function readTurn(path) {
+  let entries = []
+  try {
+    entries = readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => {
+      try { return JSON.parse(line) } catch { return null }
+    }).filter(Boolean)
+  } catch {
+    return { startedAt: null, tools: [], lastText: null }
+  }
+  let start = -1
+  entries.forEach((entry, i) => { if (isPrompt(entry)) start = i })
+  const tools = []
+  let lastText = null
+  for (const entry of entries.slice(start + 1)) {
+    if (entry.type !== 'assistant' || !Array.isArray(entry.message?.content)) continue
+    for (const block of entry.message.content) {
+      if (block.type === 'text') lastText = block.text
+      if (block.type === 'tool_use') tools.push({ name: block.name, input: block.input || {}, cwd: entry.cwd })
+    }
+  }
+  return { startedAt: start >= 0 ? entries[start].timestamp || null : null, tools, lastText }
+}
+
+// A message from Muzzy (or a helper's report) starts a turn; tool results don't.
+function isPrompt(entry) {
+  if (entry.type !== 'user' || entry.isMeta) return false
+  const content = entry.message?.content
+  if (typeof content === 'string') return true
+  return Array.isArray(content) && content.length > 0 && content.every(block => block.type === 'text')
+}
+
+// Did a tool call change files or commit?
+export const isCommit = (tool) => (tool.name === 'Bash' || tool.name === 'PowerShell') && /\bgit\b[^\n]*\bcommit\b/.test(tool.input.command || '')
+export const isFileEdit = (tool) => ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(tool.name)
+
 // --- reading a shell command --------------------------------------------------
 
 // Bash heredoc bodies (`<<'EOF'` … `EOF`) are text — usually a commit message — never commands. Drop them.
-function dropHeredocs(text) {
+export function dropHeredocs(text) {
   const lines = text.split('\n')
   const out = []
   for (let i = 0; i < lines.length; i++) {
@@ -130,7 +168,58 @@ export function gitCalls(command, startDir) {
   return calls
 }
 
-function toDir(target, from) {
+// The files a `git commit` (calls[index]) will include: staged files, plus changed tracked files with -a / --all.
+// A hook runs before the WHOLE command line, so in `git add -A && git commit` nothing is staged yet:
+// a `git add` earlier on the line counts every changed and new file too. Paths are relative to the repo root.
+export function commitFiles(calls, index, root) {
+  const { dir, args } = calls[index]
+  const all = args.includes('-a') || args.includes('--all') || args.some(a => /^-[a-zA-Z]*a[a-zA-Z]*$/.test(a) && !a.startsWith('--'))
+  const addFirst = calls.slice(0, index).some(call => call.sub === 'add' || call.sub === 'stage')
+  const files = new Set((git(root, 'diff', '--cached', '--name-only', '--diff-filter=ACMR') || '').split('\n'))
+  const paths = commitPaths(args) // `git commit -m x src/a.ts` commits that file as it is now
+  if (paths.length) for (const f of (git(dir, 'diff', 'HEAD', '--name-only', '--', ...paths) || '').split('\n')) files.add(f)
+  if (all || addFirst) for (const f of (git(root, 'diff', '--name-only', '--diff-filter=ACMR') || '').split('\n')) files.add(f)
+  if (addFirst) for (const f of (git(root, 'ls-files', '--others', '--exclude-standard') || '').split('\n')) files.add(f)
+  // `printf … > src/a.ts && git add src/a.ts && git commit`: the file doesn't exist yet when the hook looks — the
+  // paths named on that `git add` count too (found in a real try, 2026-10-18)
+  for (const call of calls.slice(0, index)) {
+    if (call.sub !== 'add' && call.sub !== 'stage') continue
+    for (const a of call.args) if (!a.startsWith('-') && a !== '.' && a !== '*') files.add(relative(root, resolve(call.dir, a)).split('\\').join('/'))
+  }
+  files.delete('')
+  return [...files]
+}
+
+// File paths named on `git commit` (everything that isn't an option or an option's value).
+function commitPaths(args) {
+  const WITH_VALUE = new Set(['-m', '-F', '-C', '-c', '-t', '--author', '--date', '--file', '--message', '--template',
+    '--reuse-message', '--reedit-message', '--fixup', '--squash', '--trailer', '--cleanup', '--pathspec-from-file'])
+  const paths = []
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
+    if (a === '--') { paths.push(...args.slice(i + 1)); break }
+    if (WITH_VALUE.has(a)) { i++; continue }
+    if (a.startsWith('-')) {
+      if (/^-[a-zA-Z]+$/.test(a) && /[mFCct]$/.test(a)) i++ // -am "message"
+      continue
+    }
+    paths.push(a)
+  }
+  return paths
+}
+
+// The first line of a commit's message: from -m / -am / --message, or a heredoc / here-string body in the raw command.
+export function commitMessage(rawCommand, args) {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]
+    if ((a === '-m' || a === '--message' || (/^-[a-zA-Z]+$/.test(a) && a.endsWith('m'))) && args[i + 1] && !args[i + 1].startsWith('$')) return args[i + 1].replace(/^\s+/, '').split(/\r?\n/)[0] // a here-string starts with a line break
+    if (a.startsWith('--message=')) return a.slice(10).split('\n')[0]
+  }
+  const body = rawCommand.match(/<<-?\s*['"]?[A-Za-z_]\w*['"]?[^\n]*\n([^\n]*)/) || rawCommand.match(/@['"]\r?\n([^\n]*)/)
+  return body ? body[1] : ''
+}
+
+export function toDir(target, from) {
   let t = target.replace(/^~(?=$|[\\/])/, process.env.HOME || process.env.USERPROFILE || '~')
   t = t.replace(/^\$HOME(?=$|[\\/])/, process.env.HOME || process.env.USERPROFILE || '')
   t = t.replace(/^\$env:USERPROFILE(?=$|[\\/])/i, process.env.USERPROFILE || '')

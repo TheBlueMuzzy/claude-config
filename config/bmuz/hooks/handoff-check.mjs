@@ -6,17 +6,16 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readInput } from './lib.mjs'
+import { readInput, readTurn, isCommit, isFileEdit } from './lib.mjs'
 
 const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'handoff.md')
-const WORK_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 
 const input = readInput()
 if (input.stop_hook_active) process.exit(0) // already sent back once — never loop
 if (!input.transcript_path || !existsSync(input.transcript_path)) process.exit(0)
 
-const turn = thisTurn(input.transcript_path)
-if (!turn.didWork) process.exit(0)
+const turn = readTurn(input.transcript_path)
+if (!turn.tools.some(tool => isFileEdit(tool) || isCommit(tool))) process.exit(0)
 
 const message = (input.last_assistant_message ?? turn.lastText ?? '').trim()
 const problems = [...cardProblems(message)]
@@ -27,36 +26,6 @@ process.stdout.write(JSON.stringify({
   reason: `You did work this turn, so end with the hand-off card (~/.claude/config/bmuz/templates/handoff.md) — or, if work is still running, the progress line. Missing: ${problems.join('; ')}. Rewrite your final message in that format now (same content, nothing new to do).`,
 }))
 process.exit(0)
-
-// What happened since Muzzy's last message: did Claude edit files or commit? And Claude's last text.
-function thisTurn(path) {
-  const entries = readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => {
-    try { return JSON.parse(line) } catch { return null }
-  }).filter(Boolean)
-  let start = 0
-  entries.forEach((entry, i) => { if (isPrompt(entry)) start = i })
-  let didWork = false
-  let lastText = null
-  for (const entry of entries.slice(start + 1)) {
-    if (entry.type !== 'assistant' || !Array.isArray(entry.message?.content)) continue
-    for (const block of entry.message.content) {
-      if (block.type === 'text') lastText = block.text
-      if (block.type !== 'tool_use') continue
-      if (WORK_TOOLS.has(block.name)) didWork = true
-      const command = block.input?.command || ''
-      if ((block.name === 'Bash' || block.name === 'PowerShell') && /\bgit\b[^\n]*\bcommit\b/.test(command)) didWork = true
-    }
-  }
-  return { didWork, lastText }
-}
-
-// A message from Muzzy (or a helper's report) starts a turn; tool results don't.
-function isPrompt(entry) {
-  if (entry.type !== 'user' || entry.isMeta) return false
-  const content = entry.message?.content
-  if (typeof content === 'string') return true
-  return Array.isArray(content) && content.length > 0 && content.every(block => block.type === 'text')
-}
 
 // What the card is missing, judged against the template's labels.
 function* cardProblems(text) {

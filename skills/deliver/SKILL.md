@@ -16,12 +16,11 @@ Ask only if it's unclear:
 
 ## 2. Make sure it's ready
 - Do `/save`'s STATE + Log step first (always — even with nothing uncommitted), so the log records what's being delivered.
-- **Checks** (PROJECT-FILES.md "Checks"): the **Fast** tier always, fresh (**verification-before-completion**: quote the result), plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean) = the project's `smoke` npm script, run through `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` **right before the push / deploy** (after the release commit), then commit `.planning/smoke-pass` — a hook refuses any push to a deploying branch or deploy command with code newer than that pass (no `smoke` script yet → add one pointing at an existing e2e that plays a round). **`npm run check:framework`** always (the framework modules' promises — live tuning, pauses, snapshots, UI at every size; a game without it yet → add it, Dev Kit 0.19+). **Full** only if code changed since STATE's `Last full check: <commit>` (docs / .planning changes don't count) — otherwise quote that check instead of re-running it. Any open **P0** in BUGS.md blocks the release. Open P1s → list them and ask. Offer a bug sweep if there are several.
-- Read a command's own exit code (`cmd; echo $?`), never the one after a `| tail` / `| grep` pipe.
+- **Checks** (PROJECT-FILES.md "Checks"): the **Fast** tier always, fresh (**verification-before-completion**: quote the result), plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean) = the project's `smoke` npm script, run through `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` **right before the push / deploy** (after the release commit), then commit `.planning/smoke-pass` — a hook refuses any push to a deploying branch or deploy command with code newer than that pass (no `smoke` script yet → add one pointing at an existing e2e that plays a round). **`npm run check:framework`** always (the framework modules' promises — live tuning, pauses, snapshots, UI at every size; a game without it yet → add it, Dev Kit 0.19+). **Full** only if code changed since STATE's `Last full check: <commit>` (docs / .planning changes don't count) — otherwise quote that check instead of re-running it. Any open **P0** in BUGS.md blocks the release (a hook refuses going live with one). Open P1s → list them and ask. Offer a bug sweep if there are several.
 - Release stage → tick what's true in TDD §7 Compliance; anything required by the target platform that's still unticked (e.g. privacy policy for app stores) → list it and ask.
 - Features in this delivery not yet approved by Muzzy? Ask once: "F08 hasn't had your OK yet — release anyway?"
 - Release stage checks, scaled to the stage: **alpha** → a quick look (loads fast, no console errors, works on a phone). **beta / 1.0** → the full **optimize**, **accessibility-check** and **web-design-guidelines** (menus/HUD) skills plus a phone test via `/play`. Fix quick wins; list the rest as 🐞/✨ features.
-- **Credits check** (`content/credits.json`, lights from `~/.claude/references/indie-toolkit.md`): every 🟡 asset's credit line shows in the game's Credits screen, no 🔴 asset ships, and no asset file is missing from the list. Anything wrong blocks the release until it's fixed or Muzzy decides.
+- **Credits** are part of `check:framework` (UI kit 0.19+: every asset listed, nothing 🔴, every 🟡 shown). Anything wrong blocks the release until it's fixed or Muzzy decides.
 - A SPRINT.md whose features are all done → archive it (`Sprint NN done`).
 - **Review before merging:** `/security-review` once on the work branch's changes; `/code-review` only on commits after STATE's `Reviewed through: <commit>` (each feature was reviewed in /develop — don't re-read them). They need the session to be inside the repo — if it isn't, hand each review to a subagent working in the repo (same scope: real bugs / real exploits only). Fix real bugs and security issues now. List the rest in plain English and ask.
 
@@ -57,6 +56,13 @@ Site has a service worker / offline cache? Returning players must get the new ve
 ## 7b. Clean up
 - **Clean up after yourself** (Muzzy, 2026-10-04): `bash ~/.claude/config/bmuz/cleanup.sh` — removes helper workspaces whose work is all on the main branch, empties git-ignored check output (`e2e-shots/`…), deletes temporary files (`*.tmp.*`, `e2e/_*.mjs`). Never touches tracked files; keeps (and names) any workspace that still holds work. Run it in the game AND in `dev/framework` if a framework release went out; its line goes in §8.
 
+## 7c. Look back (milestone or release stage only — the self-improving loop)
+Follow `~/.claude/config/bmuz/templates/lookback.md`: read the milestone (archived sprints, fixed bugs, Log, commits) →
+what went wrong · what was done more than once · what one game built that others need → give each a home (hook ·
+check · script · framework module · checklist line · game · nothing) and **land it now** → write
+`.planning/archive/lookbacks/<milestone>.md`. A Stop hook sends the turn back if a milestone goes out without one, or if
+an item's home isn't a real file. Summarise it in §8 in one line ("Look-back: 6 lessons → 2 hooks, 1 check, 3 lines").
+
 ## 8. Tell him — always with the clickable public link
 Confirm the link is public (opens without login), put it on its own line as a full URL, and add 2–5 lines on how to test it (with friends too: room codes, what to look for).
 ```
@@ -66,4 +72,4 @@ New: <2–4 player's-eye bullets>
 Alpha musts: 9/9 ✅
 ```
 If the Live URL changed after the commit, update STATE and commit.
-Milestone or release stage delivered → ask one question: "One thing to keep doing, or stop doing, next time?" — a real answer becomes a line in STATE Key facts (or a CLAUDE.md rule if it applies to every game). Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."
+Milestone or release stage delivered → ask one question: "One thing to keep doing, or stop doing, next time?" — a real answer becomes a look-back item (§7c) with its home, landed the same session. Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."

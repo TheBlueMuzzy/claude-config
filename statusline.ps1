@@ -18,7 +18,14 @@ if (-not $model) { $model = "Claude" }
 if ($null -ne $pct) {
     try {
         $sid = $json.session_id
-        "$([math]::Floor($pct)) $sid $(Get-Date -Format s)" | Set-Content -Path "$env:USERPROFILE\.claude\ctx-used.txt" -Encoding ascii
+        $line = "$([math]::Floor($pct)) $sid $(Get-Date -Format s)"
+        $line | Set-Content -Path "$env:USERPROFILE\.claude\ctx-used.txt" -Encoding ascii
+        # one file per session too, so two sessions at once don't overwrite each other (read by hooks/session-moments.mjs)
+        if ($sid) {
+            $ctxDir = "$env:USERPROFILE\.claude\ctx"
+            if (-not (Test-Path $ctxDir)) { New-Item -ItemType Directory -Path $ctxDir | Out-Null }
+            $line | Set-Content -Path "$ctxDir\$sid.txt" -Encoding ascii
+        }
     } catch {}
 }
 

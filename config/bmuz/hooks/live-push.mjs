@@ -6,6 +6,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { readInput, deny, gitCalls, commands, git } from './lib.mjs'
+import { readBugs, isOpenBug } from '../templates/ppp/plan-reader.mjs'
 
 const SMOKE_FILE = '.planning/smoke-pass'
 // Matched against the command with its flags, `npx`, and @versions taken out: `npx --yes wrangler@3 deploy` → `wrangler deploy`
@@ -102,6 +103,12 @@ function pushedBranches(root, args) {
 
 function requireSmokePass(root, commit, what, checkUncommitted) {
   const howTo = 'Run the smoke test first: `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` in the project (it runs the project\'s `smoke` script — the game loads and one turn/round plays, console clean — and records the pass in .planning/smoke-pass; commit that file). Then try again.'
+  // an open P0 (crash / can't continue / live broken) blocks a release (F67)
+  const bugsFile = join(root, '.planning', 'BUGS.md')
+  const p0 = existsSync(bugsFile) ? readBugs(readFileSync(bugsFile, 'utf8').replace(/\r\n/g, '\n')).filter(b => isOpenBug(b) && b.priority === 'P0') : []
+  if (p0.length) {
+    deny(`Blocked: ${what} — BUGS.md has an open P0 (${p0.map(b => `${b.id}: ${b.next.trim().slice(0, 60)}`).join('; ')}). A P0 blocks every release: fix it (and get Muzzy's "verified"), or if it isn't really a P0, ask Muzzy to re-rate it.`)
+  }
   const file = join(root, SMOKE_FILE)
   if (!existsSync(file)) deny(`Blocked: ${what} puts code live, and there's no smoke pass yet. ${howTo}`)
   const passed = readFileSync(file, 'utf8').split('\n')[0].trim()

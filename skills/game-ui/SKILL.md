@@ -24,7 +24,7 @@ Design: `dev/framework/.planning/design/ui-kit.md`. Say "Using game-ui for this.
 - **Never hand-style game UI.** No raw colours, px sizes, font names, absolute positioning or inline
   styles in game UI code — only kit parts and style names. The checker enforces it.
 - **Nothing one-off in the game.** A missing part or screen goes into the framework kit (generic), then
-  into the game with the installer. The game's `src/ui/kit/` is a copy: never edit it there.
+  into the game with the installer. The game's `src/ui/kit/` is a copy: never edit it there (a hook refuses).
 - **Web only for now** (React + plain CSS variables). Unity games: later, via the free sinanata UI Toolkit
   design system with the same catalog names and style.json (design §6) — say so and stop.
 - **frontend-design stays off for games.** It's only for a game's store or landing page.

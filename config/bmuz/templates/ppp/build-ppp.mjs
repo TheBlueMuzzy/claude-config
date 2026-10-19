@@ -9,29 +9,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { STATES, TYPES, readRoadmap, readBugs, isOpenBug } from './plan-reader.mjs';
 
 const projectDir = path.resolve(process.argv[2] || '.');
 const outFile = (process.argv[3] && !process.argv[3].startsWith('--') ? process.argv[3] : null) || path.join(projectDir, '.planning', 'ppp.html');
 const read = (rel) => { try { return fs.readFileSync(path.join(projectDir, rel), 'utf8').replace(/\r\n/g, '\n'); } catch { return ''; } };
 
-// ---------- states ----------
-// New ladder + the older ROADMAP states mapped onto it, so older projects still draw.
-const STATES = {
-  '💡': { key: 'idea', label: 'Idea' },
-  '🔍': { key: 'discover', label: 'Discover' },
-  '📐': { key: 'define', label: 'Define' },
-  '🔨': { key: 'develop', label: 'Develop' },
-  '🎛️': { key: 'develop', label: 'Develop · tuning' },
-  '🎛': { key: 'develop', label: 'Develop · tuning' },
-  '🚀': { key: 'deliver', label: 'Deliver' },
-  '✅': { key: 'done', label: 'Done' },
-  '💤': { key: 'later', label: 'Maybe later' },
-  '✖': { key: 'wont', label: "Won't" },
-  '⏳': { key: 'define', label: 'Define · waiting' },
-  '🟢': { key: 'define', label: 'Ready' },
-};
-const TYPES = { '❓': 'Decision', '🧱': 'Foundation', '🎮': 'Player-facing', '✨': 'Polish', '🔧': 'Dev Kit tool', '🐞': 'Bug' };
-const stateRe = new RegExp('^(' + Object.keys(STATES).map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?\\s+');
+// ---------- states + the plan-file reader (shared with hooks/plan-lint.mjs) ----------
 
 // ---------- tiny markdown → html (enough for GDD/STATE text) ----------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -86,64 +70,7 @@ const roadmapText = read('.planning/ROADMAP.md');
 const title = (roadmapText.match(/^# (.+?)(?: — Roadmap)?\s*$/m) || [, path.basename(projectDir)])[1];
 const releaseLine = (roadmapText.match(/^Release target:\s*(.+)$/m) || [, 'not set'])[1];
 
-function parseItem(line) {
-  let rest = line.replace(/^- /, '');
-  const sm = rest.match(stateRe); if (!sm) return null;
-  const state = STATES[sm[1]]; rest = rest.slice(sm[0].length);
-  const item = { state, raw: line, steps: [], notes: [], needs: [], scope: '', added: false };
-  const idm = rest.match(/^(F\d+[a-z]?)\s+/); if (idm) { item.id = idm[1]; rest = rest.slice(idm[0].length); }
-  const tm = rest.match(/^(❓|🧱|🎮|✨|🔧|🐞)️?\s+/); if (tm) { item.type = tm[1]; rest = rest.slice(tm[0].length); }
-  // meta after the LAST " — " when it looks like scope/needs ("must:alpha · needs: F01")
-  const dash = rest.lastIndexOf(' — ');
-  let titleText = rest, meta = '';
-  if (dash > 0 && /(must|should|could|won'?t|needs:|sprint|added|^\d{4}-)/i.test(rest.slice(dash + 3))) { titleText = rest.slice(0, dash); meta = rest.slice(dash + 3); }
-  // parking-lot ideas start with a date: "2026-10-16 — text"
-  const dm = titleText.match(/^(\d{4}-\d{2}-\d{2})\s+—\s+/); if (dm) { item.date = dm[1]; titleText = titleText.slice(dm[0].length); }
-  if (!item.date && /^\d{4}-\d{2}-\d{2}$/.test(meta.trim())) { item.date = meta.trim(); meta = ''; }
-  item.title = titleText.trim();
-  for (const part of meta.split('·').map(p => p.trim()).filter(Boolean)) {
-    if (/^(must|should|could|won'?t)/i.test(part)) item.scope = part;
-    else if (/^needs:/i.test(part)) item.needs = part.replace(/^needs:\s*/i, '').split(/,\s*/).map(n => n.trim()).filter(Boolean);
-    else if (/^added/i.test(part)) item.added = true;
-    else item.notes.push(part);
-  }
-  return item;
-}
-
-const milestones = []; const parking = []; let cur = null; let lastItem = null; let inCode = false; let mermaid = [];
-for (const line of roadmapText.split('\n')) {
-  if (/^```/.test(line)) {
-    if (!inCode && /mermaid/.test(line)) { inCode = true; mermaid = []; continue; }
-    if (inCode) { inCode = false; if (cur) cur.mermaid = mermaid.join('\n'); continue; }
-  }
-  if (inCode) { mermaid.push(line); continue; }
-  const h = line.match(/^## (.+)$/);
-  if (h) {
-    lastItem = null;
-    if (/^(parking lot|later|ideas)\b/i.test(h[1])) { cur = { parking: true, defaultState: /ideas/i.test(h[1]) ? '💡' : '💤' }; continue; }
-    const name = h[1];
-    cur = {
-      name: name.replace(/←\s*current/, '').replace(/✅\s*released[^)]*$/, '').replace(/\(→\s*[^)]*\)/, '').trim(),
-      current: /←\s*current/.test(name), released: /✅\s*released/.test(name),
-      release: (name.match(/\(→\s*([^)]+)\)/) || [])[1] || '', items: [], goal: '',
-    };
-    milestones.push(cur); continue;
-  }
-  if (!cur) continue;
-  if (/^Goal:/.test(line) && !cur.parking) { cur.goal = line.replace(/^Goal:\s*/, ''); continue; }
-  if (/^- /.test(line)) {
-    let it = parseItem(line);
-    if (!it && cur.parking) it = parseItem(`- ${cur.defaultState} ${line.slice(2)}`);
-    if (!it) continue;
-    (cur.parking ? parking : cur.items).push(it); lastItem = it; continue;
-  }
-  const step = line.match(/^\s+- \[( |x)\]\s*(.+)$/i);
-  if (step && lastItem) { lastItem.steps.push({ done: step[1].toLowerCase() === 'x', text: step[2] }); continue; }
-  const sub = line.match(/^\s+(what|why|note):\s*(.+)$/i);
-  if (sub && lastItem) { lastItem[sub[1].toLowerCase()] = sub[2]; continue; }
-}
-const allItems = milestones.flatMap(m => m.items);
-const byId = Object.fromEntries(allItems.filter(i => i.id).map(i => [i.id, i]));
+const { milestones, parking, allItems, byId } = readRoadmap(roadmapText);
 
 // SPRINT.md: "## F08 🎮 Title" sections with "- [x] 🤖 1. step" lines → steps for that feature
 const sprintText = read('.planning/SPRINT.md');
@@ -224,7 +151,7 @@ const sketches = (fs.existsSync(sketchDir) ? fs.readdirSync(sketchDir).filter(f 
   const unent = (x) => x.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
   return { file, title: unent(t.trim()), desc: unent(dsc.trim()) };
 });
-const openBugs =[...bugs.matchAll(/^### (B\d+) · (P\d) · ([^·\n]+)·?[^\n]*\n([^\n]*)/gm)].filter(m => !/fixed|verified|won't/i.test(m[3]));
+const openBugs = readBugs(bugs).filter(isOpenBug).map(b => [null, b.id, b.priority, b.status, b.next]);
 const bugCounts = ['P0', 'P1', 'P2', 'P3'].map(p => `${p} ${openBugs.filter(b => b[2] === p).length}`).join(' · ');
 
 // ---------- render ----------

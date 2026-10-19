@@ -43,6 +43,16 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/guard-edits.mjs\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -53,6 +63,32 @@
             "type": "command",
             "command": "node \"$HOME/.claude/config/bmuz/hooks/check-ui-edit.mjs\"",
             "timeout": 40
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/plan-lint.mjs\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/session-moments.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/session-moments.mjs\"",
+            "timeout": 10
           }
         ]
       }
@@ -63,6 +99,11 @@
           {
             "type": "command",
             "command": "node \"$HOME/.claude/config/bmuz/hooks/handoff-check.mjs\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/stop-plan-check.mjs\"",
             "timeout": 20
           }
         ]

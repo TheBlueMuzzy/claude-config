@@ -5,7 +5,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
-import { readInput, deny, gitCalls, git } from './lib.mjs'
+import { readInput, deny, gitCalls, git, commitFiles } from './lib.mjs'
 
 const TIME_LIMIT_MS = 150_000 // the hook itself gets 180 s in settings.json
 
@@ -20,17 +20,8 @@ for (const [index, { dir, sub, args }] of calls.entries()) {
   if (!top) continue
   const root = resolve(top) // git says C:/x, Node says C:\x — use one spelling
 
-  // What will be in the commit: staged files, plus changed tracked files with -a / --all.
-  // This hook runs before the WHOLE command line, so in `git add -A && git commit` nothing is staged yet:
-  // a `git add` earlier on the line counts every changed and new file too.
-  const all = args.includes('-a') || args.includes('--all') || args.some(a => /^-[a-zA-Z]*a[a-zA-Z]*$/.test(a) && !a.startsWith('--'))
-  const addFirst = calls.slice(0, index).some(call => call.sub === 'add' || call.sub === 'stage')
-  const files = new Set((git(root, 'diff', '--cached', '--name-only', '--diff-filter=ACMR') || '').split('\n'))
-  const paths = commitPaths(args) // `git commit -m x src/a.ts` commits that file as it is now
-  if (paths.length) for (const f of (git(dir, 'diff', 'HEAD', '--name-only', '--', ...paths) || '').split('\n')) files.add(f)
-  if (all || addFirst) for (const f of (git(root, 'diff', '--name-only', '--diff-filter=ACMR') || '').split('\n')) files.add(f)
-  if (addFirst) for (const f of (git(root, 'ls-files', '--others', '--exclude-standard') || '').split('\n')) files.add(f)
-  const tsFiles = [...files].filter(f => /\.(ts|tsx|mts|cts)$/.test(f) && !f.includes('node_modules/'))
+  const files = commitFiles(calls, index, root)
+  const tsFiles = files.filter(f => /\.(ts|tsx|mts|cts)$/.test(f) && !f.includes('node_modules/'))
   if (!tsFiles.length) continue
 
   for (const project of projectsFor(root, tsFiles)) {
@@ -43,24 +34,6 @@ for (const [index, { dir, sub, args }] of calls.entries()) {
   }
 }
 process.exit(0)
-
-// File paths named on `git commit` (everything that isn't an option or an option's value).
-function commitPaths(args) {
-  const WITH_VALUE = new Set(['-m', '-F', '-C', '-c', '-t', '--author', '--date', '--file', '--message', '--template',
-    '--reuse-message', '--reedit-message', '--fixup', '--squash', '--trailer', '--cleanup', '--pathspec-from-file'])
-  const paths = []
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i]
-    if (a === '--') { paths.push(...args.slice(i + 1)); break }
-    if (WITH_VALUE.has(a)) { i++; continue }
-    if (a.startsWith('-')) {
-      if (/^-[a-zA-Z]+$/.test(a) && /[mFCct]$/.test(a)) i++ // -am "message"
-      continue
-    }
-    paths.push(a)
-  }
-  return paths
-}
 
 // The folders holding the nearest tsconfig.json for each file (one type check per project, not per file).
 function projectsFor(root, files) {

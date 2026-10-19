@@ -66,7 +66,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 ## Laptop ↔ Desktop Sync (MANDATORY)
 - **Machine to-do:** if `~/Documents/dev/HUB.md` has a "📌 Machine to-do" section for this machine (PC = user Muzzy, laptop = user joebr), do it first — one item at a time, tick each, then remove the section and `/save` so it syncs back.
 - **Session start:** a hook runs `git pull` and shows ▶ RESUME HERE. If it says SYNC FAILED, explain in plain English and stop until it's sorted.
-- **Session end** (Muzzy says he's stopping, done, switching machines, going to bed): do `/save`. Confirm "pushed — safe to switch machines."
+- **Session end** (Muzzy says he's stopping, done, switching machines, going to bed): do `/save` (a hook reminds you). Confirm "pushed — safe to switch machines."
 - If a project is missing on this machine, clone it into the matching `dev/` folder.
 - Auto-memory is NOT synced between machines — anything a project needs goes in its STATE.md, not memory.
 
@@ -97,7 +97,7 @@ When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm goi
 - Prove everything works (tests, build, screenshots) before moving on.
 - Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
 - STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.
-- **Context checkpoint:** after every task, read `~/.claude/ctx-used.txt` (the status line writes the CTX %, measured against the real window — 1M on Opus 5.5). At **80% or more**: finish/commit what's in hand, then a quick sweep, not a dump: only what a fresh Claude would get wrong or have to re-ask Muzzy (an unrecorded decision, Muzzy's exact words on a taste call, an open question, the in-flight plan) goes into SPRINT Notes / STATE / GDD / TDD, within their size limits — then `/save` and **keep going**; auto-compact (~97%) summarises the chat, and the files carry the truth. Never rely on remembering something that isn't written down.
+- **Context checkpoint:** a hook tells you when this session reaches 80% (and 90%) and what to write down before `/save` — then **keep going**; auto-compact (~97%) summarises the chat, and the files carry the truth. Never rely on remembering something that isn't written down.
 - Stops before anything public or hard to undo (`/deliver`, pushing to the live branch, deleting data) — those wait for Muzzy. Everything else: proceed.
 
 ## Problem-Solving Discipline
@@ -106,7 +106,7 @@ When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm goi
 - Consider: simpler path? Let the environment solve it?
 - Watch for: adding complexity to fix complexity, each fix creating a new problem
 
-**Reflection on mistakes — don't wait to be asked** (Muzzy, 2026-10-07: "intricacies that you've run into and solved, they should remain solved"): whenever a fix or a lesson isn't specific to this game, put it — the same session — as one checklist line in the BMUZ skill / framework module / PROJECT-FILES rule it belongs to (BMUZ-PLAN: "a lesson becomes a module, a checklist line, or nothing"), and say so in one line in the report ("Lesson → develop skill: …"). Game-only lessons stay in the game's TDD/STATE. Goal: fewer repeat mistakes → fewer tokens → faster games. Muzzy may also say "remember this."
+**Reflection on mistakes — don't wait to be asked** (Muzzy, 2026-10-07: "intricacies that you've run into and solved, they should remain solved"): whenever a fix or a lesson isn't specific to this game, put it — the same session — where it can't be forgotten: a hook or check if it can be enforced, else a framework module piece, else one checklist line in the BMUZ skill / PROJECT-FILES rule it belongs to — and say so in one line in the report ("Lesson → guard-edits hook: …"). Game-only lessons stay in the game's TDD/STATE. Each milestone's /deliver ends with a **look-back** that catches what slipped through (`config/bmuz/templates/lookback.md`). Goal: fewer repeat mistakes → fewer tokens → faster games. Muzzy may also say "remember this."
 
 ## Skeptical Self-Review
 Before recommending changes, question your own reasoning:

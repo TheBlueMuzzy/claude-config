@@ -29,7 +29,7 @@ Follow the template in `~/.claude/config/bmuz/PROJECT-FILES.md`:
 - No remote? If Key facts says `Remote: none (declined …)`, don't offer again. Otherwise offer once to create one (`gh repo create TheBlueMuzzy/<folder> --private --source . --push`); if he declines, record that.
 
 ## 4a. Refresh the project planner (if STATE Key facts has a `Planner (PPP):` link)
-Run `node ~/.claude/config/bmuz/templates/ppp/build-ppp.mjs .` and republish `.planning/ppp.html` to that link with the Artifact tool (`url` = the link). Any command that changes ROADMAP / SPRINT / BUGS does the same.
+A hook rebuilds `.planning/ppp.html` after every plan-file edit (by hand: `node ~/.claude/config/bmuz/templates/ppp/build-ppp.mjs .`); republish it to that link with the Artifact tool (`url` = the link). A Stop hook reminds any command that changed the plan to do the same.
 
 ## 4b. Sync the shared setup (PC ↔ laptop)
 Run `bash ~/.claude/config/bmuz/config-sync.sh status` (pulls `~/.claude-config` first).

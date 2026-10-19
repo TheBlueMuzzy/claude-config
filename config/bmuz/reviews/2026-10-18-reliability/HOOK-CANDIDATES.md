@@ -3,6 +3,7 @@ Read-only audit of CLAUDE.md, PROJECT-FILES, MODULE-CONTRACTS, BMUZ-PLAN and 14 
 check could enforce instead of Claude remembering it. Already enforced (HOOKS.md 1–7) left out; judgement-only rules
 left out. ⭐ = best value for the effort. Key point: half the ⭐ items share one piece — a plan-file reader
 (`plan-lint.mjs`, built on build-ppp's parser) → build it first.
+**Built (F67, 2026-10-18):** every ⭐ item → HOOKS.md rows 8–13 + the credits check in `check:framework` (UI kit 0.19.0). The rest wait: scripts → F69, the self-improving loop → F74, others when a lesson calls for them.
 
 ## Before an action (PreToolUse)
 - ⭐ Read a check's own exit code → warn when check/test/tsc/eslint is piped into tail/grep/Select-Object (develop:79, deliver:20)

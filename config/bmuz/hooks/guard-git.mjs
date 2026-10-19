@@ -2,14 +2,23 @@
 //   never `git reset --hard`          → undo with `git revert`
 //   never force-push                  → push a new commit instead
 //   never delete a branch with work that isn't merged yet (a fully merged one is fine — nothing is lost)
-import { readInput, deny, gitCalls, git, defaultBranch, isMergedInto } from './lib.mjs'
+//   feature work never lands on main outside /deliver (F67): no `F08: …` commit with code on the default branch,
+//   no merging a work branch into it — /develop works on dev/<milestone>, /deliver merges. Plan/doc commits and
+//   tiny fixes (no `F08:` in the message) stay fine on main.
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { readInput, deny, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage } from './lib.mjs'
 
 const input = readInput()
 const command = input.tool_input?.command
 if (!command) process.exit(0)
 
-for (const call of gitCalls(command, input.cwd)) {
+const calls = gitCalls(command, input.cwd)
+for (const [index, call] of calls.entries()) {
   const { dir, sub, args } = call
+
+  if (sub === 'commit' && !args.includes('--dry-run')) checkFeatureCommitOnMain(calls, index, command)
+  if (sub === 'merge') checkMergeIntoMain(calls, index)
 
   if (sub === 'reset' && args.includes('--hard')) {
     deny('Blocked: `git reset --hard` throws work away, and Muzzy\'s rule is never to use it. To undo something committed, use `git revert <commit>` (show Muzzy what will be undone first). For an uncommitted file, ask Muzzy before discarding it.')
@@ -59,5 +68,63 @@ function checkRemoteDeletes(dir, args) {
     deny(known
       ? `Blocked: \`${remote}/${branch}\` has work that isn't merged into ${remote}/${target || 'main'}, so deleting it would lose that work. Muzzy's rule: only fully merged branches get deleted.`
       : `Blocked: can't confirm \`${remote}/${branch}\` is merged (it isn't in the local copy — run \`git fetch\` first, then try again). Muzzy's rule: only fully merged branches get deleted.`)
+  }
+}
+
+// The branch a call runs on: the current one, or the one an earlier `git checkout x` / `git switch x` on the line moves to.
+function branchAt(calls, index) {
+  for (let i = index - 1; i >= 0; i--) {
+    const { sub, args } = calls[i]
+    if (sub !== 'checkout' && sub !== 'switch') continue
+    const create = args.findIndex(a => ['-b', '-B', '-c', '-C', '--orphan'].includes(a)) // checkout -b hotfix main → on hotfix
+    if (create >= 0 && args[create + 1]) return args[create + 1]
+    const name = args.filter(a => !a.startsWith('-')).pop()
+    if (name && !args.includes('--') && git(calls[i].dir, 'rev-parse', '--verify', '--quiet', `refs/heads/${name}`) !== null) return name
+  }
+  return git(calls[index].dir, 'rev-parse', '--abbrev-ref', 'HEAD')
+}
+
+function checkFeatureCommitOnMain(calls, index, raw) {
+  const { dir, args } = calls[index]
+  const target = defaultBranch(dir)
+  if (!target || branchAt(calls, index) !== target) return
+  const message = commitMessage(raw, args)
+  const feature = (message.match(/^\s*(F\d+[a-z]?):/) || [])[1]
+  if (!feature) return // a tiny fix or a plan/doc commit
+  const top = git(dir, 'rev-parse', '--show-toplevel')
+  if (!top) return
+  const code = commitFiles(calls, index, resolve(top)).filter(f => !f.startsWith('.planning/') && !/\.md$/i.test(f))
+  if (!code.length) return
+  deny(`Blocked: a ${feature} commit with code (${code.slice(0, 3).join(', ')}${code.length > 3 ? ', …' : ''}) on ${target}. Feature work goes on the work branch (\`dev/<milestone>\`, /develop makes it) and reaches ${target} only through /deliver. Switch to the work branch and commit there — or, if this is really a tiny fix, commit it without the "${feature}:" prefix.`)
+}
+
+function checkMergeIntoMain(calls, index) {
+  const { dir, args } = calls[index]
+  if (args.some(a => ['--abort', '--continue', '--quit'].includes(a))) return
+  const target = defaultBranch(dir)
+  if (!target || branchAt(calls, index) !== target) return
+  // the branches being merged in (skipping option values like -m "message"); main's own copy on GitHub is fine
+  const WITH_VALUE = new Set(['-m', '-F', '-s', '-X', '--strategy', '--strategy-option', '--file'])
+  const work = args.filter((a, i) => !a.startsWith('-') && !WITH_VALUE.has(args[i - 1]))
+    .filter(a => a !== target && a !== `origin/${target}` && a !== `upstream/${target}` && a !== 'FETCH_HEAD')
+  if (!work.length || deliverRan()) return
+  deny(`Blocked: merging ${work.join(', ')} into ${target}. Only /deliver merges work into ${target} (after its smoke test and checks). Run /deliver — or, if Muzzy asked for this merge, have him type /deliver.`)
+}
+
+// Did /deliver run in this session? (Muzzy typed it, or Claude called the deliver skill.)
+function deliverRan() {
+  try {
+    // only Muzzy typing it, or Claude calling the skill — not a file or message that merely mentions it
+    for (const line of readFileSync(input.transcript_path, 'utf8').split('\n')) {
+      if (!line.includes('deliver')) continue
+      let entry
+      try { entry = JSON.parse(line) } catch { continue }
+      const content = entry.message?.content
+      if (entry.type === 'user' && typeof content === 'string' && content.includes('<command-name>/deliver</command-name>')) return true
+      if (entry.type === 'assistant' && Array.isArray(content) && content.some(b => b.type === 'tool_use' && b.name === 'Skill' && b.input?.skill === 'deliver')) return true
+    }
+    return false
+  } catch {
+    return false
   }
 }

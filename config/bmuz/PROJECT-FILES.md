@@ -87,7 +87,7 @@ Steps: 1… 2… · Expected: … · Actual: … · How often: …
 P0 crash/can't continue/live broken (fix now, blocks /deliver) · P1 feature broken · P2 minor · P3 cosmetic.
 Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for P0/P1) · watching · can't reproduce · won't fix. Old fixed entries → `archive/bugs.md` after each release.
 
-## content/credits.json  (every asset we didn't make ourselves)
+## content/credits.json  (every font, picture, sound and model the game ships — our own work too, as 🟢 "own work")
 ```json
 [
   { "paths": ["public/icons/sword.svg", "public/icons/potion.svg"], "source": "game-icons.net",
@@ -97,7 +97,7 @@ Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for 
     "licence": "CC0", "light": "🟢", "url": "https://kenney.nl/assets/...", "credit": "" }
 ]
 ```
-Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships (/deliver checks). organize-assets keeps it up to date.
+Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships. `npm run check:framework` checks all three (UI kit 0.19+: every file listed, nothing 🔴, every 🟡 credit shown). organize-assets keeps it up to date.
 
 ## Checks — how much to run, and when  (Muzzy, 2026-10-04: "learn from this… move more optimally through testing and delivery")
 Learned in Glyphtender v0.6 (13 sprints in a night): the time went into running the SAME slow checks twice (helper, then
