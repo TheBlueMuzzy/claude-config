@@ -10,7 +10,9 @@ without one, or if an item's home doesn't exist.
 ## How to do it (~10 min)
 1. **Read** the milestone, not the chat: its archived sprints (`archive/sprints/`, Notes + `Lesson →` lines), BUGS.md
    (fixed this milestone: what broke, what guards it now), the STATE Log, and `git log <last tag>..HEAD --oneline`
-   (`fix` / `revert` / repeated commits on one thing are the tell).
+   (`fix` / `revert` / repeated commits on one thing are the tell). Each archived sprint's `Retro:` block too — its
+   "change" line is a lesson Muzzy already named, so it becomes an item below unless it has landed ② (archive-sprint
+   refuses a sprint without one, so every sprint has it).
 2. **Find** three kinds of thing:
    - **Went wrong** — a bug that reached Muzzy, a check that missed it, a loop of fixes, a wrong guess.
    - **Done more than once** — the same steps by hand in several sprints, the same fix in two games, a question asked twice.

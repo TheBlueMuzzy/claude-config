@@ -58,8 +58,11 @@ export function readRoadmap(roadmapText) {
     if (h) {
       lastItem = null;
       if (/^(parking lot|later|ideas)\b/i.test(h[1])) { cur = { parking: true, defaultState: /ideas/i.test(h[1]) ? '💡' : '💤' }; return; }
-      const name = h[1];
+      // "· target: 2026-11-02" — the date the milestone should be done by (F81; session start counts down to it)
+      const target = (h[1].match(/·\s*target:\s*(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+      const name = h[1].replace(/\s*·\s*target:\s*\d{4}-\d{2}-\d{2}/, '');
       cur = {
+        target,
         name: name.replace(/←\s*current/, '').replace(/✅\s*released[^)]*$/, '').replace(/\(→\s*[^)]*\)/, '').trim(),
         current: /←\s*current/.test(name), released: /✅\s*released/.test(name),
         release: (name.match(/\(→\s*([^)]+)\)/) || [])[1] || '', items: [], goal: '',
@@ -88,6 +91,18 @@ export function readRoadmap(roadmapText) {
 // SPRINT.md → its title and "## F08 🎮 Title" sections with their "- [x] 🤖 1. step" lines.
 export function readSprint(sprintText) {
   const title = (sprintText.match(/^# (.+)$/m) || [])[1] || '';
+  const text = sprintText.replace(/\r\n/g, '\n');
+  // "Started 2026-10-19 · …" — also "Started: …" / "**Started:** …" (one reading for plan-lint, producer notes, here)
+  const started = (text.match(/^\**Started:?\**\s+(\d{4}-\d{2}-\d{2})/m) || [])[1] || '';
+  // "Retro:" then "- went well: …" / "- went wrong: …" / "- change: …" (F81 — archive-sprint needs all three). Written
+  // the Obsidian way too (review): "## Retro" / "**Retro:**", a blank line before the bullets, "*" bullets, bold
+  // labels, "—" instead of ":"
+  const retro = {};
+  const rm = text.match(/^(?:#+\s*|[-*]\s+)?\**Retro:?\**[^\n]*\n((?:[ \t]*(?:[-*] [^\n]*)?\n?)*)/m);
+  if (rm) for (const l of rm[1].split('\n')) {
+    const k = l.match(/^\s*[-*]\s*\**(went well|went wrong|change)\**\s*[:—–-]\**\s*(.*)$/i);
+    if (k && k[2].trim()) retro[k[1].toLowerCase()] = k[2].trim();
+  }
   const features = []; let cur = null;
   sprintText.split('\n').forEach((line, n) => {
     const f = line.match(/^## (F\d+[a-z]?)\b/); if (f) { cur = { id: f[1], lineNo: n + 1, steps: [] }; features.push(cur); return; }
@@ -95,7 +110,7 @@ export function readSprint(sprintText) {
     const s = line.match(/^- \[( |x)\]\s*(.+)$/i);
     if (s && cur) cur.steps.push({ done: s[1].toLowerCase() === 'x', text: s[2], lineNo: n + 1 });
   });
-  return { title, features };
+  return { title, started, retro, features };
 }
 
 // BUGS.md → every "### B014 · P1 · open · …" entry, with the section it sits in ("open" / "fixed").

@@ -6,7 +6,7 @@
 - Prefers **human-readable code** over clever abstractions
 - **Explain genre jargon in plain words the first time** ("wall kick" = what a piece does when you rotate it against something) — he had to look one up (2026-10-17)
 - Values **targeted, minimal changes** — don't refactor beyond what's asked
-- Always provide **terminal commands ready to copy/paste**
+- Always provide **terminal commands ready to copy/paste** ③ (manner)
 - **New app or tool walkthroughs: ONE step at a time** — give a single step, wait for Muzzy to say it's done (or send a screenshot), then the next. No bulk lists of directions.
 
 ## My Tech Stack
@@ -22,7 +22,7 @@ All projects live under `~/Documents/dev/` (same on every machine — the userna
 - **research/** — `mahjong`
 - **collabs/** — `joust-because` (Sherman Meredith's repo)
 
-**One project = one folder = one GitHub repo**, with everything (code, art, design) inside. Never put code projects in Google Drive. Board games live in Google Drive `Boardgames\`, separate from their digital versions.
+**One project = one folder = one GitHub repo**, with everything (code, art, design) inside. Never put code projects in Google Drive. Board games live in Google Drive `Boardgames\`, separate from their digital versions. ③ (a setup choice)
 
 When Muzzy says "cd <project-name>" (e.g. "cd roll better", "cd glyphtender"), resolve the project name to its full path under `~/Documents/dev/` and `cd` there. Use fuzzy matching — "roll better" → `games/roll-better`, "eps" → `games/escape-pod-scramble`, etc.
 
@@ -45,15 +45,15 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 | Tool | `/save` | update STATE.md, commit, push → safe to clear or switch machines |
 | Tool | `/bug` | report (P0–P3), list, or bug sweep |
 
-`/bmuz` shows the menu. Rules + planning model: `~/.claude/config/bmuz/PROJECT-FILES.md`. Dev Kit catalog: `DEVKIT.md`. What a game must wire for each framework module (live hooks, rules/looks clocks, pause): `MODULE-CONTRACTS.md`. Obsidian: `OBSIDIAN.md` (vault = `Documents/dev`).
+`/bmuz` shows the menu. Rules + planning model: `~/.claude/config/bmuz/PROJECT-FILES.md`. Dev Kit catalog: `DEVKIT.md`. What a game must wire for each framework module (live hooks, rules/looks clocks, pause): `MODULE-CONTRACTS.md`. Obsidian: `OBSIDIAN.md` (vault = `Documents/dev`). ③ (pointers)
 - **Be the hands-off partner:** route plain English to the right command yourself, end every hand-off with the next command, and just run it when the next step is obvious. Muzzy shouldn't have to remember anything but `/bmuz`.
 - Time in /discover and /define is well spent: a strong GDD + TDD + feature map mean fewer loops in /develop. Nudge toward them when a new feature is fuzzy.
-- Respect dependencies: never build a feature before the things it `needs:`.
-- **Think like a co-designer with MDA** (mechanics → what players do → how it feels): judge designs and changes by the player behaviour they create and the feeling that behaviour produces. When something feels off, diagnose the behaviour and pick one knob — never meander through numbers.
-- **Same intention → same motion (design language):** when something happens in one place and the same kind of thing happens elsewhere (points arriving in a total, a piece appearing, a pick being confirmed), it looks and moves the same way there too — reuse the existing animation, timings and feel tiers, never invent a second one. Check for the existing pattern before building a new effect.
-- **Breathing room in every card and container:** nothing (avatar, icon, text, badge) ever touches a card's or container's edge — always padding on every side. And a card that fills in during a sequence is a FIXED size from the start (room for everything it could hold), so nothing makes it grow mid-sequence. Check screenshots for both before calling UI done.
-- **Keep Muzzy focused** (he asked for this): one feature at a time; mid-feature bugs are logged unless P0 / blocking / a two-minute fix — rule in `/develop` and `/bug`. He can always overrule.
-- Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them.
+- Respect dependencies: never build a feature before the things it `needs:`. ② (plan-lint flags a feature built before what it needs)
+- **Think like a co-designer with MDA** (mechanics → what players do → how it feels): judge designs and changes by the player behaviour they create and the feeling that behaviour produces. When something feels off, diagnose the behaviour and pick one knob — never meander through numbers. ③ (design thinking)
+- **Same intention → same motion (design language):** when something happens in one place and the same kind of thing happens elsewhere (points arriving in a total, a piece appearing, a pick being confirmed), it looks and moves the same way there too — reuse the existing animation, timings and feel tiers, never invent a second one. Check for the existing pattern before building a new effect. ③ (design judgement)
+- **Breathing room in every card and container:** nothing (avatar, icon, text, badge) ever touches a card's or container's edge — always padding on every side. And a card that fills in during a sequence is a FIXED size from the start (room for everything it could hold), so nothing makes it grow mid-sequence. Check screenshots for both before calling UI done. ③ until F88 (quality bars in check:framework)
+- **Keep Muzzy focused** (he asked for this): one feature at a time; mid-feature bugs are logged unless P0 / blocking / a two-minute fix — rule in `/develop` and `/bug`. He can always overrule. ② (stop-plan-check: every mid-sprint request becomes a task) · ③ the triage
+- Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them. ② for UI values (check-ui-edit) · ③ for game numbers until F90 (lint standards)
 - **Look/feel calls on tweakable values** (colours, sizes, timings): pick a sensible default, keep it in `content/`, and point to (or offer) the Dev Kit tool that edits it — don't make Muzzy choose blind from descriptions. Flexible tools = fewer loops.
 - Muzzy's engineering ideas are often simpler and better — weigh them honestly and credit them in the TDD Decisions log.
 - Muzzy edits docs in Obsidian too: read his changes, don't overwrite them, and commit them with /save.
@@ -61,7 +61,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - Ideas that aren't for right now → ROADMAP → Ideas with the date; say "Noted in the roadmap's Ideas."
 - Small tweaks and fixes don't need a task — just do them, committed on whatever branch you're on (main is fine for tiny fixes). Sprints are for features that take real work.
 - Old GSD projects (`.planning/PROJECT.md`, `phases/`) get converted the first time we work in them — see PROJECT-FILES.md.
-- Undo ("undo that"): something just done this session → rewind (Esc Esc); anything committed → `git revert` (never `reset --hard`, never force-push, only fully merged branches get deleted — hooks enforce these: `config/bmuz/HOOKS.md`). Show what will be undone first.
+- Undo ("undo that"): something just done this session → rewind (Esc Esc); anything committed → `git revert` (never `reset --hard`, never force-push, only fully merged branches get deleted — hooks enforce these: `config/bmuz/HOOKS.md`). Show what will be undone first. ① (guard-git refuses reset --hard, force-push and deleting unmerged branches)
 
 ## Laptop ↔ Desktop Sync (MANDATORY)
 - **Machine to-do:** if `~/Documents/dev/HUB.md` has a "📌 Machine to-do" section for this machine (PC = user Muzzy, laptop = user joebr), do it first — one item at a time, tick each, then remove the section and `/save` so it syncs back.
@@ -75,20 +75,20 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - One work branch per delivery (`/develop` makes it: `dev/<milestone>`), merged only by `/deliver`. Tiny fixes can go straight on main.
 - Save early, save often — context can compact at any time
 - A value Muzzy **saved** (Dev Kit, Obsidian, a file edit) is a decision — keep it and commit it, don't question it; only ask if it breaks something.
-- **Say "the game you played on <date>", never "your game"** (Muzzy, 2026-10-07: "this entire thing is 'my game'") — the project is his game; a single playthrough needs its date or a name.
-- **Every hand-off = the hand-off card** (Muzzy, 2026-10-18: "I never want to see it any other way going forward!"): `config/bmuz/templates/handoff.md` — Done · You'll see · Try it (links) · Proof · Questions · Next `/command` — what it covers. A Stop hook checks it after any turn with work (or the progress line while work is still running).
+- **Say "the game you played on <date>", never "your game"** (Muzzy, 2026-10-07: "this entire thing is 'my game'") — the project is his game; a single playthrough needs its date or a name. ② (handoff-check)
+- **Every hand-off = the hand-off card** (Muzzy, 2026-10-18: "I never want to see it any other way going forward!"): `config/bmuz/templates/handoff.md` — Done · You'll see · Try it (links) · Proof · Questions · Next `/command` — what it covers. A Stop hook checks it after any turn with work (or the progress line while work is still running). ② (handoff-check)
 - **Sprint reports open with a header** (Muzzy, 2026-10-07: "idk really what these sprints were meant to do… idk if you even wrote any new code"): sprint number + goal in plain words, then each feature as ID + what it was meant to do (e.g. "Sprint 17 — settle the last open design questions with AI games · F46: which board, who goes first · F47: how often awards appear"), then **what was built** (new code / content changes / tests) vs **what was only measured or researched**. Only after that, the results.
-- **Progress updates** on multi-step work: show a bar + steps + rough time left + **the clock time it was posted** (run `date` first), e.g. `████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted 10:44 PM`. Muzzy, 2026-10-13: "I don't have a time to reference if I walk away and come back" — and comparing the posted times with when steps really finish makes the estimates better. Percent = steps done / total; time is an honest guess — say when it's waiting on something. **Re-post the bar each time a step completes** (incl. background helpers — watch their commits with Monitor), not just at start and end
+- **Progress updates** on multi-step work: show a bar + steps + rough time left + **the clock time it was posted** (run `date` first), e.g. `████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted 10:44 PM`. Muzzy, 2026-10-13: "I don't have a time to reference if I walk away and come back" — and comparing the posted times with when steps really finish makes the estimates better. Percent = steps done / total; time is an honest guess — say when it's waiting on something. **Re-post the bar each time a step completes** (incl. background helpers — watch their commits with Monitor), not just at start and end ② (handoff-check accepts a progress line only in this shape)
 
 ## Code Quality
-- **Verify your work** — run tests, check output, confirm behavior. Never assume code works without checking. Visual work → Playwright screenshot and look at it yourself.
-- **Be independent: finish tasks for real** (Muzzy, 2026-10-14) — after a big action, check first-hand that what you're about to say is true and the task is actually complete (audit the content itself, not just tests), or ask. Never make Muzzy be the one who asks "did you check?"
+- **Verify your work** — run tests, check output, confirm behavior. Never assume code works without checking. Visual work → Playwright screenshot and look at it yourself. ② (stop-check-fast at every hand-back; handoff-check wants a screenshot for visual work)
+- **Be independent: finish tasks for real** (Muzzy, 2026-10-14) — after a big action, check first-hand that what you're about to say is true and the task is actually complete (audit the content itself, not just tests), or ask. Never make Muzzy be the one who asks "did you check?" ③ (judgement — the review and done gates back it up)
 - **Fix root causes, not symptoms** — no band-aids, no workarounds that add complexity
 - **Check if logic already exists** before writing new code — avoid duplication
-- **R3F**: NEVER use React state for per-frame updates. Mutate refs in useFrame.
+- **R3F**: NEVER use React state for per-frame updates. Mutate refs in useFrame. ③ until F90 (lint standards)
 
 ## Plain English Errors
-When errors occur, ALWAYS: (1) translate to plain English, (2) explain why in non-technical terms, (3) offer to fix it. Never show raw stack traces without translation.
+When errors occur, ALWAYS: (1) translate to plain English, (2) explain why in non-technical terms, (3) offer to fix it. Never show raw stack traces without translation. ③ (manner)
 
 ## Autonomous Mode
 When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm going to bed — finish it" (or equivalent) on a big task:
@@ -98,7 +98,7 @@ When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm goi
 - Prove everything works (tests, build, screenshots) before moving on.
 - Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
 - STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.
-- **Context checkpoint:** a hook tells you when this session reaches 80% (and 90%) and what to write down before `/save` — then **keep going**; auto-compact (~97%) summarises the chat, and the files carry the truth. Never rely on remembering something that isn't written down.
+- **Context checkpoint:** a hook tells you when this session reaches 80% (and 90%) and what to write down before `/save` — then **keep going**; auto-compact (~97%) summarises the chat, and the files carry the truth. Never rely on remembering something that isn't written down. ① (session-moments hook)
 - Stops before anything public or hard to undo (`/deliver`, pushing to the live branch, deleting data) — those wait for Muzzy. Everything else: proceed.
 
 ## Problem-Solving Discipline
@@ -144,7 +144,7 @@ gws schema drive.files.list
 ```
 
 **New machine setup:** `npm install -g @googleworkspace/cli` → copy `client_secret.json` to `~/.config/gws/` → `gws auth login --no-browser`
-Never sync `~/.config/gws/` — credentials are machine-specific.
+Never sync `~/.config/gws/` — credentials are machine-specific. ① (config-sync only copies ~/.claude)
 
 ## References
 - **BMUZ project rules**: `~/.claude/config/bmuz/PROJECT-FILES.md`

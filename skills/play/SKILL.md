@@ -26,6 +26,7 @@ Get the LAN IP from `ipconfig`. If the phone can't connect or needs motion senso
 ## 3. Watch (offer, don't force)
 "Want me to watch the console while you play? Tell me when you finish a round."
 If yes → use the **live-playtest** method: open the page in Playwright without joining, wait for Muzzy's cue, pull console logs, and report in plain English: what happened, errors, anything odd. Don't poll constantly ③ (an offer).
+When the session ends, write the playtest log `.planning/research/playtests/<date>.md` (who played, build, what happened, issues → bug ids, feel notes in his words — format in live-playtest Step 7) ② (release.mjs refuses a stage release without one since the last stage).
 
 ## 4. Stopping it
 When Muzzy's done (or before switching machines): stop the background task, then `node ~/.claude/config/bmuz/scripts/stop-servers.mjs <port>` (ends the whole server tree and says when the port is free) ① (guard-edits refuses taskkill / Stop-Process / kill-port and names this script).
@@ -33,4 +34,4 @@ When Muzzy's done (or before switching machines): stop the background task, then
 ## 5. What he sees → what we do
 - A bug → `/bug` (it triages: fix now if small/blocking, else log it).
 - A feel/look tweak ("shrink it to 93%") → just do it, then say "refresh". "Feels flat / no punch" → **game-feel**.
-- After a real playtest (friends, or a full session) → **mda-analyze** playtest mode: what players did and said vs the GDD experience targets, update `Seen?`, one fix suggestion per ⚠️/❌. Ideas → ROADMAP Ideas ③ until F87 (QA routine: playtest log).
+- After a real playtest (friends, or a full session) → **mda-analyze** playtest mode: what players did and said vs the GDD experience targets, update `Seen?`, one fix suggestion per ⚠️/❌, reading the playtest log's feel notes. Ideas → ROADMAP Ideas ③ (a judgement on what was seen; the log itself is ② above).

@@ -134,11 +134,14 @@ function refuseKitCopy(path) {
 }
 
 // Does this python / node script write a code file? The literal path in open(…, 'w') / writeFileSync('…') when there
-// is one; else (the path is in a variable) a quoted code-file path anywhere in the script — globs ('src/**/*.ts') aren't.
+// is one; else the path in a variable — `open(p, 'w')` / `Path(p).write_text` / `writeFileSync(p` — is looked up where
+// it's set (`p = 'src/a.ts'`, `p='SPRINT.md'`). Not "any quoted text ending in .mjs": a quoted span inside a long
+// note that happened to end in ".mjs" blocked a script writing SPRINT.md (found in use, 2026-10-19).
 function writesCodeFile(s) {
-  const literal = writeTargets(s)
+  const literal = [...writeTargets(s), ...[...s.matchAll(/Path\(\s*r?(['"])([^'"]+)\1\s*\)\s*\.\s*write_text/g)].map(m => m[2])]
   if (literal.length) return literal.some(t => CODE_FILE.test(t))
-  return [...s.matchAll(/(['"])([^'"\n*?]+)\1/g)].some(m => /\.(m?[jt]sx?|c[jt]s|css|py|ps1|sh)$/.test(m[2]))
+  const vars = [...s.matchAll(/(?:open|Path|writeFileSync|writeFile)\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)].map(m => m[1])
+  return vars.some(v => [...s.matchAll(new RegExp(`(?:^|[\\s;(])${v}\\s*=\\s*(['"])([^'"\\n]+)\\1`, 'gm'))].some(m => CODE_FILE.test(m[2]) && !/[*?]/.test(m[2])))
 }
 
 // Paths a shell command writes to.

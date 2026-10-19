@@ -65,6 +65,7 @@ flowchart LR
 - 2026-10-05 — <raw idea; anyone appends; /roadmap turns good ones into features>
 ```
 IDs are permanent. Each milestone ends with a small Mermaid graph (solid = needs, dotted = `~`) kept in sync. Milestone names needn't match version.json.
+A milestone heading may end with `· target: <YYYY-MM-DD>` (the day it should be done: `## v0.3 — Card play feels good  ← current  (→ alpha) · target: 2026-11-02`); session start counts down to it from 14 days out and says when it's overdue, with the musts done ① (producer-notes.mjs).
 
 ## SPRINT.md  (1–4 features, one goal; ends when they're done)
 ```markdown
@@ -75,10 +76,16 @@ Done when: <what Muzzy sees/plays>
 - [x] 🤖 1. Arc layout math — src/hand/layout.ts
 - [ ] 🙋 2. Stand-in card fronts (stand-in)
 - [ ] 🤖 3. Tune spread + overlap (tuning)
-Check: <test / visual check / "Muzzy fans 7 cards on phone">
+Check: <test / visual check / "Muzzy fans 7 cards on phone">     ← the test plan, written when the sprint starts
+Checked: <what was run or looked at + the result: "check:fast green · Muzzy fanned 7 cards on his phone">   ← written before `F08: done`
 Ask Muzzy: <open questions>   Notes: <decisions, surprises, Tuning: knob old→new — why — result>
+Retro:                        ← at the end of the file, once every feature is done
+- went well: <one short line>
+- went wrong: <one short line>
+- change: <one short line — what the next sprint does differently>
 ```
-3–8 tasks per feature (❓: 1–2) ① (plan-lint); tasks name real files ② (plan-lint flags a path whose file and folder don't exist). Numbered from 01. Finished → `archive/sprints/sprint-NN.md`, commit `Sprint NN done` ① (archive-sprint.mjs; stop-plan-check sends a turn back while a finished sprint sits there). A new sprint names every open P0/P1 bug ② (plan-lint). Starting one: commit `Sprint NN: <goal>` with STATE.md in it ② (guard-git).
+The retro is Muzzy's three answers (Claude may draft from Notes; his words win); archiving refuses until all three lines are filled ① (archive-sprint.mjs). Each "change" line is a lesson the milestone look-back reads ① (lookback.md step 1).
+3–8 tasks per feature (❓: 1–2) ① (plan-lint); tasks name real files ② (plan-lint flags a path whose file and folder don't exist). Numbered from 01. Finished → `archive/sprints/sprint-NN.md`, commit `Sprint NN done` ① (archive-sprint.mjs; stop-plan-check sends a turn back while a finished sprint sits there). A new sprint names every open P0/P1 bug ② (plan-lint); a P1 found before the sprint's `Started` date is a task in it, or lowered to P2 with a reason ② (plan-lint). Every feature (❓ aside: Muzzy's answer is its check) has a `Check:` line ② (plan-lint), and `Fnn: done` needs a `Checked:` line in its section ② (guard-git refuses the commit without one). Starting one: commit `Sprint NN: <goal>` with STATE.md in it ② (guard-git).
 
 ## BUGS.md
 ```markdown

@@ -141,6 +141,8 @@ function testGuardGit() {
   const d = cmd => runHook('guard-git.mjs', bash(bmuz.repo, cmd))
   sh(bmuz.repo, 'checkout', '-q', 'dev/open')
   mkdirSync(join(bmuz.repo, '.planning')); writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F09 next\n')
+  // F87: every feature below has its "Checked:" record, so these tests see only the rule they're about
+  writeFileSync(join(bmuz.repo, '.planning', 'SPRINT.md'), ['F09', 'F11', 'F12', 'F99'].map(id => `## ${id} 🎮 x\nCheck: a test\nChecked: test green\n`).join(''))
   sh(bmuz.repo, 'add', '.'); sh(bmuz.repo, 'commit', '-q', '-m', 'STATE: start')
   writeFileSync(join(bmuz.repo, 'notes.md'), 'one\n'); sh(bmuz.repo, 'add', '.'); sh(bmuz.repo, 'commit', '-q', '-m', 'F09: first task')
   writeFileSync(join(bmuz.repo, 'notes.md'), 'two\n')
@@ -263,6 +265,7 @@ function testGuardEdits() {
   expect("…python writing a .ts held in a variable → blocked", b("python - <<'EOF'\np = 'src/a.ts'\nopen(p,'w').write('x')\nEOF"), 'deny')
   expect("review: python with a backslash writing STATE.md whose text names merge.mjs → allowed (it writes no code)", b("python - <<'EOF'\np = 'STATE.md'\ns = 'new merge.mjs + live-check.mjs; nl = \\\\r\\\\n'\nopen(p,'w',newline='').write(s)\nEOF"), 'allow')
   expect("…the same backslash script writing a .mjs → still blocked", b("python - <<'EOF'\np = 'hooks/x.mjs'\nopen(p,'w',newline='').write('a\\\\nb')\nEOF"), 'deny')
+  expect("found in use: python writing SPRINT.md whose long note has a quoted span ending in .mjs (+ a backslash) → allowed", b("python - <<'EOF'\np='.planning/SPRINT.md'\ns = open(p).read()\ns += \"- it said 'archive it' then lib.mjs' and \\\\n more\"\nopen(p,'w',newline='').write(s)\nEOF"), 'allow')
   // F80: throwaway copies go in ~/Documents/dev/.scratch/, never straight in the home folder
   const home = join(root, 'home'); mkdirSync(join(home, 'Documents', 'dev'), { recursive: true }); mkdirSync(join(home, 'AppData'))
   process.env.BMUZ_HOME = home
@@ -457,6 +460,27 @@ function testStopCheckFast() {
   expect('…a turn that edited a file → checked (red → blocked)', stop({ transcript_path: turnFile([{ name: 'Edit', input: { file_path: join(repo, 'a.txt') } }]) }), 'block')
   writeFileSync(join(repo, 'new.ts'), 'export {}\n')
   expect('still red after a new file → blocked', stop(), 'block')
+  // One check:fast at a time per project (Goops 2026-10-19: two runs both build into dist/ and break each other).
+  // A stand-in for "another session's run": holds the lock, optionally records a pass on this exact code, then exits.
+  const lock = join(repo, '.git', 'bmuz-check.lock')
+  const holderFile = join(root, 'holder.mjs')
+  writeFileSync(holderFile, `import { writeFileSync } from 'node:fs'\nimport { codeFingerprint } from ${JSON.stringify(new URL('./lib.mjs', import.meta.url).href)}\nconst [lock, repo, ms, passes] = process.argv.slice(2)\nwriteFileSync(lock, process.pid + ' ' + Date.now())\nsetTimeout(() => { if (passes === 'pass') writeFileSync(repo + '/.git/bmuz-last-green', codeFingerprint(repo) + '\\n'); process.exit(0) }, Number(ms))\n`)
+  const holdFor = (ms, passes = '') => { const h = spawn('node', [holderFile, lock, repo, String(ms), passes], { stdio: 'ignore' }); for (let i = 0; i < 100 && !existsSync(lock); i++) spawnSync('node', ['-e', 'setTimeout(()=>{},50)']); return h }
+  process.env.BMUZ_LOCK_WAIT_MS = '1500'
+  let before = runs()
+  const holder = holdFor(30_000)
+  expect('Goops note: another check:fast is running here (lock held) → this one waits, then leaves it (allowed)', stop(), 'allow')
+  expect('…and did not start a second run', { result: runs() === before ? 'ok' : 'no', message: `runs ${runs() - before}` }, 'ok')
+  holder.kill()
+  for (let i = 0; i < 40 && (() => { try { process.kill(holder.pid, 0); return true } catch { return false } })(); i++) spawnSync('node', ['-e', 'setTimeout(()=>{},50)'])
+  expect('…a lock left by a run that died → taken over, the check runs (red → blocked)', stop(), 'block')
+  expect('…the lock is freed afterwards', { result: existsSync(lock) ? 'no' : 'ok', message: '' }, 'ok')
+  process.env.BMUZ_LOCK_WAIT_MS = '8000'
+  before = runs()
+  holdFor(1000, 'pass')
+  expect('…the other run passes this exact code while we wait → its pass is reused (allowed, no second run)', stop(), 'allow')
+  expect('…no second run', { result: runs() === before ? 'ok' : 'no', message: `runs ${runs() - before}` }, 'ok')
+  delete process.env.BMUZ_LOCK_WAIT_MS
   writeFileSync(join(repo, 'package.json'), JSON.stringify({ scripts: { 'check:fast': 'node -e "setTimeout(() => {}, 60000)"' } }))
   process.env.BMUZ_STOP_LIMIT_MS = '2000'
   const started = Date.now()
@@ -661,6 +685,7 @@ function testPlanLint() {
   expect('sprint feature not 🔨 in ROADMAP → told', edit('SPRINT.md', sprint.replace('## F02', '## F03').replace('Cards', 'Wiggle')), 'block')
   expect('sub-task "3b." is fine', edit('SPRINT.md', sprint + '- [ ] 🤖 3b. Extra\n'), 'allow')
   expect('tasks under "## Extras" (not a feature) → told (found in a real try)', edit('SPRINT.md', sprint + '## Extras\n- [x] 🤖 4. blue button\n'), 'block')
+  expect('F87 follow-up: tasks under "## Carried to sprint 05 — … (F09)" → quiet (they move on with it)', edit('SPRINT.md', sprint + '## Carried to sprint 05 — Card hover (F09): not approved yet\n- [ ] 🤖 1. hover lifts the card\n'), 'allow')
   edit('SPRINT.md', sprint)
   const count = edit('BUGS.md', bugs.replace('Open: 1 (P0 0 · P1 1', 'Open: 2 (P0 1 · P1 1'))
   expect('wrong "Open:" count → told', count, 'block')
@@ -861,6 +886,12 @@ function testStopPlanCheck() {
   const finished = inFresh([tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') })])
   expect('F80: every sprint feature ✅ in ROADMAP, sprint not archived → sent back', finished, 'block')
   expect('…names archive-sprint.mjs', { result: /archive-sprint\.mjs/.test(finished.message) ? 'ok' : 'no', message: finished.message }, 'ok')
+  expect('review: no Retro yet → the step is to ASK Muzzy the 3-line retro (archive-sprint would refuse)', { result: /ask Muzzy the 3-line retro/.test(finished.message) ? 'ok' : 'no', message: finished.message }, 'ok')
+  const asking = join(fresh.root, 'asking.jsonl')
+  writeFileSync(asking, [{ ...prompt, timestamp: turnStart }, { ...tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') }), cwd: r }, { type: 'assistant', message: { content: [{ type: 'text', text: 'Sprint done. Before I archive it — your retro: what went well, what went wrong, one thing to change?' }] } }].map(e => JSON.stringify(e)).join('\n'))
+  expect('review: …a turn that ends by asking for the retro → allowed (waiting on Muzzy, not bounced)', runHook('stop-plan-check.mjs', { hook_event_name: 'Stop', transcript_path: asking, session_id: 'asking' }), 'allow')
+  writeFileSync(join(r, '.planning', 'SPRINT.md'), readFileSync(join(r, '.planning', 'SPRINT.md'), 'utf8') + '\n## Retro\n- **went well:** quick\n- **went wrong:** nothing\n- **change:** smaller sprints\n')
+  expect('…retro written (Obsidian style: "## Retro", bold labels) → "archive it"', { result: /archive it/.test(inFresh([tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') })]).message) ? 'ok' : 'no', message: '' }, 'ok')
   writeFileSync(join(r, '.planning', 'BUGS.md'), '# T — Bugs\nOpen: 1 (P0 0 · P1 1 · P2 0 · P3 0)\n## Open\n### B004 · P1 · open · found 2026-10-19\nx\n')
   const withBugs = inFresh([tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') })])
   expect('F80: …with an open P1 → the message offers the /bug sweep with the counts', { result: /1 P1/.test(withBugs.message) && /\/bug sweep/.test(withBugs.message) ? 'ok' : 'no', message: withBugs.message }, 'ok')
@@ -1080,6 +1111,10 @@ function testRuleKind() {
   expect('an unmarked rule line that was already there (in old_string too) → quiet (old lines are the audit\'s)', edit(skill, '- Must stay.\nold', '- Must stay.\nnew words'), 'allow')
   expect('a line with no rule word → quiet', edit(skill, 'x', '- Lists the open bugs.'), 'allow')
   expect('review: a scope tag "— must:alpha" in an example ROADMAP line → quiet', edit(skill, 'x', '- 🔨 F08 🎮 Splayed cards — must:alpha · needs: F07'), 'allow')
+  const hooksDoc = join(home, '.claude', 'config', 'bmuz', 'HOOKS.md')
+  mkdirSync(dirname(hooksDoc), { recursive: true })
+  writeFileSync(hooksDoc, '| 5 ① | When Claude stops | Runs the check. Never "done" on broken code |\n')
+  expect('found in use: an edit to the MIDDLE of a line whose mark sits earlier on it ("| 5 ① | …") → quiet', edit(hooksDoc, 'Runs the check', 'Runs the check. Never "done" on broken code'), 'allow')
   expect('a rule word inside a code block → quiet', edit(skill, 'x', '```\nalways run me\n```'), 'allow')
   expect('MultiEdit is checked too', run({ tool_name: 'MultiEdit', tool_input: { file_path: skill, edits: [{ old_string: 'a', new_string: '- Make sure the build is green.' }] } }), 'block')
   expect('a game file (not BMUZ instructions) → quiet', edit(join(home, 'game', 'README.md'), 'x', '- Always wear a hat.'), 'allow')
@@ -1143,6 +1178,87 @@ function testSessionStartNotices() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F81: the producer's eye — the sprint line every session, plus only the lines that need attention
+function testSessionStartProducer() {
+  console.log('session-start — producer notes: sprint line + attention lines (F81)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-producer-'))
+  const put = (path, text) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text) }
+  // a local YYYY-MM-DD n days from today (negative = ago), the way the helper counts days
+  const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+  const commitAt = (repo, daysAgo, message) => {
+    const when = `${day(-daysAgo)}T12:00:00`
+    execFileSync('git', ['-C', repo, 'add', '-A'], { stdio: 'ignore' })
+    execFileSync('git', ['-C', repo, 'commit', '-q', '--allow-empty', '-m', message], { stdio: 'ignore', env: { ...process.env, GIT_AUTHOR_DATE: when, GIT_COMMITTER_DATE: when } })
+  }
+  const newRepo = (name) => {
+    const repo = join(root, name)
+    mkdirSync(repo, { recursive: true })
+    execFileSync('git', ['init', '-q', repo]); sh(repo, 'config', 'user.email', 'test@example.com'); sh(repo, 'config', 'user.name', 'test')
+    return repo
+  }
+  // A game 9 days into sprint 07: alpha due in 5 days, F08 untouched for 8 days, F09 worked on 2 days ago
+  const game = (name, { target = day(5), f08Ago = 8, archived = true, extraSprint = '' } = {}) => {
+    const repo = newRepo(name)
+    put(join(repo, '.planning', 'STATE.md'), '## ▶ RESUME HERE\nF08 next\n')
+    put(join(repo, '.planning', 'ROADMAP.md'), `# T — Roadmap\nRelease target: alpha\n## v0.2 — Proto  ✅ released 2026-01-01\n- ✅ F01 🧱 Base — must:prototype\n## v0.3 — Card play feels good  ← current  (→ alpha) · target: ${target}\n- ✅ F07 🧱 Hand — must:alpha\n- 🔨 F08 🎮 Splayed — must:alpha · needs: F07 · sprint 7\n- 🔨 F09 🎮 Pile — must:alpha · sprint 7\n- ⏳ F10 ❓ Which deck — must:alpha\n- ⏳ F11 ✨ Sparkle — could\n`)
+    commitAt(repo, 60, 'start')
+    if (archived) { // sprints 03–06; the last three took 3, 5 and 4 days → ~4; sprint 03 (10 days) is older than the last three
+      for (const [nn, startAgo, doneAgo] of [['03', 60, 51], ['04', 40, 38], ['05', 30, 26], ['06', 20, 17]]) {
+        put(join(repo, '.planning', 'archive', 'sprints', `sprint-${nn}.md`), `# Sprint ${nn} — x\nStarted ${day(-startAgo)} · Milestone v0.3\n`)
+        commitAt(repo, doneAgo, `Sprint ${nn} done`)
+      }
+    }
+    put(join(repo, '.planning', 'SPRINT.md'), `# Sprint 07 — cards feel good\nStarted ${day(-8)} · Milestone v0.3 · Features: F08, F09\n## F08 🎮 Splayed\n- [x] 🤖 1. Arc — src/a.ts\n- [ ] 🤖 2. Tune\n## F09 🎮 Pile\n- [ ] 🤖 1. Pile — src/b.ts\n${extraSprint}Ask Muzzy: —\n`)
+    commitAt(repo, 8, 'Sprint 07: cards feel good')
+    commitAt(repo, f08Ago, 'F08: arc layout')
+    commitAt(repo, 2, 'F09: pile works')
+    return repo
+  }
+  const start = (dir) => {
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: dir, BMUZ_NO_PULL: '1', BMUZ_HUB: join(root, 'no-hub.md') }
+    const r = spawnSync('bash', [join(HOOKS, '..', 'session-start.sh')], { input: '{"source":"startup"}', encoding: 'utf8', env, timeout: 60_000 })
+    const all = r.stdout || r.stderr || ''
+    return { all, notes: all.split('\n').filter(l => /^(📅|  ⚠|  → producer)/.test(l)) }
+  }
+  const same = (name, got, want) => expect(name, { result: JSON.stringify(got.notes) === JSON.stringify(want) ? 'ok' : 'no', message: `${got.notes.join(' | ')}\n${got.all}` }, 'ok')
+
+  same('9-day-old sprint, target in 5 days, F08 untouched 8 days → exactly the sprint line + those two lines', start(game('late')), [
+    '📅 Sprint 07 · day 9 (the last 3 took ~4 days)',
+    '  ⚠ alpha target: 5 days left · musts 1/3',
+    '  ⚠ F08 hasn\'t moved in 8 days — ship it as is, or what\'s in the way?',
+    '  → producer notes: bring the ⚠ lines up with Muzzy in plain words before starting work.',
+  ])
+  same('a healthy game (target a month out, F08 worked on yesterday) → only the sprint line', start(game('healthy', { target: day(30), f08Ago: 1 })), [
+    '📅 Sprint 07 · day 9 (the last 3 took ~4 days)',
+  ])
+  same('no archived sprints yet → the sprint line without brackets', start(game('first', { target: day(30), f08Ago: 1, archived: false })), ['📅 Sprint 07 · day 9'])
+  const overdue = start(game('overdue', { target: day(-3), f08Ago: 1 }))
+  expect('target passed 3 days ago → "3 days overdue"', { result: overdue.notes.includes('  ⚠ alpha target: 3 days overdue · musts 1/3') ? 'ok' : 'no', message: overdue.notes.join(' | ') }, 'ok')
+  // waiting on Muzzy: his open 🙋 task + P0/P1 fixes not yet verified (a fixed P2 and a verified P1 aren't his to check)
+  const waitRepo = game('waiting', { target: day(30), f08Ago: 1, extraSprint: '- [ ] 🙋 2. Stand-in card fronts (stand-in)\n- [x] 🙋 3. Done already\n' })
+  put(join(waitRepo, '.planning', 'BUGS.md'), '# T — Bugs\n## Open\n### B011 · P2 · open · found x\n## Fixed (newest first)\n### B010 · P0 · fixed 2026-10-01 · fixed in abc\n### B009 · P1 · fixed 2026-10-01 · fixed in abd\n### B008 · P2 · fixed 2026-10-01 · fixed in abe\n### B007 · P1 · verified 2026-10-01 · fixed in abf\n')
+  const waiting = start(waitRepo)
+  expect('waiting on Muzzy → "1 task (stand-in card fronts) · 2 fixes to check (B010, B009)"', { result: waiting.notes.includes('  ⚠ Waiting on you: 1 task (stand-in card fronts) · 2 fixes to check (B010, B009)') ? 'ok' : 'no', message: waiting.notes.join(' | ') }, 'ok')
+  // review: a ❓ decision waits on Muzzy (not "stalled"); a feature added mid-sprint with no commits yet isn't stalled
+  const decRepo = game('decision', { target: day(30), f08Ago: 1, extraSprint: '## F10 ❓ Which deck\n- [ ] 🙋 1. Pick one\n## F12 🎮 Late add\n- [ ] 🤖 1. x — src/c.ts\n' })
+  put(join(decRepo, '.planning', 'ROADMAP.md'), readFileSync(join(decRepo, '.planning', 'ROADMAP.md'), 'utf8').replace('- ⏳ F10 ❓', '- 🔨 F10 ❓') + '- 🔨 F12 🎮 Late — could · sprint 7\n')
+  const dec = start(decRepo)
+  expect('review: a 🔨 ❓ decision and a mid-sprint addition with no commits → no "hasn\'t moved" lines', { result: !dec.notes.some(l => /hasn't moved/.test(l)) && dec.notes.some(l => /Waiting on you: 1 task \(pick one\)/i.test(l)) ? 'ok' : 'no', message: dec.notes.join(' | ') }, 'ok')
+  const futRepo = game('future', { target: day(30), f08Ago: 1 })
+  put(join(futRepo, '.planning', 'SPRINT.md'), readFileSync(join(futRepo, '.planning', 'SPRINT.md'), 'utf8').replace(/Started \S+/, `Started ${day(5)}`))
+  expect('review: a start date in the future (a typo) → no "day -4"', { result: start(futRepo).notes[0]?.startsWith('📅 Sprint 07 (') || start(futRepo).notes[0] === '📅 Sprint 07' ? 'ok' : 'no', message: start(futRepo).notes.join(' | ') }, 'ok')
+  // a git repo that isn't a BMUZ project → no producer lines at all
+  const plain = newRepo('plain'); put(join(plain, 'a.txt'), 'a\n'); commitAt(plain, 1, 'one')
+  same('not a BMUZ project → nothing', start(plain), [])
+  // a roadmap but no sprint running → no sprint line; a close target still shows
+  const noSprint = game('nosprint'); rmSync(join(noSprint, '.planning', 'SPRINT.md'))
+  same('no SPRINT.md → no sprint line, the close target still shows', start(noSprint), [
+    '  ⚠ alpha target: 5 days left · musts 1/3',
+    '  → producer notes: bring the ⚠ lines up with Muzzy in plain words before starting work.',
+  ])
+  rmSync(root, { recursive: true, force: true })
+}
+
 // F80: `checkup.sh --done` closes a checkup — refuses without today's report, then writes the date
 function testCheckupDone() {
   console.log('checkup.sh --done — the close steps run by the script')
@@ -1161,8 +1277,88 @@ function testCheckupDone() {
   rmSync(home, { recursive: true, force: true })
 }
 
+// F87: the QA routine — every sprint feature has a test plan (Check:), "done" records what was checked (Checked:),
+// and a P1 that was open before the sprint started doesn't sit behind a note
+function testQaRoutine() {
+  console.log('QA routine — Check: / Checked: lines, old P1s (F87)')
+  const says = (got, re) => ({ result: re.test(got.message) ? 'ok' : 'no', message: got.message })
+  // plan-lint
+  const { root, repo } = makeRepo()
+  const plan = join(repo, '.planning')
+  mkdirSync(plan)
+  const roadmap = '# T — Roadmap\n## v0.1 — First ← current\n- ✅ F01 🧱 Base — must\n- 🔨 F02 🎮 Cards — must · needs: F01\n- 🔨 F03 ❓ Which deck?\n- ⏳ F05 ✨ Wiggle — could · needs: F02\n'
+  const tasks = '- [ ] 🤖 1. Layout\n- [ ] 🤖 2. Hover\n- [ ] 🙋 3. Look at it\n'
+  const sprint = `# Sprint 02 — cards\nStarted 2026-10-10 · Milestone v0.1 · Features: F02\n## F02 🎮 Cards\nDone when: x\n${tasks}- [ ] 🤖 4. Fix B002 (score off by one)\nCheck: e2e plays a hand · Muzzy fans 7 cards on his phone\n`
+  const bugs = (extra = '', count = '1 (P0 0 · P1 1') => `# T — Bugs\nOpen: ${count} · P2 0 · P3 0)\n## Open\n### B002 · P1 · open · found 2026-10-01 in F02\nScore off by one\n${extra}## Fixed (newest first)\n`
+  const state = '# State\n## ▶ RESUME HERE\nDoing F02.\n## Where we are\nStage: develop\n## Log\n- 2026-10-18 start\n'
+  for (const [name, text] of Object.entries({ 'ROADMAP.md': roadmap, 'SPRINT.md': sprint, 'BUGS.md': bugs(), 'STATE.md': state })) writeFileSync(join(plan, name), text)
+  writeFileSync(join(repo, '.gitignore'), '.planning/ppp.html\n')
+  sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'plan')
+  const edit = (text) => { writeFileSync(join(plan, 'SPRINT.md'), text); return runHook('plan-lint.mjs', { cwd: repo, hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: join(plan, 'SPRINT.md') } }) }
+  expect('a sprint whose features all have Check: → quiet', edit(sprint), 'allow')
+  const noCheck = edit(sprint.replace(/Check: .*\n/, ''))
+  expect('a feature without a "Check:" line → told', noCheck, 'block')
+  expect('…names the feature and says what a check is', says(noCheck, /F02 has no "Check:" line/), 'ok')
+  expect('a placeholder "Check: —" → told', edit(sprint.replace(/Check: .*\n/, 'Check: —\n')), 'block')
+  expect('"**Check:** …" (bold) counts', edit(sprint.replace('Check:', '**Check:**')), 'allow')
+  expect('review: "- Check: …" (a bullet) counts', edit(sprint.replace('Check:', '- Check:')), 'allow')
+  expect('review: "**Check**: …" counts', edit(sprint.replace('Check:', '**Check**:')), 'allow')
+  expect('a "## Carried to sprint 03 — … (F05)" section without Check: → quiet', edit(`${sprint}## Carried to sprint 03 — Wiggle (F05): not approved yet\nDone when: x\n`), 'allow')
+  expect('a ❓ decision without Check: (its check is Muzzy\'s answer) → quiet', edit(`${sprint}## F03 ❓ Which deck?\n- [ ] 🙋 1. Pick one\n`), 'allow')
+  const oldP1 = edit(sprint.replace('- [ ] 🤖 4. Fix B002 (score off by one)\n', '') + 'Notes: B002 waits for the art pass\n')
+  expect('an open P1 found before the sprint started, only in a Notes line → told', oldP1, 'block')
+  expect('…"B002 (P1) has been open since before this sprint"', says(oldP1, /B002 \(P1\) has been open since before this sprint/), 'ok')
+  expect('…as a sprint task → quiet', edit(sprint), 'allow')
+  writeFileSync(join(plan, 'BUGS.md'), bugs('### B003 · P1 · open · found 2026-10-12 in F02\nHover flickers\n', '2 (P0 0 · P1 2'))
+  const newP1 = edit(`${sprint}Notes: B003 waits for the hover rework\n`)
+  expect('a P1 found during the sprint, named in a Notes line → quiet', newP1, 'allow')
+  const unnamed = edit(sprint)
+  expect('…not named at all → the F80 rule (name it), not "since before this sprint"', { result: unnamed.result === 'block' && /P1 B003/.test(unnamed.message) && !/since before/.test(unnamed.message) ? 'ok' : 'no', message: unnamed.message }, 'ok')
+  writeFileSync(join(plan, 'BUGS.md'), bugs().replace('B002 · P1', 'B002 · P2').replace('P1 1', 'P1 0').replace('P2 0', 'P2 1'))
+  expect('the old bug lowered to P2 → quiet', edit(sprint.replace('- [ ] 🤖 4. Fix B002 (score off by one)\n', '')), 'allow')
+  rmSync(root, { recursive: true, force: true })
+
+  // guard-git: `F08: done` needs "Checked:" in F08's SPRINT section
+  const g = makeRepo()
+  const d = cmd => runHook('guard-git.mjs', bash(g.repo, cmd))
+  sh(g.repo, 'checkout', '-q', 'dev/open')
+  mkdirSync(join(g.repo, '.planning')); writeFileSync(join(g.repo, '.planning', 'STATE.md'), 'RESUME HERE: F08 next\n')
+  sh(g.repo, 'add', '.'); sh(g.repo, 'commit', '-q', '-m', 'STATE: start')
+  writeFileSync(join(g.repo, 'notes.md'), 'one\n'); sh(g.repo, 'add', '.'); sh(g.repo, 'commit', '-q', '-m', 'F08: first task')
+  writeFileSync(join(g.repo, '.planning', 'STATE.md'), 'RESUME HERE: F08 done\nReviewed through: abc1234\n')
+  const section = '## F08 🎮 Splayed\nDone when: x\n- [x] 🤖 1. a\nCheck: e2e plays a hand\n'
+  const sprintFile = join(g.repo, '.planning', 'SPRINT.md')
+  expect('review: "F08: done" with no SPRINT.md (never in a sprint — no Check: plan to record) → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}## F09 🎮 Pile\nChecked: e2e green\n`)
+  const noChecked = d('git add -A && git commit -m "F08: done"')
+  expect('"F08: done" without a "Checked:" line in its section (F09\'s doesn\'t count) → blocked', noChecked, 'deny')
+  expect('…says to write "Checked:" with what was tested, in its own step first', says(noChecked, /"Checked:" line[\s\S]*own step/), 'ok')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}Checked: —\n`)
+  expect('a placeholder "Checked: —" → blocked', d('git add -A && git commit -m "F08: done"'), 'deny')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}Checked: check:fast green · Muzzy fanned 7 cards on his phone\n`)
+  expect('"Checked: check:fast green · Muzzy fanned 7 cards…" → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}Checked: e2e green\n## F09 🎮 Pile\n- [x] 🤖 1. b\nCheck: pile shows\n`)
+  expect('"F08 + F09: done" when F09\'s section has no Checked: → blocked, names F09', says(d('git add -A && git commit -m "F08 + F09: done"'), /F09's section/), 'ok')
+  expect('"F08: tick task" (not done) → allowed', d('git add -A && git commit -m "F08: tick task"'), 'allow')
+  // review fixes
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}- Checked: e2e green · Muzzy tried it\n`)
+  expect('review: "- Checked: …" as a bullet (how check notes were long written) → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}**Checked**: e2e green\n`)
+  expect('review: "**Checked**: …" → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}`)
+  expect('review: lowercase "f08: done" is still checked (it used to crash the hook → no check at all) → blocked', d('git add -A && git commit -m "f08: done"'), 'deny')
+  // archived before the done commit: F08's section is in the newest archived sprint
+  rmSync(sprintFile)
+  mkdirSync(join(g.repo, '.planning', 'archive', 'sprints'), { recursive: true })
+  writeFileSync(join(g.repo, '.planning', 'archive', 'sprints', 'sprint-04.md'), `# Sprint 04 — x\n${section}`)
+  expect('review: sprint archived first, F08 there without Checked: → blocked', d('git add -A && git commit -m "F08: done"'), 'deny')
+  writeFileSync(join(g.repo, '.planning', 'archive', 'sprints', 'sprint-04.md'), `# Sprint 04 — x\n${section}Checked: green\n`)
+  expect('review: …with Checked: in the archived sprint → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
+  rmSync(g.root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'checkup-done': testCheckupDone }
+const suites = { 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)

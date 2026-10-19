@@ -7,13 +7,14 @@
 //   tiny fixes (no `F08:` in the message) stay fine on main.
 //   a feature's `F08: done` commit leaves STATE.md telling the truth (F72): STATE is in that commit, or was changed
 //   since the feature's first commit — otherwise a fresh Claude (or the laptop) resumes from a stale RESUME HERE.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 //   no commit includes a secret or Playwright's leftovers (F78): .env, keys, credentials, .playwright-mcp/ —
 //   the same list save.mjs refuses (NEVER_COMMIT in lib.mjs).
 //   `git checkout -- <file>` / `git checkout .` / `git restore <file>` over uncommitted changes → Muzzy is ASKED
 //   first (F78): it throws those changes away for good (Goops F17 lost cracks.ts this way). Branch switches stay free.
 //   (F80) `F08: done` needs F08 ✅ (or 🎛️) in ROADMAP — "Approved" → done in the plan, not just in git.
+//   (F87) `F08: done` needs a `Checked:` line in F08's SPRINT.md section — what was tested, and the result.
 //   (F80) nothing under .claude/worktrees/ is committed — helpers' worktrees became embedded repos (Goops 2026-10-17).
 //   (F80) a stage commit (`Sprint 04: <goal>`, `GDD: discover`, `GDD: define|design|build plan`, fast-track) carries
 //   STATE.md — the next session starts from RESUME HERE, so it has to say where things now stand.
@@ -33,6 +34,7 @@ for (const [index, call] of calls.entries()) {
   if (sub === 'checkout' || sub === 'restore' || sub === 'switch') { const why = discardsChanges(call); if (why) asks.push(why) }
   if (sub === 'commit' && !args.includes('--dry-run')) checkFeatureCommitOnMain(calls, index, command)
   if (sub === 'commit' && !args.includes('--dry-run')) checkDoneSavesState(calls, index, command)
+  if (sub === 'commit' && !args.includes('--dry-run')) checkDoneWasChecked(calls, index, command)
   if (sub === 'commit' && !args.includes('--dry-run')) checkNoWorktrees(calls, index)
   if (sub === 'commit' && !args.includes('--dry-run')) checkStageCommitSavesState(calls, index, command)
   if (sub === 'merge') checkMergeIntoMain(calls, index)
@@ -197,11 +199,11 @@ function checkDoneSavesState(calls, index, raw) {
   // F80: approved → ✅ in ROADMAP first (🎛️ when tuning goes on), so the planner, the ready states and /sprint agree
   let roadmap = null
   try { roadmap = readRoadmap(readFileSync(join(root, '.planning', 'ROADMAP.md'), 'utf8').replace(/\r\n/g, '\n')) } catch { /* no roadmap */ }
-  const notDone = roadmap ? ids.match(/F\d+[a-z]?/g).filter(id => roadmap.byId[id] && roadmap.byId[id].state.key !== 'done' && !/^- 🎛/.test(roadmap.byId[id].raw)) : []
+  const notDone = roadmap ? featureIds(ids).filter(id => roadmap.byId[id] && roadmap.byId[id].state.key !== 'done' && !/^- 🎛/.test(roadmap.byId[id].raw)) : []
   if (notDone.length) {
     deny(`Blocked: "${ids}: done" but ROADMAP.md still shows ${notDone.map(id => `${id} as ${roadmap.byId[id].state.label}`).join(', ')}. Approved means done in the plan too: set ${notDone.join(', ')} ✅ in .planning/ROADMAP.md (🎛️ if tuning goes on), refresh which features became 🟢 ready (plan-lint names them), then commit again.`)
   }
-  const feature = ids.match(/F\d+[a-z]?/)[0]
+  const feature = featureIds(ids)[0]
   const first = (git(root, 'log', '--format=%H', '--reverse', `--grep=^${feature}:`) || '').split('\n')[0]
   if (!commitFiles(calls, index, root).includes('.planning/STATE.md')) {
     const lastState = (git(root, 'log', '-1', '--format=%H', '--', '.planning/STATE.md') || '')
@@ -225,6 +227,45 @@ function checkDoneSavesState(calls, index, raw) {
   if (stale.length) {
     deny(`Blocked: "${feature}: done" but STATE.md's ${stale.map(([l]) => `"${l}"`).join(' and ')} ${stale.length > 1 ? 'weren\'t' : 'wasn\'t'} updated during ${feature}, so ${stale.length > 1 ? 'they describe' : 'it describes'} older work. Every feature gets the same treatment before it's done: ${stale.map(([, how]) => how).join('; ')}. Then write the line${stale.length > 1 ? 's' : ''} into STATE.md and commit again (F75).`)
   }
+}
+
+// The feature ids in "F08 + f09b: done" → ['F08', 'F09b'] (a lowercase "f08: done" made the old match return null and
+// the whole hook crash — so every done check was skipped; review)
+function featureIds(ids) {
+  return (ids.match(/F\d+[a-z]?/gi) || []).map(id => 'F' + id.slice(1))
+}
+
+// (F87) `F08: done` needs a `Checked:` line in F08's SPRINT.md section: what was actually tested and how it went
+// ("Checked: check:fast green · Muzzy fanned 7 cards on his phone") — the record that the `Check:` plan was carried out.
+function checkDoneWasChecked(calls, index, raw) {
+  const { dir, args } = calls[index]
+  const ids = (commitMessage(raw, args).match(/^\s*(F\d+[a-z]?(?:\s*\+\s*F\d+[a-z]?)*)\s*:\s*done\b/i) || [])[1]
+  if (!ids) return
+  const top = git(dir, 'rev-parse', '--show-toplevel')
+  if (!top) return
+  const root = resolve(top)
+  if (!existsSync(join(root, '.planning', 'STATE.md'))) return // not a BMUZ project
+  const readLines = (...p) => { try { return readFileSync(join(root, '.planning', ...p), 'utf8').replace(/\r\n/g, '\n').split('\n') } catch { return [] } }
+  const heading = (id) => new RegExp(`^#{2,3} ${id}\\b`)
+  // the feature's section: in SPRINT.md, else in the newest archived sprint (archived before the done commit — review);
+  // a feature that was never in a sprint has no Check: plan to record against → not this rule's business
+  const sprintLines = readLines('SPRINT.md')
+  const archiveDir = join(root, '.planning', 'archive', 'sprints')
+  let newest = []
+  try { const f = readdirSync(archiveDir).filter(n => /^sprint-\d+\.md$/.test(n)).sort((a, b) => parseInt(b.slice(7)) - parseInt(a.slice(7)))[0]; if (f) newest = readLines('archive', 'sprints', f) } catch { /* none */ }
+  const missing = featureIds(ids).filter(id => {
+    const lines = sprintLines.some(l => heading(id).test(l)) ? sprintLines : newest
+    const start = lines.findIndex(l => heading(id).test(l))
+    if (start < 0) return false
+    for (let i = start + 1; i < lines.length && !/^#{2,3} /.test(lines[i]); i++) {
+      // "Checked: …", "**Checked:** …", "**Checked**: …", "- Checked: …", indented — check notes were long written as bullets
+      const m = lines[i].match(/^[-*\s]*\*{0,2}Checked\*{0,2}:\*{0,2}(.*)$/i)
+      if (m) return /^(—|-|<[^>]*>)?$/.test(m[1].trim()) // an empty or placeholder line records nothing
+    }
+    return true
+  })
+  if (!missing.length) return
+  deny(`Blocked: "${ids}: done" but ${missing.map(id => `${id}'s section in .planning/SPRINT.md`).join(' and ')} has no "Checked:" line — the record of what was actually tested and how it went (F87). Under its "Check:" line, write e.g. "Checked: check:fast green · e2e:hand 4/4 · Muzzy fanned 7 cards on his phone" (what you ran or looked at + the result; a failed check gets fixed first). (The whole command line is checked before any of it runs, so write SPRINT.md in its own step first, then commit.)`)
 }
 
 // Nothing under .claude/worktrees/ (helpers' workspaces) goes into a commit — `git add -A` would add each one as an

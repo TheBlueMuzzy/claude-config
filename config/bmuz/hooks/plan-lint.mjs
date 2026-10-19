@@ -154,7 +154,8 @@ function lintSprint(sprint, roadmap, add, text, dir, bugsText) {
   // tasks under a heading that isn't a feature ("## Extras") never show in the planner
   let heading = null
   text.split('\n').forEach((line, n) => {
-    if (/^## /.test(line)) heading = /^## F\d+[a-z]?\b/.test(line) ? null : { text: line.slice(3).trim(), lineNo: n + 1, warned: false }
+    // (a "## Carried to sprint NN — … (Fxx)" section keeps its tasks on purpose — they move on with it, PROJECT-FILES)
+    if (/^## /.test(line)) heading = /^## (F\d+[a-z]?\b|Carried to sprint\b)/i.test(line) ? null : { text: line.slice(3).trim(), lineNo: n + 1, warned: false }
     else if (heading && !heading.warned && /^- \[( |x)\]/i.test(line)) {
       heading.warned = true
       add(F, heading.lineNo, `tasks under "## ${heading.text}" don't show in the planner — put them under the "## F…" feature they belong to`)
@@ -183,13 +184,40 @@ function lintSprint(sprint, roadmap, add, text, dir, bugsText) {
       }
     }
   }
+  // every feature has a test plan (F87): a `Check:` line in its section saying what proves it works. A ❓ decision's
+  // check is Muzzy's answer, so it needs none. (`## Carried to sprint NN — … (Fxx)` isn't a feature heading here.)
+  const lines = text.split('\n')
+  for (const feature of sprint.features) {
+    if (roadmap?.byId[feature.id]?.type === '❓' || /^## F\d+[a-z]?\s+❓/.test(lines[feature.lineNo - 1])) continue
+    const plan = sectionLine(lines, feature.lineNo, 'Check')
+    if (!plan) add(F, feature.lineNo, `${feature.id} has no "Check:" line — its test plan: what proves it works (a test, a screenshot, "Muzzy fans 7 cards on his phone"). Add "Check: …" under its tasks`)
+  }
   // open P0/P1 bugs always go in as tasks (F80): each one is named somewhere in the sprint (a task, or a Notes line saying why it waits)
   if (bugsText !== null && bugsText !== undefined) {
     const label = sprint.title || 'This sprint'
+    const started = sprint.started // the one shared reading of "Started" (plan-reader)
+    // the sprint's work: its task lines and feature headings (a 🐞 feature can carry the bug id in its title)
+    const work = lines.filter(l => /^- \[( |x)\]/i.test(l) || /^## F\d/.test(l)).join('\n')
     for (const bug of readBugs(bugsText).filter(b => isOpenBug(b) && /P[01]/.test(b.priority) && !/watching/i.test(b.status))) {
-      if (!new RegExp(`\\b${bug.id}\\b`).test(text)) add(F, null, `"${label}" doesn't name open ${bug.priority} ${bug.id} — open P0/P1 bugs always go in as tasks (or a Notes line saying why it waits)`)
+      const named = new RegExp(`\\b${bug.id}\\b`)
+      // F87: old bugs don't sit — a P1 already open when the sprint began is a task now (a "why it waits" note is
+      // only for a P1 found during the sprint), or it isn't really a P1
+      const found = (`${bug.status} ${bug.rest}`.match(/\bfound\s+(\d{4}-\d{2}-\d{2})/) || [])[1]
+      if (bug.priority === 'P1' && started && found && found < started && !named.test(work)) add(F, null, `${bug.id} (P1) has been open since before this sprint (found ${found}) — put it in the sprint as a task, or lower it to P2 in BUGS.md with a reason`)
+      else if (!named.test(text)) add(F, null, `"${label}" doesn't name open ${bug.priority} ${bug.id} — open P0/P1 bugs always go in as tasks (or a Notes line saying why it waits)`)
     }
   }
+}
+
+// The text of a `<label>: …` line in the section starting at `headingLineNo` (up to the next "## "), or '' when there's
+// none or it's still a placeholder ("Check: —", "Check: <…>"). "**Check:**", "**Check**:", "- Check:" and an indented
+// line count too (review: check notes have long been written as bullets)
+function sectionLine(lines, headingLineNo, label) {
+  for (let i = headingLineNo; i < lines.length && !/^## /.test(lines[i]); i++) {
+    const m = lines[i].match(new RegExp(`^[-*\\s]*\\*{0,2}${label}\\*{0,2}:\\*{0,2}(.*)$`, 'i'))
+    if (m) { const value = m[1].trim(); return /^(—|-|<[^>]*>)?$/.test(value) ? '' : value }
+  }
+  return ''
 }
 
 // The file paths a task names after its last " — " ("… — src/a.ts, content/x/"): words with a slash or a file

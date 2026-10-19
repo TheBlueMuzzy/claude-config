@@ -1,6 +1,7 @@
 // File away a finished sprint (F69 — /sprint B1, /develop §4).
 //   node ~/.claude/config/bmuz/scripts/archive-sprint.mjs
-// Refuses while any feature in SPRINT.md isn't ✅ done or 🎛️ tuning in ROADMAP (unticked 🙋 tasks are named too).
+// Refuses while any feature in SPRINT.md isn't ✅ done or 🎛️ tuning in ROADMAP (unticked 🙋 tasks are named too),
+// or while its "Retro:" block (went well · went wrong · change) isn't filled in (F81).
 // Then: .planning/SPRINT.md → .planning/archive/sprints/sprint-NN.md (NN from its "# Sprint NN" title) and commits
 // "Sprint NN done" with just those two paths.
 import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs'
@@ -25,6 +26,11 @@ if (notDone.length) {
   })
   refuse(`the sprint isn't finished:\n    ${lines.join('\n    ')}`, 'finish (or get Muzzy\'s "approved" → ✅ in ROADMAP) first')
 }
+// The retro (F81): a studio looks back after every sprint — three short lines, Muzzy's words
+const missing = ['went well', 'went wrong', 'change'].filter(k => !sprint.retro[k])
+if (missing.length) refuse(`SPRINT.md has no finished retro (missing: ${missing.join(', ')})`,
+  'ask Muzzy three quick questions — what went well? what went wrong? what should we change next sprint? — and put his answers\n' +
+  '    in SPRINT.md as "Retro:" then "- went well: …", "- went wrong: …", "- change: …" (you may draft them from the Notes; his words win)')
 const nn = String(number).padStart(2, '0')
 const target = join('.planning', 'archive', 'sprints', `sprint-${nn}.md`)
 if (existsSync(join(root, target))) refuse(`${target} already exists`, 'is the sprint number in SPRINT.md\'s title right?')

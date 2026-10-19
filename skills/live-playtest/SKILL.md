@@ -64,6 +64,17 @@ Report to Muzzy:
 - Whether reconnection / host migration / play-again flows worked
 - Anything that looked off
 
+### Step 7: Write the playtest log (F87)
+When the session ends, write `.planning/research/playtests/<YYYY-MM-DD>.md` (a second one that day: `<date>-2.md`) in the game's repo and commit it with the next /save ② (release.mjs refuses a stage release — alpha, beta, 1.0 — with no playtest log since the last stage; override `--no-playtest-ok` is Muzzy's call). Short:
+```markdown
+# Playtest 2026-10-19
+Who: Muzzy + Sam (online, 2 phones) · Build: v0.4.1.12 (dev) · How long: ~25 min, 3 rounds
+What happened: <2–5 lines, player's-eye — what they did, who won, where they hesitated>
+Issues: B031 (P1) score stuck after play-again · B032 (P3) toast overlaps the dice — or "none"
+Feel (his words): "the roll feels great" · "waiting for the other player is boring"
+```
+Every issue gets a bug id (`/bug` logs it first). Feel notes stay in his words; mda-analyze's playtest mode reads them.
+
 ## What Doesn't Work (Don't Try These)
 - **Starting a second room server (`wrangler dev`)** — port is already in use by Muzzy's server. A second instance binds but doesn't get the traffic.
 - **Passive WebSocket spectator** — connecting a raw WebSocket to `ws://localhost:1999/party/<room>` gets a `connected` ack but receives no broadcasts. Server only broadcasts to players who sent a `join` message.

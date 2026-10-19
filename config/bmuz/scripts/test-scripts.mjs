@@ -231,6 +231,7 @@ function testReleaseGates() {
   expect('D4: alpha musts open → refused, names F05, says --musts-open-ok', stOpen.code === 1 && /alpha musts aren't all done/.test(stOpen.out) && /F05/.test(stOpen.out) && /--musts-open-ok/.test(stOpen.out), stOpen.out)
   expect('D31: …and "Release target:" still says alpha → refused', /"Release target:" still says alpha/.test(stOpen.out), stOpen.out)
   write(join(st, '.planning', 'ROADMAP.md'), readFileSync(join(st, '.planning', 'ROADMAP.md'), 'utf8').replace('Release target: alpha', 'Release target: beta — musts not set (/define)'))
+  write(join(st, '.planning', 'research', 'playtests', `${TODAY}.md`), '# Playtest\n') // F87: a stage needs a playtest log
   const stOk = release(st, 'stage', 'Alpha', '--stage=alpha', '--musts-open-ok')
   expect('D4: --musts-open-ok (Muzzy\'s call) → released, open musts listed for the notes', stOk.code === 0 && sh(st, 'tag') === 'v0.10.0' && /released with open musts/.test(stOk.out), stOk.out)
   expect('…the override is on record in the release commit body ("Released with: --musts-open-ok (alpha: F05)")', /Released with: --musts-open-ok \(alpha: F05\)/.test(sh(st, 'log', '-1', '--format=%B')), sh(st, 'log', '-1', '--format=%B'))
@@ -401,6 +402,9 @@ function testSaveTriggers() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// A finished sprint's 3-line retro (F81 — archive-sprint refuses without it)
+const RETRO = 'Retro:\n- went well: the fan looked right first try\n- went wrong: tuning took two extra days\n- change: try the feel on the phone sooner\n'
+
 function testSprintHelpers() {
   console.log('archive-sprint + musts-check — plan files, by the shared reader')
   const root = mkdtempSync(join(tmpdir(), 'bmuz-sprint-'))
@@ -417,17 +421,48 @@ function testSprintHelpers() {
   expect('musts-check beta → no musts → refused', musts('beta').code === 1)
   const early = archive()
   expect('archive-sprint while F02 is building → refused, names the open 🙋 task', early.code === 1 && /Look at it/.test(early.out) && existsSync(join(repo, '.planning', 'SPRINT.md')), early.out)
-  write(join(repo, '.planning', 'ROADMAP.md'), roadmap('✅')); sh(repo, 'commit', '-qam', 'F02 done')
+  write(join(repo, '.planning', 'ROADMAP.md'), roadmap('✅'))
+  write(join(repo, '.planning', 'SPRINT.md'), `${readFileSync(join(repo, '.planning', 'SPRINT.md'), 'utf8')}${RETRO}`); sh(repo, 'commit', '-qam', 'F02 done')
   expect('musts-check → all done (exit 0)', musts().code === 0)
   const done = archive()
   expect('archive-sprint when done → sprint-04.md + "Sprint 04 done" commit', done.code === 0 && existsSync(join(repo, '.planning', 'archive', 'sprints', 'sprint-04.md')) && !existsSync(join(repo, '.planning', 'SPRINT.md')) && sh(repo, 'log', '-1', '--format=%s') === 'Sprint 04 done', done.out)
   expect('…nothing else committed with it', !sh(repo, 'status', '--porcelain'))
   expect('no SPRINT.md → refused', archive().code === 1)
   // review: a SPRINT.md that was never committed
-  write(join(repo, '.planning', 'SPRINT.md'), '# Sprint 05 — more\n## F02 🎮 Cards\n- [x] 🤖 1. a\n')
+  write(join(repo, '.planning', 'SPRINT.md'), `# Sprint 05 — more\n## F02 🎮 Cards\n- [x] 🤖 1. a\n${RETRO}`)
   const fresh = archive()
   expect('never-committed SPRINT.md → archived and committed, nothing half-done (review)', fresh.code === 0 && existsSync(join(repo, '.planning', 'archive', 'sprints', 'sprint-05.md')) && !sh(repo, 'status', '--porcelain'), fresh.out + sh(repo, 'status', '--porcelain'))
   expect('musts-check "alpha(" (odd stage name) → refused, no crash', /no feature says/.test(musts('alpha(').out))
+  rmSync(root, { recursive: true, force: true })
+}
+
+async function testArchiveRetro() {
+  console.log('archive-sprint — the 3-line retro first (F81)')
+  // review: a retro written the Obsidian way is still a retro (plan-reader is what archive-sprint reads it with)
+  const { readSprint } = await import('../templates/ppp/plan-reader.mjs')
+  const full = (r) => ['went well', 'went wrong', 'change'].every(k => readSprint(`# Sprint 06 — x\n## F02 🎮 a\n${r}`).retro[k])
+  for (const [name, r] of [
+    ['"## Retro" heading', '## Retro\n- went well: a\n- went wrong: b\n- change: c\n'],
+    ['"**Retro:**" + bold labels', '**Retro:**\n- **went well:** a\n- **went wrong:** b\n- **change:** c\n'],
+    ['a blank line before the bullets, "*" bullets', 'Retro:\n\n* went well: a\n* went wrong: b\n* change: c\n'],
+    ['"—" instead of ":"', 'Retro:\n- Went well — a\n- Went wrong — b\n- Change — c\n'],
+    ['CRLF', 'Retro:\r\n- went well: a\r\n- went wrong: b\r\n- change: c\r\n'],
+  ]) expect(`review: retro read from ${name}`, full(r), JSON.stringify(readSprint(`# S\n${r}`).retro))
+  expect('review: "Started: 2026-10-01" / "**Started:** …" read too (one reading for every tool)', readSprint('# S\n**Started:** 2026-10-01 · x\n').started === '2026-10-01' && readSprint('# S\nStarted: 2026-10-02\n').started === '2026-10-02')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-retro-'))
+  const repo = makeRepo(root)
+  write(join(repo, '.planning', 'ROADMAP.md'), '# T — Roadmap\n## v0.1 — First ← current\n- ✅ F02 🎮 Cards — must:alpha\n')
+  const sprint = (retro) => write(join(repo, '.planning', 'SPRINT.md'), `# Sprint 06 — cards\nStarted 2026-10-01\n## F02 🎮 Cards\n- [x] 🤖 1. a\nNotes:\n- fan done\n${retro}`)
+  sprint(''); sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'plan')
+  const archive = () => script('archive-sprint.mjs', [], { cwd: repo })
+  const none = archive()
+  expect('all features done but no Retro: → refused, says to ask Muzzy the three questions, nothing moved', none.code === 1 && /retro/i.test(none.out) && /ask Muzzy/.test(none.out) && /went well/.test(none.out) && existsSync(join(repo, '.planning', 'SPRINT.md')), none.out)
+  sprint('Retro:\n- went well: the fan\n- went wrong:\n- change: phone sooner\n')
+  const half = archive()
+  expect('a Retro: with an empty "went wrong" → refused, names what\'s missing', half.code === 1 && /missing: went wrong/.test(half.out) && existsSync(join(repo, '.planning', 'SPRINT.md')), half.out)
+  sprint(RETRO)
+  const done = archive()
+  expect('all three lines filled → archived, the retro kept in sprint-06.md', done.code === 0 && /went wrong: tuning/.test(readFileSync(join(repo, '.planning', 'archive', 'sprints', 'sprint-06.md'), 'utf8')), done.out)
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -777,6 +812,7 @@ function testScriptCommitGuards() {
   }
   write(join(repo, '.gitignore'), 'node_modules/\n.claude/worktrees/\n.planning/ppp.html\n')
   write(stateFile, '# State\n## ▶ RESUME HERE\nstart\n## Key facts\nReviewed through: none yet\n## Log\n- x\n')
+  write(join(repo, '.planning', 'SPRINT.md'), '# Sprint 01 — cards\n## F08 🎮 Cards\nCheck: a test\nChecked: test green\n') // F87: "done" needs Checked:
   sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'plan'); sh(repo, 'push', '-q')
   // guard-git: feature code on main
   write(join(repo, 'src', 'cards.js'), 'x\n')
@@ -804,8 +840,37 @@ function testScriptCommitGuards() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F87: a stage release (alpha/beta/1.0) goes out after someone played it — a playtest log since the last stage
+function testReleasePlaytest() {
+  console.log('release — a stage release needs a playtest log (F87)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-playtest-'))
+  const release = (repo, ...a) => script('release.mjs', a, { cwd: repo, env: { BMUZ_CLEANUP: FAKE_CLEANUP } })
+  const ready = (name) => releaseProject(root, name, { state: { resume: 'Released v0.10.0 — alpha' },
+    roadmap: `# T — Roadmap\nRelease target: beta — musts not set (/define)\n## v0.1 — First  ✅ released ${TODAY}\n- ✅ F01 🧱 Cards — must:alpha\n` })
+  const logs = (repo, ...dates) => { for (const date of dates) write(join(repo, '.planning', 'research', 'playtests', `${date}.md`), `# Playtest ${date}\n`) }
+  const none = ready('none')
+  const noLog = release(none, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
+  expect('stage release, no playtest log → refused, says /play watch mode and --no-playtest-ok', noLog.code === 1 && /no playtest log since/.test(noLog.out) && /--no-playtest-ok/.test(noLog.out), noLog.out)
+  const update = release(none, 'update', 'x', '--dry-run') // (refused for its RESUME HERE naming v0.10.0 — not for a playtest)
+  expect('…a plain update release isn\'t asked for one', !/playtest/.test(update.out), update.out)
+  logs(none, TODAY)
+  const withLog = release(none, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
+  expect(`…a log dated ${TODAY} → passes, names it`, withLog.code === 0 && withLog.out.includes(`${TODAY}.md`), withLog.out)
+  // the window starts at the last stage release (its commit says "Stage: …"), not at the first commit
+  const old = ready('old')
+  execFileSync('git', ['-C', old, 'commit', '-q', '--allow-empty', '-m', 'Release v0.9.0: Proto\n\nStage: prototype'], { env: { ...process.env, GIT_COMMITTER_DATE: '2026-10-10T12:00:00', GIT_AUTHOR_DATE: '2026-10-10T12:00:00' } })
+  logs(old, '2026-10-05')
+  const stale = release(old, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
+  expect('a log older than the last stage release (prototype, 2026-10-10) → refused, names the newest log', stale.code === 1 && /since the last stage release \(2026-10-10\)/.test(stale.out) && /2026-10-05\.md/.test(stale.out), stale.out)
+  const skipped = release(old, 'stage', 'Alpha', '--stage=alpha', '--no-playtest-ok')
+  const body = sh(old, 'log', '-1', '--format=%B')
+  expect('--no-playtest-ok (Muzzy\'s call) → released, on record in the commit body', skipped.code === 0 && /Released with: --no-playtest-ok \(alpha: no playtest log since 2026-10-10\)/.test(body), `${skipped.out}\n${body}`)
+  expect('…and the commit says "Stage: alpha", so the next stage counts from here', /^Stage: alpha$/m.test(body), body)
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards }
+const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)

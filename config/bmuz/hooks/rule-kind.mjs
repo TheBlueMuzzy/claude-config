@@ -72,6 +72,11 @@ if (input.tool_name === 'Write') {
     const before = new Set(unmarked(edit.old_string || ''))
     added.push(...unmarked(edit.new_string || '').filter(line => !before.has(line)))
   }
+  // an edit can replace PART of a line: judge the whole line as it is now in the file — its mark may sit before the
+  // edited part (found in use: a HOOKS.md row "| 5 ① | …" edited mid-line was flagged)
+  let now = []
+  try { now = readFileSync(resolve(file), 'utf8').replace(/\r\n/g, '\n').split('\n') } catch {}
+  added = added.filter(part => { const whole = now.find(l => l.includes(part)); return !whole || !MARK.test(whole) })
 }
 if (!added.length) process.exit(0)
 tellClaude(`New rule line(s) in ${file} don't say how they happen (F80):\n${added.slice(0, 8).map(l => `- ${l.slice(0, 160)}`).join('\n')}\nMark each: ① a script or hook does it (name it) · ② judgement, but a hook/script refuses until it's on record (name it) · ③ judgement only (say why it can't be checked). If it's really "Claude must remember", make it ① or ② instead — a hook or a script step — and mark it then.`)

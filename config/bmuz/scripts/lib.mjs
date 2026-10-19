@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { git, codeFingerprint } from '../hooks/lib.mjs'
+import { git, codeFingerprint, holdCheckLock } from '../hooks/lib.mjs'
 export { git, NEVER_COMMIT } from '../hooks/lib.mjs'
 
 const HOOKS = join(import.meta.dirname, '..', 'hooks')
@@ -12,11 +12,12 @@ const HOOKS = join(import.meta.dirname, '..', 'hooks')
 // The framework checkout (tests point this at a fake one).
 export const FRAMEWORK = process.env.BMUZ_FRAMEWORK || join(homedir(), 'Documents', 'dev', 'framework')
 
-// Run a command; returns { code, out } with stdout + stderr together. Never throws.
+// Run a command; returns { code, out, stdout } — out = stdout + stderr together (for messages), stdout alone for
+// output that gets parsed (a stderr warning glued onto JSON broke stop-servers' process list under load). Never throws.
 export function run(command, args, { cwd = process.cwd(), timeout = 600_000 } = {}) {
   const shell = process.platform === 'win32' && /^(npm|npx)$/.test(command) // npm is npm.cmd on Windows
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8', timeout, shell, stdio: ['ignore', 'pipe', 'pipe'] })
-  return { code: result.status ?? 1, out: `${result.stdout || ''}${result.stderr || ''}${result.error ? String(result.error.message) : ''}` }
+  const result = spawnSync(command, args, { cwd, encoding: 'utf8', timeout, shell, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
+  return { code: result.status ?? 1, out: `${result.stdout || ''}${result.stderr || ''}${result.error ? String(result.error.message) : ''}`, stdout: result.stdout || '' }
 }
 
 export const say = (text) => console.log(text)
@@ -208,8 +209,15 @@ export function fastChecks(root) {
   const record = greenRecord(root)
   if (scripts['check:fast']) {
     const fingerprint = codeFingerprint(root)
-    if (existsSync(record) && readFileSync(record, 'utf8').trim() === fingerprint) return [{ name: 'check:fast', ok: true, cached: true, out: '' }]
+    const isGreen = () => existsSync(record) && readFileSync(record, 'utf8').trim() === fingerprint
+    if (isGreen()) return [{ name: 'check:fast', ok: true, cached: true, out: '' }]
+    // one check:fast at a time per project (another session or a hook may be running it — Goops 2026-10-19): wait for
+    // it (up to 10 min), then reuse its pass on this exact code
+    const release = holdCheckLock(root, 600_000)
+    if (!release) return [{ name: 'check:fast', ok: false, cached: false, out: 'another check:fast in this project has been running for over 10 minutes — not run again here' }]
+    if (isGreen()) { release(); return [{ name: 'check:fast', ok: true, cached: true, out: '' }] }
     const check = run('npm', ['run', 'check:fast'], { cwd: root, timeout: 300_000 })
+    release()
     if (check.code === 0) writeFileSync(record, fingerprint + '\n')
     return [{ name: 'check:fast', ok: check.code === 0, cached: false, out: check.out }]
   }

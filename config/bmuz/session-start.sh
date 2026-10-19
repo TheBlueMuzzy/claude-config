@@ -118,6 +118,10 @@ if [ -f "$STATE" ]; then
   fi
 fi
 
+# The producer's eye (F81): the sprint line every time + only the lines that need attention (target date, stalled
+# features, what's waiting on Muzzy). Quiet outside a BMUZ project. Local only — no network.
+[ -d .planning ] && node "$(dirname "$0")/hooks/producer-notes.mjs" . 2>/dev/null
+
 # Open questions for Muzzy in the sprint (F80 — /develop "ask now" was remembered): every non-empty "Ask Muzzy:" line
 if [ -f .planning/SPRINT.md ]; then
   ASKS=$(grep -E "Ask Muzzy:" .planning/SPRINT.md | sed -E 's/^.*Ask Muzzy:[[:space:]]*//' | grep -Evi '^(—|-|none|n/a)?[[:space:]]*$' | cut -c1-160 | sed 's/^/  ? /')

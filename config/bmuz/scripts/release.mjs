@@ -18,6 +18,7 @@
 //                D18 no finished SPRINT.md left un-archived
 //                D31 milestone/stage/major: a ROADMAP milestone heading is ✅ with today's date
 //                D4  stage/major: musts-check for --stage (override: --musts-open-ok) and `Release target:` moved on
+//                F87 stage/major: a playtest log dated since the last stage release (override: --no-playtest-ok)
 //   printed      D42 "server code changed since <tag>: yes/no"
 // Overrides are Muzzy's judgement calls, so each one used goes in the release commit's body ("Released with: …").
 // Then: bump (build → 0), history entry, package.json + lock, STATE `Version:`, commit "Release vX.Y.Z: <summary>"
@@ -31,7 +32,7 @@ import { defaultBranch } from '../hooks/lib.mjs'
 import { readBugs, isOpenBug, readRoadmap, readSprint } from '../templates/ppp/plan-reader.mjs'
 
 const KINDS = { update: 2, milestone: 1, stage: 1, major: 0 } // which part of X.Y.Z goes up
-const OVERRIDES = { '--musts-open-ok': 'released with open musts', '--unapproved-ok': 'released with features Muzzy hasn\'t approved yet' }
+const OVERRIDES = { '--musts-open-ok': 'released with open musts', '--unapproved-ok': 'released with features Muzzy hasn\'t approved yet', '--no-playtest-ok': 'released without a playtest since the last stage' }
 const { words, flags } = args()
 const [kind, summary] = words
 if (!(kind in KINDS)) refuse(`what kind of release? (got "${kind ?? ''}")`, 'release.mjs <update|milestone|stage|major> "<summary>"')
@@ -168,7 +169,8 @@ if (stateText !== null) {
   }
   // D31 / D4: a milestone or stage release closes its milestone (and a stage release its stage)
   if (at < 2) {
-    const closed = headings(roadmapText).some(h => /✅/.test(h) && isToday(h))
+    // (the milestone's own "· target: <date>" doesn't count as the day it was closed — review)
+    const closed = headings(roadmapText).some(h => /✅/.test(h) && isToday(h.replace(/·\s*target:\s*\S+/i, '')))
     if (!closed) fail(`a ${kind} release, but no ROADMAP milestone heading is marked ✅ with today's date`, `mark it: "## v0.3 — <name>  ✅ released ${today[0]} (${tag})"`)
   }
   if (stage) {
@@ -179,6 +181,17 @@ if (stateText !== null) {
     } else say(`⚠ released with open musts — say what's missing in the notes:\n${tail(musts.out, 10)}`)
     const target = ((roadmapText || '').match(/^Release target:\s*([a-z0-9.]+)/im) || [])[1]
     if (target && target.toLowerCase() === stage) fail(`ROADMAP's "Release target:" still says ${stage}`, `move it to the next stage (e.g. "Release target: beta — musts not set (/define)")`)
+    // F87: a stage goes out after someone played it — a playtest log (.planning/research/playtests/<date>.md) dated on
+    // or after the last stage release (its commit carries "Stage: <x>"; none yet → the first commit)
+    const stageReleases = (git(root, 'log', '--format=%cs %s', '--grep=^Stage: ', 'HEAD') || '').split('\n').filter(l => / Release v\d/.test(l))
+    const lastStage = (stageReleases[0] || (git(root, 'log', '--reverse', '--format=%cs', 'HEAD') || '').split('\n')[0]).slice(0, 10)
+    let logs = []
+    try { logs = readdirSync(join(root, '.planning', 'research', 'playtests')).filter(f => /^\d{4}-\d{2}-\d{2}.*\.md$/.test(f)) } catch { /* none yet */ }
+    const fresh = logs.filter(f => f.slice(0, 10) >= lastStage)
+    if (fresh.length) ok(`playtest log${fresh.length > 1 ? 's' : ''} since ${lastStage}: ${fresh.join(', ')}`)
+    else if (!override('--no-playtest-ok', `${stage}: no playtest log since ${lastStage}`)) {
+      fail(`no playtest log since the last stage release (${lastStage})${logs.length ? ` — the newest is ${logs.sort().at(-1)}` : ''} — a ${stage} goes out after someone has played it`, '/play in watch mode while Muzzy (or a friend) plays it writes .planning/research/playtests/<date>.md; or ask Muzzy: release without one? yes → run again with --no-playtest-ok')
+    }
   }
 }
 // ROADMAP's milestone headings as written (readRoadmap keeps only the cleaned-up name)
@@ -222,7 +235,9 @@ if (changed.includes('package-lock.json')) {
   writeJson(join(root, 'package-lock.json'), lock)
 }
 if (changed.includes('.planning/STATE.md')) writeFileSync(join(root, '.planning', 'STATE.md'), stateOut)
-const message = `Release ${tag}: ${summary}${used.length ? `\n\nReleased with: ${used.join('; ')}` : ''}`
+// "Stage: alpha" marks a stage release, so the next one knows where its playtest window starts (F87)
+const body = [...(stage ? [`Stage: ${stage}`] : []), ...(used.length ? [`Released with: ${used.join('; ')}`] : [])]
+const message = `Release ${tag}: ${summary}${body.length ? `\n\n${body.join('\n')}` : ''}`
 const add = run('git', ['add', '--', ...new Set([...changed, ...dirty])], { cwd: root })
 if (add.code !== 0) { putBack(); refuse(`git add failed — the version files are put back:\n${add.out}`) }
 const blocked = guardCommit(root, message) // the commit hooks a typed `git commit` gets (F80)

@@ -310,6 +310,35 @@ export function codeFingerprint(dir) {
 // `npm run check:fast` with a time limit → { code, output, timedOut }. On a timeout the WHOLE process tree is ended
 // (on Windows npm's vitest / vite children outlive a plain kill — they'd hold ports and files). stop-check-fast,
 // commit-typecheck.
+// One check:fast at a time per project, across every session and tool (stop-check-fast, commit-typecheck, save.mjs,
+// release.mjs). Goops 2026-10-19: two runs at once both build into dist/ and break each other — since F80 the check
+// runs from many places, so two Claude sessions in one game could collide. Waits up to `waitMs` for the other run;
+// returns a release() to call when done, or null if it's still busy. A lock left by a dead process (or 15+ min old) is
+// taken over. The caller then re-reads the green record: the run it waited on may have just passed this exact code.
+export function holdCheckLock(root, waitMs) {
+  const lock = join(resolve(root, git(root, 'rev-parse', '--git-dir') || '.git'), 'bmuz-check.lock')
+  const deadline = Date.now() + (Number(process.env.BMUZ_LOCK_WAIT_MS) || waitMs) // (env = tests only)
+  const nap = new Int32Array(new SharedArrayBuffer(4))
+  for (;;) {
+    try {
+      writeFileSync(lock, `${process.pid} ${Date.now()}`, { flag: 'wx' })
+      const release = () => { try { if (readFileSync(lock, 'utf8').startsWith(`${process.pid} `)) unlinkSync(lock) } catch {} }
+      process.on('exit', release)
+      return release
+    } catch (error) {
+      if (error.code !== 'EEXIST') return () => {} // can't lock (read-only .git?) — run anyway, as before
+    }
+    let pid = 0, since = 0
+    try { [pid, since] = readFileSync(lock, 'utf8').split(' ').map(Number) } catch { continue }
+    if (!isAlive(pid) || Date.now() - since > 15 * 60_000) { try { unlinkSync(lock) } catch {} ; continue }
+    if (Date.now() >= deadline) return null
+    Atomics.wait(nap, 0, 0, 1000) // a second, then look again
+  }
+}
+function isAlive(pid) {
+  try { process.kill(pid, 0); return true } catch (error) { return error.code === 'EPERM' }
+}
+
 export function runCheckFast(dir, limitMs) {
   return new Promise(done => {
     const child = spawn('npm run check:fast', { cwd: dir, shell: true })

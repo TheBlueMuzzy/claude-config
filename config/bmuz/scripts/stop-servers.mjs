@@ -59,7 +59,9 @@ function processes() {
     const out = run('ps', ['-eo', 'pid=,ppid=,args=']).out
     return out.split('\n').map(l => l.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean).map(m => ({ pid: +m[1], ppid: +m[2], cmd: m[3] }))
   }
-  const out = run('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{n='Started';e={$_.CreationDate.ToString('o')}} | ConvertTo-Json -Compress"]).out
+  // stdout only, and no .ToString() on a missing date: a process that ends while the list is built has none, and the
+  // error PowerShell printed for it was glued onto the JSON (flaky "couldn't list the running processes" under load)
+  const out = run('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{n='Started';e={if ($_.CreationDate) { $_.CreationDate.ToString('o') }}} | ConvertTo-Json -Compress"]).stdout
   let list = []
   try { list = JSON.parse(out) } catch { refuse(`couldn't list the running processes:\n${out.slice(0, 300)}`) }
   return [].concat(list).map(p => ({ pid: p.ProcessId, ppid: p.ParentProcessId, cmd: p.CommandLine || '', started: p.Started ? Date.parse(p.Started) : 0 }))

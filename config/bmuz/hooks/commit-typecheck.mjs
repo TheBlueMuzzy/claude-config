@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
-import { readInput, deny, gitCalls, git, commitFiles, commitMessage, codeFingerprint, runCheckFast } from './lib.mjs'
+import { readInput, deny, gitCalls, git, commitFiles, commitMessage, codeFingerprint, runCheckFast, holdCheckLock } from './lib.mjs'
 
 const TIME_LIMIT_MS = 150_000 // the type check's limit; the hook itself gets 180 s in settings.json
 const BUG_CHECK_MS = 100_000 // check:fast for a `Fix Bnn:` commit — leaves room for the type check inside the 180 s
@@ -59,8 +59,14 @@ async function checkBugFix(root, message) {
   }
   const record = join(resolve(root, git(root, 'rev-parse', '--git-dir') || '.git'), 'bmuz-last-green')
   const fingerprint = codeFingerprint(root)
-  if (existsSync(record) && readFileSync(record, 'utf8').trim() === fingerprint) return // already green on this code
+  const isGreen = () => existsSync(record) && readFileSync(record, 'utf8').trim() === fingerprint
+  if (isGreen()) return // already green on this code
+  // one check:fast at a time per project (lib.holdCheckLock): wait ≤ 30 s, reuse the other run's pass; still busy →
+  // let the commit through like a timeout (stop-check-fast checks at the end of the turn)
+  const release = holdCheckLock(root, 30_000)
+  if (!release || isGreen()) { release?.(); return }
   const { code, output, timedOut } = await runCheckFast(root, BUG_CHECK_MS)
+  release()
   if (timedOut) return // too slow to confirm here — stop-check-fast still runs it at the end of the turn
   if (code === 0) { try { writeFileSync(record, fingerprint + '\n') } catch {} ; return }
   const tail = output.trim().split('\n').slice(-30).join('\n')

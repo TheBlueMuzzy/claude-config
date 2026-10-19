@@ -100,12 +100,18 @@ for (const [root, p] of projects) {
   }
   // 5. the sprint is finished but still sitting there
   const finished = finishedSprint(root)
-  if (finished) {
+  // archive-sprint needs Muzzy's 3-line retro first (F81) — without it, the step is to ASK him, and a turn whose last
+  // message already asks isn't sent back (review: "archive it" bounced a turn that was waiting on his answers)
+  const lastWords = input.last_assistant_message ?? turn.lastText ?? ''
+  if (finished && !finished.retro && /\bretro\b|went well/i.test(lastWords)) { /* waiting on Muzzy's retro — fine */ }
+  else if (finished && !finished.retro) {
+    problems.push(`${name}: every feature in SPRINT.md (${finished.ids}) is ✅ in ROADMAP — before archiving, ask Muzzy the 3-line retro (went well · went wrong · change; you may draft from the sprint's Notes, his words win), write it as "Retro:" in SPRINT.md, then node ~/.claude/config/bmuz/scripts/archive-sprint.mjs.`)
+  } else if (finished) {
     const bugs = openBugs(root)
     const sweep = bugs.P0 + bugs.P1 > 0 || bugs.P2 >= 3
       ? ` BUGS.md has ${bugs.P0} P0 · ${bugs.P1} P1 · ${bugs.P2} P2 open — offer Muzzy a /bug sweep first (/develop §4).`
       : ''
-    problems.push(`${name}: every feature in SPRINT.md (${finished}) is ✅ in ROADMAP — archive it: node ~/.claude/config/bmuz/scripts/archive-sprint.mjs, then say "Next: /sprint".${sweep}`)
+    problems.push(`${name}: every feature in SPRINT.md (${finished.ids}) is ✅ in ROADMAP — archive it: node ~/.claude/config/bmuz/scripts/archive-sprint.mjs, then say "Next: /sprint".${sweep}`)
   }
   // 6. new data files the TDD doesn't list
   const unlisted = newContentFiles(root, turn.startedAt).filter(f => !tddMentions(root, f))
@@ -150,15 +156,17 @@ function unsavedWork(root) {
   return ahead ? `${ahead} commit(s) aren't on GitHub yet` : ''
 }
 
-// The sprint's feature ids when every one is ✅ in ROADMAP (archive-sprint would take it), else ''.
+// Every sprint feature ✅ in ROADMAP → { ids: "F08, F11", retro: all 3 retro lines written? } (archive-sprint needs
+// both), else null.
 function finishedSprint(root) {
   const read = (name) => { try { return readFileSync(join(root, '.planning', name), 'utf8').replace(/\r\n/g, '\n') } catch { return null } }
   const sprintText = read('SPRINT.md')
-  if (!sprintText) return ''
+  if (!sprintText) return null
   const sprint = readSprint(sprintText)
-  if (!sprint.features.length) return ''
+  if (!sprint.features.length) return null
   const { byId } = readRoadmap(read('ROADMAP.md') ?? '')
-  return sprint.features.every(f => byId[f.id]?.state.key === 'done') ? sprint.features.map(f => f.id).join(', ') : ''
+  if (!sprint.features.every(f => byId[f.id]?.state.key === 'done')) return null
+  return { ids: sprint.features.map(f => f.id).join(', '), retro: ['went well', 'went wrong', 'change'].every(k => sprint.retro[k]) }
 }
 
 // The nearest folder above a file that exists (a file may have been moved or deleted since).

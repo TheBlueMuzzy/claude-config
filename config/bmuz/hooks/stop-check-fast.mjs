@@ -5,7 +5,7 @@
 // pull or a Dev Kit edit, every question turn ran the check — or was sent back for work-in-progress that was red).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { readInput, readTurn, isFileEdit, isCommit, git, codeFingerprint, runCheckFast } from './lib.mjs'
+import { readInput, readTurn, isFileEdit, isCommit, git, codeFingerprint, runCheckFast, holdCheckLock } from './lib.mjs'
 
 const TIME_LIMIT_MS = Number(process.env.BMUZ_STOP_LIMIT_MS) || 300_000 // the hook itself gets 360 s (env = tests only)
 
@@ -25,9 +25,15 @@ if (!pkg.scripts?.['check:fast']) process.exit(0)
 const gitDir = resolve(root, git(root, 'rev-parse', '--git-dir'))
 const recordFile = join(gitDir, 'bmuz-last-green')
 const fingerprint = codeFingerprint(root)
-if (existsSync(recordFile) && readFileSync(recordFile, 'utf8').trim() === fingerprint) process.exit(0)
+const isGreen = () => existsSync(recordFile) && readFileSync(recordFile, 'utf8').trim() === fingerprint
+if (isGreen()) process.exit(0)
 
+// another check:fast in this project (another session, a save) → wait for it (the hook's 360 s budget allows ~50 s),
+// then reuse its result if it passed this exact code; still busy → leave it, the next hand-back checks (Goops 2026-10-19)
+const release = holdCheckLock(root, 50_000)
+if (!release || isGreen()) { release?.(); process.exit(0) }
 const { code, output, timedOut } = await runCheckFast(root, TIME_LIMIT_MS)
+release()
 if (code === 0) {
   writeFileSync(recordFile, fingerprint + '\n')
   process.exit(0)
