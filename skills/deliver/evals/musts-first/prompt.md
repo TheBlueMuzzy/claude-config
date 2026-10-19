@@ -7,4 +7,4 @@ timeout_seconds: 600
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
 ---
 
-/deliver — let's release the alpha.
+/deliver:deliver — let's release the alpha.

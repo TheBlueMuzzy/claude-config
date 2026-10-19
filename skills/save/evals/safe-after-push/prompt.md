@@ -7,4 +7,4 @@ timeout_seconds: 600
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
 ---
 
-/save — I'm switching machines. This session: widened the card spread from 30 to 34.
+/save:save — I'm switching machines. This session: widened the card spread from 30 to 34.

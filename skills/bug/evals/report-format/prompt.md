@@ -7,4 +7,4 @@ timeout_seconds: 600
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
 ---
 
-/bug on my phone, with 7 cards the two at the ends overlap the screen edge a little. it still works, just looks a bit off.
+found a bug: on my phone, with 7 cards the two at the ends overlap the screen edge a little. it still works, just looks a bit off.

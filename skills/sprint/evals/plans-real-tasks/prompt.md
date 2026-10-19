@@ -7,6 +7,6 @@ timeout_seconds: 600
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit]
 ---
 
-/sprint
+/sprint:sprint
 
 (You are in the game's folder. Muzzy already said OK to whatever you plan — write the SPRINT.md now, don't wait for an answer. The ROADMAP and the code are in this folder.)

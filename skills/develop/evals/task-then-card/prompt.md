@@ -7,4 +7,4 @@ timeout_seconds: 900
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
 ---
 
-/develop — just do task 2 (hover lifts the card), nothing else. No dev server or screenshots needed for this one: there's no UI yet, a unit-level change is enough. Then hand it back.
+/develop:develop — just do task 2 (hover lifts the card), nothing else. No dev server or screenshots needed for this one: there's no UI yet, a unit-level change is enough. Then hand it back.

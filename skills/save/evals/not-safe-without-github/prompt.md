@@ -7,4 +7,4 @@ timeout_seconds: 600
 allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
 ---
 
-/save — going to bed. This session: widened the card spread to 34. (If it asks to make a GitHub repo: not now, I'll decide tomorrow.)
+/save:save — going to bed. This session: widened the card spread to 34. (If it asks to make a GitHub repo: not now, I'll decide tomorrow.)
