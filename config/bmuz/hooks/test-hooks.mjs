@@ -605,6 +605,8 @@ function testHandoffCheck() {
   const archive = [prompt('go'), tool('Bash', { command: 'node ~/.claude/config/bmuz/scripts/archive-sprint.mjs' }), result, tool('Edit', { file_path: 'a.ts' }), result]
   expect('F80: a sprint archived, report without "Sprint NN — <goal>" → sent back', stop([...archive, say(card)]), 'block')
   expect('…with the header line → allowed', stop([...archive, say(card.replace('## F73', 'Sprint 04 — a fanned hand you can play from\n\n## F73'))]), 'allow')
+  const noteOnly = [prompt('go'), tool('Bash', { command: "cat >> .planning/SPRINT.md <<'EOF'\n- Proposed: archive-sprint.mjs names the carry-over option\nEOF" }), result]
+  expect('F80: text that merely NAMES archive-sprint.mjs (a Notes line) is not an archive → allowed (found in use)', stop([...noteOnly, say(card)]), 'allow')
   // never "your game"
   const { root: projRoot, repo: proj } = makeRepo() // "your game" counts in a game project only
   mkdirSync(join(proj, '.planning'))

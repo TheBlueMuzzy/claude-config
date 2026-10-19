@@ -12,7 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readInput, readTurn, isCommit, isFileEdit, stopVerdict, git, gitCalls, commitMessage } from './lib.mjs'
+import { readInput, readTurn, isCommit, isFileEdit, stopVerdict, git, gitCalls, commitMessage, commands } from './lib.mjs'
 import { readRoadmap, readSprint } from '../templates/ppp/plan-reader.mjs'
 
 const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'handoff.md')
@@ -79,7 +79,10 @@ async function deeperProblems(text) {
       }
     }
   }
-  const archived = turn.tools.some(t => (t.name === 'Bash' || t.name === 'PowerShell') && (/archive-sprint\.mjs/.test(t.input.command || '') || gitCalls(t.input.command || '', t.cwd).some(c => c.sub === 'commit' && /^Sprint \d+ done\b/i.test(commitMessage(t.input.command, c.args)))))
+  // archive-sprint really RUN (`node …archive-sprint.mjs`) — not just named in text written to a file (found in use: a
+  // SPRINT Notes line mentioning it set this off)
+  const runsArchive = (t) => commands(t.input.command || '', t.cwd).some(({ words }) => /^node(\.exe)?$/i.test(words[0] || '') && words.some(w => /archive-sprint\.mjs$/.test(w)))
+  const archived = turn.tools.some(t => (t.name === 'Bash' || t.name === 'PowerShell') && (runsArchive(t) || gitCalls(t.input.command || '', t.cwd).some(c => c.sub === 'commit' && /^Sprint \d+ done\b/i.test(commitMessage(t.input.command, c.args)))))
   if (archived && !/^\W*Sprint \d+\s+[—-]\s+\S/im.test(text)) out.push('A sprint was archived this turn, so the report opens with its header (CLAUDE.md, 2026-10-07): "Sprint NN — <its goal in plain words>", then each feature as ID + what it was meant to do, then what was built (new code / content / tests) vs only measured or researched — before the results.')
   return out
 }
