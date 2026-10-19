@@ -703,6 +703,8 @@ function testPlanLint() {
   expect('F80: ⏳ waiting but everything it needs is ✅ → told to set it 🟢 (ready rule)', ready, 'block')
   expect('…names it', says(ready, /F04 is ⏳ waiting/), 'ok')
   expect('…unless the line says what else it waits for ("· waits: art")', edit('ROADMAP.md', add('- ⏳ F04 🎮 Pile — must · needs: F01 · waits: art')), 'allow')
+  expect('…a plain note ("· gap rank 1") doesn\'t hide it (framework F82–F84 were missed this way)', says(edit('ROADMAP.md', add('- ⏳ F04 🎮 Pile — must · needs: F01 · gap rank 1')), /F04 is ⏳ waiting/), 'ok')
+  expect('…a note that says when it waits ("· when a 3D game needs it") still does', edit('ROADMAP.md', add('- ⏳ F04 🎮 Pile — must · needs: F01 · when a 3D game needs it')), 'allow')
   expect('⏳ whose need is still 🔨 → quiet', edit('ROADMAP.md', add('- ⏳ F04 🎮 Pile — must · needs: F02')), 'allow')
   expect('🟢 with a soft ~need that is only 🔨 (not 🎛️ yet) → told', edit('ROADMAP.md', add('- 🟢 F05 ✨ Glow — could · needs: ~F02')), 'block')
   expect('…the ~need 🎛️ tuning → quiet', edit('ROADMAP.md', add('- 🟢 F05 ✨ Glow — could · needs: ~F02').replace('- 🔨 F02', '- 🎛️ F02')), 'allow')

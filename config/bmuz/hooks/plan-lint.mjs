@@ -99,7 +99,8 @@ function lintRoadmap({ milestones, parking, allItems }, add) {
     // ⏳ waiting whose needs are all met → 🟢 ready
     const featureNeeds = item.needs.filter(n => /^~?F\d+[a-z]?$/.test(n))
     // (a line that says it waits on something else — a note like "when a 3D game needs it", "(needs framework F25)" — stays ⏳)
-    const waitsOnMore = item.notes.length || /\bneeds\b|\bwait/i.test(item.title || '')
+    // (only a note that says so counts — "· gap rank 1" or "· sprint 13" isn't something it waits for)
+    const waitsOnMore = item.notes.some(t => /\bneeds?\b|\bwait|\bwhen\b|\bafter\b|\buntil\b/i.test(t)) || /\bneeds\b|\bwait/i.test(item.title || '')
     if (/^- ⏳/.test(item.raw) && item.id && featureNeeds.length && !waitsOnMore && featureNeeds.every(n => met(n, byId))) {
       add(F, item.lineNo, `${item.id} is ⏳ waiting, but everything it needs (${featureNeeds.join(', ')}) is done — set it 🟢 ready (ready rule, PROJECT-FILES), or add what else it waits for ("· waits: <what>")`)
     }
