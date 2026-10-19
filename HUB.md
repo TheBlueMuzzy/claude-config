@@ -60,3 +60,4 @@ All code projects live here: `C:\Users\Muzzy\Documents\dev\`
 - [ ] 3. Clone `TheBlueMuzzy/glyphtender-original` into `~/Documents/dev/games/glyphtender-original` (read-only Unity reference; the AI source is on branch `festive-booth`).
 - [ ] 4. Obsidian: follow `~/.claude/config/bmuz/OBSIDIAN.md` "Fast way (second machine)" — close Obsidian, copy `~/.claude-config/config/bmuz/obsidian-vault/` into `~/Documents/dev/.obsidian/`, reopen, Open folder as vault → `~/Documents/dev`.
 - [ ] 5. Ask Muzzy about `C:\Users\joebr\dev` (mmb-clip-voting, truth-or-chairs-buzzer): are they on GitHub, and should they move into `~/Documents/dev` and get rows in this file?
+- [ ] 6. (added 2026-10-19) Only when the laptop needs to run the BMUZ skill tests: install Ubuntu in WSL2 (`wsl --install -d Ubuntu`), then Node 22, Claude Code (log in once), bubblewrap + socat — same as the PC (framework SPRINT 08 Notes, "F71 status"). Recipe: `~/.claude/config/bmuz/evals/README.md`.
