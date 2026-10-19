@@ -20,7 +20,7 @@ Keep it that short: wrap task rows after 4; ▶ marks the next unticked 🤖 tas
 A feature that became ready mid-sprint and fits the goal? Offer to pull it in.
 
 ## B. No sprint (or it's finished) → plan the next one
-1. If a SPRINT.md is finished (all its features done/tuning), archive it (`archive/sprints/sprint-NN.md`), commit `Sprint NN done`.
+1. If a SPRINT.md is finished, `node ~/.claude/config/bmuz/scripts/archive-sprint.mjs` (it refuses while a feature isn't ✅ / 🎛️, moves it to `archive/sprints/sprint-NN.md`, commits `Sprint NN done`).
 2. Refresh ROADMAP states (ready rule). Candidates = 🟢 ready features in the current milestone (then the next one), **plus features whose only unmet needs are other candidates you're taking** (sprint rule — list them after what they need). Fewer than 2? Offer to promote a small Later item into a feature (give it an ID, type, scope, needs).
 3. Pick **1–4 features that make one visible goal** ("a fanned hand you can play from"). Prefer: ❓ decisions that unblock the most (ask Muzzy right now if he's here — then they're just done), then 🧱 foundations others wait on, then 🎮, then ✨. Must before Should before Could.
 4. A request to **show** something ("a modal with the settings") → first list what it would concretely contain and whether players can already see it — Glyphtender F53: the in-game "settings" were 5 things, 4 already visible → one line in Pause, not a button + modal (Muzzy: "this seems pointless"). Say the list in the plan.

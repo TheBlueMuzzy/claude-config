@@ -59,7 +59,7 @@ const heredocWithBackslash = heredocBodies(command).some(body => body.includes('
 //    b) a python/node script with a backslash that writes a code file (`open(p, 'w')` with p = 'x.mjs' counts)
 const scriptWritesCode = (s) => s.includes('\\') && CODE_FILE.test(s) && /(open\([^)]*,\s*r?['"][wa]|write_text|writeFileSync|writeFile\()/.test(s)
 //    c) `sed -i` / `perl -i` putting a backslash into a code file (2026-10-18: `\d` came out as `d` in a hook)
-const sedWithBackslash = [...shell.matchAll(/\b(?:sed|perl)\s+(?:[^\n;&|]*?\s)?-[a-zA-Z]*i\S*\s[^\n;&|]*/g)].some(m => m[0].includes('\\') && CODE_FILE.test(m[0]))
+const sedWithBackslash = [...shell.matchAll(/\b(?:sed|perl)\s+(?:[^\n;&|]*?\s)?-[a-zA-Z]*i\S*\s[^\n;&|]*/g)].some(m => m[0].includes('\\') && CODE_FILE.test(m[0].replace(/"(?:\\.|[^"\\])*"|'[^']*'/g, ''))) // the FILE is code, not words in the edit
 if ((shellWritesCode && heredocWithBackslash) || scripts.some(scriptWritesCode) || sedWithBackslash) {
   deny('Blocked: this writes a code file through a heredoc / `python -c` / `node -e` / `sed -i`, and the text has a backslash — the shell or Python can silently change it (a doubled backslash became one, a backslash-n became a real line break, a backslash-b became an invisible character; 8 times so far). Use the Edit tool (or Write for a new file) for any text with a backslash or a quote inside quotes. A script that only needs a newline can use chr(10) / String.fromCharCode(10) instead of a backslash.')
 }

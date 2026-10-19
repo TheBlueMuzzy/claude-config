@@ -26,7 +26,7 @@ Get the LAN IP from `ipconfig`. If the phone can't connect or needs motion senso
 If yes → use the **live-playtest** method: open the page in Playwright without joining, wait for Muzzy's cue, pull console logs, and report in plain English: what happened, errors, anything odd. Don't poll constantly.
 
 ## 4. Stopping it
-When Muzzy's done (or before switching machines): stop the background task, then make sure the port is really free — on Windows node can linger: `netstat -ano | findstr :<port>` → `taskkill /PID <pid> /F`.
+When Muzzy's done (or before switching machines): stop the background task, then `node ~/.claude/config/bmuz/scripts/stop-servers.mjs <port>` (ends the whole server tree and says when the port is free).
 
 ## 5. What he sees → what we do
 - A bug → `/bug` (it triages: fix now if small/blocking, else log it).

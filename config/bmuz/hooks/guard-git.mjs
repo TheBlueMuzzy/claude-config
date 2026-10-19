@@ -93,7 +93,7 @@ function checkFeatureCommitOnMain(calls, index, raw) {
   if (!feature) return // a tiny fix or a plan/doc commit
   const top = git(dir, 'rev-parse', '--show-toplevel')
   if (!top) return
-  const code = commitFiles(calls, index, resolve(top)).filter(f => !f.startsWith('.planning/') && !/\.md$/i.test(f))
+  const code = commitFiles(calls, index, resolve(top)).filter(f => !/^\.planning(\/|$)/.test(f) && !/\.md$/i.test(f)) // `git add .planning` names the folder itself
   if (!code.length) return
   deny(`Blocked: a ${feature} commit with code (${code.slice(0, 3).join(', ')}${code.length > 3 ? ', …' : ''}) on ${target}. Feature work goes on the work branch (\`dev/<milestone>\`, /develop makes it) and reaches ${target} only through /deliver. Switch to the work branch and commit there — or, if this is really a tiny fix, commit it without the "${feature}:" prefix.`)
 }

@@ -12,7 +12,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session.
 Ask only if it's unclear:
 - **Update** — merge finished work and put it on the current live site (most common). Bumps **Z**.
 - **Milestone** — a milestone's features are all done. Bumps **Y**, marks it ✅ in ROADMAP. Completes approved milestones → still a Milestone (Y) even if another milestone stays open; label it with the current release stage.
-- **Release stage** — moving to prototype / alpha / beta / 1.0. Run the **done check** first: every `must:<stage>` feature in ROADMAP is ✅. Missing musts → list them and ask: finish them first, or release anyway (say what's missing in the release notes). 1.0 → ask about **X** (public release).
+- **Release stage** — moving to prototype / alpha / beta / 1.0. Run the **done check** first: `node ~/.claude/config/bmuz/scripts/musts-check.mjs <stage>` (every `must:<stage>` feature ✅; it lists the open ones). Missing musts → list them and ask: finish them first, or release anyway (say what's missing in the release notes). 1.0 → ask about **X** (public release).
 
 ## 2. Make sure it's ready
 - Do `/save`'s STATE + Log step first (always — even with nothing uncommitted), so the log records what's being delivered.
@@ -21,7 +21,7 @@ Ask only if it's unclear:
 - Features in this delivery not yet approved by Muzzy? Ask once: "F08 hasn't had your OK yet — release anyway?"
 - Release stage checks, scaled to the stage: **alpha** → a quick look (loads fast, no console errors, works on a phone). **beta / 1.0** → the full **optimize**, **accessibility-check** and **web-design-guidelines** (menus/HUD) skills plus a phone test via `/play`. Fix quick wins; list the rest as 🐞/✨ features.
 - **Credits** are part of `check:framework` (UI kit 0.19+: every asset listed, nothing 🔴, every 🟡 shown). Anything wrong blocks the release until it's fixed or Muzzy decides.
-- A SPRINT.md whose features are all done → archive it (`Sprint NN done`).
+- A SPRINT.md whose features are all done → `node ~/.claude/config/bmuz/scripts/archive-sprint.mjs`.
 - **Review before merging:** `/security-review` once on the work branch's changes; `/code-review` only on commits after STATE's `Reviewed through: <commit>` (each feature was reviewed in /develop — don't re-read them). They need the session to be inside the repo — if it isn't, hand each review to a subagent working in the repo (same scope: real bugs / real exploits only). Fix real bugs and security issues now. List the rest in plain English and ask.
 
 ## 3. First release to a platform? Set it up now
@@ -33,11 +33,10 @@ If §6 will need one-time setup (base path, deploy workflow…), do and commit i
 - Delete the merged branch locally (and on the remote, if any).
 
 ## 5. Version + notes (per `~/.claude/references/versioning.md`) — one commit
-- Bump Z / Y / X per §1 (build resets to 0). `history` entry in version.json; sync `package.json` version if it has one.
 - **Patch notes:** read the commits since the last version tag (`git log <last-tag>..HEAD --oneline`) and write 3–8 player-facing bullets: what players will notice, no code talk. A one-line version goes in the `history` summary. The bullets become §8's "New:" lines, ready to paste into an itch devlog.
 - ROADMAP: milestone ✅ with date if finished; release line updated ("alpha — released 2026-11-02"). After a release stage, set `Release target:` to the next stage — if it has no musts yet: "beta — musts not set (/define)".
 - STATE: version, Live line (with release stage), Stage = deliver, RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)".
-- Commit `Release vX.Y.Z: <summary>`, tag `vX.Y.Z`, push with tags (if there's a remote).
+- Then `node ~/.claude/config/bmuz/scripts/release.mjs <update|milestone|major> "<history summary>"` — bumps Z / Y / X (build → 0), adds the history entry, syncs package.json + lock, commits `Release vX.Y.Z: …` with your ROADMAP/STATE edits, tags it. (`--dry-run` first tells you the number for STATE.) It refuses uncommitted code or a work branch. Push with tags after the smoke pass (§2).
 
 ## 6. Release it — follow the platform's recipe
 Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all projects). The project's Key facts says which platform(s) it releases to.

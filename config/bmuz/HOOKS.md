@@ -21,6 +21,22 @@ always runs. Scripts: `~/.claude/config/bmuz/hooks/` · wiring: `~/.claude/setti
 | 13 | When Claude finishes a turn (F67) | Work committed while a sprint runs, but SPRINT.md untouched → **sent back** to log it as a task. Planner page rebuilt but not republished → sent back to republish | Every request shows up in the planner |
 | — | Always | Gmail stays fully blocked (unchanged) | Muzzy's choice |
 
+## Scripts — fragile jobs as one command (F69)
+A **script** does a whole multi-step job the same way every time — or refuses before changing anything, saying why in
+plain words. The skills call them; you never need to type them. Folder: `~/.claude/config/bmuz/scripts/`.
+
+| Script | Does | Refuses when |
+|---|---|---|
+| `install-module.mjs <module> <game>` | Installs / updates a framework module: the module's own tests first, the dry run, the install, then that module's checks in the game | the module's own tests or checks are red · the game doesn't keep the module's promises yet (says what to wire) |
+| `release.mjs <update\|milestone\|major> "<summary>"` | Version bump, history line, package.json, the `Release vX.Y.Z` commit and its tag — never pushes | uncommitted code · not on main · the tag already exists |
+| `save.mjs "<summary>"` | Build +1, old Log lines to the archive, commit, push — and "safe to switch machines" only once GitHub has the commit | a `.env` or secret would be committed · the push failed (says NOT safe) |
+| `archive-sprint.mjs` | Files a finished sprint and commits `Sprint NN done` | a feature isn't approved yet |
+| `musts-check.mjs <stage>` | Lists the `must:<stage>` features still open before a release | — (exit 1 = some open) |
+| `stop-servers.mjs <port\|name>` | Ends a local server's whole process tree (on Windows, killing only the port lets wrangler restart it) | — (never touches Claude, a shell or an editor) |
+| `templates/check-all.mjs` (in each game) | A full check run takes a lock | another full check run is still going |
+
+**Proof:** `node ~/.claude/config/bmuz/scripts/test-scripts.mjs` (throwaway repos; real servers for stop-servers).
+
 **The smoke pass (hook 4):** `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` in the project runs its `smoke` npm
 script (the game loads and one turn/round plays, console clean) and, only if it passes, writes `.planning/smoke-pass`
 (the commit it tested). Commit that file, then push. /deliver does this right before the push. A game without a `smoke`

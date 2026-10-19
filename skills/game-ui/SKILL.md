@@ -42,7 +42,7 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    → `screenshots/pick-sheet.png`. Look at it, show Muzzy the path, and suggest ONE style with an MDA
    reason from the GDD's experience targets ("Cozy — warm and forgiving, fits the relaxed pillar").
    **This is the only question this skill asks.** Log the pick in the game's TDD Decisions.
-2. **Kit in the game and current?** From `ui-kit/`: `node scripts/install-kit.mjs <game-folder> <style>`
+2. **Kit in the game and current?** `node ~/.claude/config/bmuz/scripts/install-module.mjs ui-kit <game-folder> <style>` (wraps `ui-kit/scripts/install-kit.mjs`: refuses a red kit, dry run first, checks the game after)
    (`--dry-run` first on an update: it lists changed / added / removed kit files). It copies the kit to
    `src/ui/kit/` with a VERSION stamp, creates style.json + settings.json only if missing (never
    overwrites) and adds the kit's font credits to `content/credits.json`. Follow its printed next steps.
