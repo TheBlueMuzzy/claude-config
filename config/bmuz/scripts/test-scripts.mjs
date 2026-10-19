@@ -468,7 +468,9 @@ async function testArchiveRetro() {
 
 async function testStopServers() {
   console.log('stop-servers — the whole tree, so nothing restarts')
-  const root = mkdtempSync(join(tmpdir(), 'bmuz-servers-'))
+  // run from a helper's workspace (.claude/worktrees/…) — "claude" in the path once made it look like Claude Code itself
+  const root = join(mkdtempSync(join(tmpdir(), 'bmuz-servers-')), '.claude', 'worktrees', 'helper')
+  mkdirSync(root, { recursive: true })
   const port = 5600 + Math.floor(Math.random() * 300)
   // like wrangler: a supervisor that starts the worker again whenever it dies
   // listening on IPv6 localhost only, like Vite on Windows (the real try's miss)
@@ -485,7 +487,7 @@ async function testStopServers() {
   for (let i = 0; i < 40 && !(await listening()); i++) await new Promise(r => setTimeout(r, 150))
   expect('test server is up', await listening())
   const dry = script('stop-servers.mjs', [String(port), '--dry-run'])
-  expect('--dry-run names the supervisor (the top of the tree), stops nothing', /would stop/.test(dry.out) && /supervisor\.mjs/.test(dry.out) && await listening(), dry.out)
+  expect('--dry-run names the supervisor (the top of the tree), stops nothing', /would stop/.test(dry.out) && dry.out.includes(`stop ${sup.pid}:`) && await listening(), dry.out)
   const stop = script('stop-servers.mjs', [String(port)])
   await new Promise(r => setTimeout(r, 1200)) // a restarting supervisor would be back by now
   expect('stopped by port → the port stays free (supervisor gone too)', stop.code === 0 && !(await listening()), stop.out)
@@ -680,6 +682,12 @@ function testMerge() {
   sh(repo, 'checkout', '-q', '-b', 'dev/w'); write(join(repo, 'w.txt'), 'w\n'); sh(repo, 'add', '.'); sh(repo, 'commit', '-q', '-m', 'w')
   const warn = merge(gh.env(ghRuns('completed', 'failure')), 'dev/w')
   expect('no Checks workflow → ⚠ says how to add it, merges anyway', warn.code === 0 && /no GitHub Checks workflow/.test(warn.out) && /merged into main/.test(warn.out), warn.out)
+  // a branch that ADDS the workflow: main doesn't have it yet, the branch does → GitHub's verdict counts (framework 2026-10-19)
+  sh(repo, 'checkout', '-q', 'main'); sh(repo, 'checkout', '-q', '-b', 'dev/adds')
+  write(join(repo, '.github', 'workflows', 'checks.yml'), 'name: Checks\non: push\n'); sh(repo, 'add', '.'); sh(repo, 'commit', '-q', '-m', 'adds checks')
+  const adds = merge(gh.env(ghRuns('completed', 'failure')), 'dev/adds')
+  expect('…a branch that adds the Checks workflow, red on GitHub → refused (looks at the branch, not main)', adds.code === 1 && !/no GitHub Checks workflow/.test(adds.out), adds.out)
+  sh(repo, 'checkout', '-q', 'main')
   // once main is pushed, the GitHub copies go (merge.mjs again, or live-check.mjs)
   sh(repo, 'push', '-q', 'origin', 'main')
   sh(repo, 'checkout', '-q', '-b', 'dev/last'); write(join(repo, 'l.txt'), 'l\n'); sh(repo, 'add', '.'); sh(repo, 'commit', '-q', '-m', 'last')

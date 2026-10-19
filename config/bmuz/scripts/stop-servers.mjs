@@ -11,7 +11,8 @@ const { words, flags } = args()
 const target = words[0]
 if (!target) refuse('which port or name?', 'stop-servers.mjs 5173   ·   stop-servers.mjs wrangler')
 const SERVERISH = /\b(node|npm|npx|wrangler|workerd|vite|partykit|esbuild)\b|cmd(\.exe)?"?\s+\/d\s+\/s\s+\/c/i
-const PROTECTED = /claude|\\Code\\|code\.exe|bash\.exe|powershell|pwsh|explorer\.exe|WindowsTerminal|mcp|chrome|msedge|firefox/i
+// ("claude" = Claude Code itself — but not a dev server run from a helper's workspace in .claude/worktrees/)
+const PROTECTED = /claude(?![\\/]worktrees[\\/])|\\Code\\|code\.exe|bash\.exe|powershell|pwsh|explorer\.exe|WindowsTerminal|mcp|chrome|msedge|firefox/i
 // a bare runtime name would match every node process (MCP servers, other sessions' tools) — name the server instead
 if (/^(node|npm|npx|cmd|cmd\.exe|node\.exe)$/i.test(target)) refuse(`"${target}" would match far more than a dev server`, 'give the port (stop-servers.mjs 5173) or the server\'s name (wrangler, vite)')
 
@@ -61,9 +62,17 @@ function processes() {
   }
   // stdout only, and no .ToString() on a missing date: a process that ends while the list is built has none, and the
   // error PowerShell printed for it was glued onto the JSON (flaky "couldn't list the running processes" under load)
-  const out = run('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{n='Started';e={if ($_.CreationDate) { $_.CreationDate.ToString('o') }}} | ConvertTo-Json -Compress"]).stdout
-  let list = []
-  try { list = JSON.parse(out) } catch { refuse(`couldn't list the running processes:\n${out.slice(0, 300)}`) }
+  // Still failed now and then (2026-10-19, not reproduced in 8 runs after) → up to 3 tries, and the spot where it
+  // broke is printed so the next failure says why
+  let list = null, out = '', why = ''
+  for (let tries = 0; tries < 3 && !list; tries++) {
+    out = run('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{n='Started';e={if ($_.CreationDate) { $_.CreationDate.ToString('o') }}} | ConvertTo-Json -Compress"]).stdout
+    try { list = JSON.parse(out) } catch (error) { why = error.message }
+  }
+  if (!list) {
+    const at = Number(/position (\d+)/.exec(why)?.[1] ?? 0)
+    refuse(`couldn't list the running processes (3 tries): ${why}\n  near: ${JSON.stringify(out.slice(Math.max(0, at - 120), at + 60))}`)
+  }
   return [].concat(list).map(p => ({ pid: p.ProcessId, ppid: p.ParentProcessId, cmd: p.CommandLine || '', started: p.Started ? Date.parse(p.Started) : 0 }))
 }
 

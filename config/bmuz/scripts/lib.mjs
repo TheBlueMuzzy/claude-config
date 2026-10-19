@@ -65,10 +65,17 @@ export function gh(args, { cwd } = {}) {
 }
 
 // Does the repo have the "Checks" workflow (templates/checks.yml)? Any workflow file named "Checks" counts.
-export function hasChecksWorkflow(root) {
+// With a commit, it looks in THAT commit, not the checkout: a branch that adds the workflow is merged from main, which
+// doesn't have it yet (framework dev/conformance, 2026-10-19: merged with "no workflow" while GitHub had checked it).
+export function hasChecksWorkflow(root, commit) {
+  const isChecks = (text) => /^name:\s*["']?Checks["']?\s*$/m.test(text)
+  if (commit) {
+    const files = run('git', ['ls-tree', '--name-only', `${commit}:.github/workflows`], { cwd: root })
+    if (files.code === 0) return files.stdout.split('\n').filter(f => /\.ya?ml$/i.test(f)).some(f => isChecks(run('git', ['show', `${commit}:.github/workflows/${f}`], { cwd: root }).stdout))
+  }
   const dir = join(root, '.github', 'workflows')
   if (!existsSync(dir)) return false
-  return readdirSync(dir).filter(f => /\.ya?ml$/i.test(f)).some(f => /^name:\s*["']?Checks["']?\s*$/m.test(readFileSync(join(dir, f), 'utf8')))
+  return readdirSync(dir).filter(f => /\.ya?ml$/i.test(f)).some(f => isChecks(readFileSync(join(dir, f), 'utf8')))
 }
 
 // Did GitHub's Checks run pass for this commit? (F70 — /deliver won't merge or release red or unchecked work.)
@@ -76,7 +83,7 @@ export function hasChecksWorkflow(root) {
 // in): it never blocks, it says how to fix it. 'red' also covers "still running" and "never checked".
 export function checksVerdict(root, { commit, branch } = {}) {
   const short = (commit || '').slice(0, 7)
-  if (!hasChecksWorkflow(root)) {
+  if (!hasChecksWorkflow(root, commit)) {
     return { verdict: 'warn', text: 'this repo has no GitHub Checks workflow, so nothing re-checked it on GitHub', fix: 'copy ~/.claude/config/bmuz/templates/checks.yml to .github/workflows/checks.yml, commit, push' }
   }
   const query = ['run', 'list', '--workflow', 'Checks', '--limit', '1', '--json', 'status,conclusion,url,headSha', '--commit', commit, ...(branch ? ['--branch', branch] : [])]
