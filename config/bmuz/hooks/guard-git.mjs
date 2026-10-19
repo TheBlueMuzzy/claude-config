@@ -179,7 +179,7 @@ function checkDoneSavesState(calls, index, raw) {
   if (!commitFiles(calls, index, root).includes('.planning/STATE.md')) {
     const lastState = (git(root, 'log', '-1', '--format=%H', '--', '.planning/STATE.md') || '')
     if (!(first && lastState && git(root, 'merge-base', '--is-ancestor', first, lastState) !== null)) {
-      deny(`Blocked: "${feature}: done" but .planning/STATE.md hasn't changed since ${feature} started, so RESUME HERE still describes the old work. A fresh session, or the other machine, would pick up from there. Replace RESUME HERE + "Doing" (what's done, what's next), add STATE.md to this commit, then /save (F72).`)
+      deny(`Blocked: "${feature}: done" but .planning/STATE.md hasn't changed since ${feature} started, so RESUME HERE still describes the old work. A fresh session, or the other machine, would pick up from there. Replace RESUME HERE + "Doing" (what's done, what's next), add STATE.md to this commit, then /save (F72). (The whole command line is checked before any of it runs, so write STATE in its own step first, then commit.)`)
     }
   }
   // F75: the feature's code review and full check really happened. Each line must have been written or changed
