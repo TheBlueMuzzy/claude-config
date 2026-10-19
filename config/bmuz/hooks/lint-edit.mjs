@@ -5,7 +5,9 @@
 // Why: framework code was never linted anywhere — games ignore their kit copies — so Dev Kit 0.8.0's errors only
 // showed up inside Glyphtender.
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join, relative, resolve, dirname } from 'node:path'
 import { readInput, tellClaude } from './lib.mjs'
 
@@ -23,7 +25,7 @@ const where = relative(root, path).split('\\').join('/')
 if (where.split('/').some(part => SKIP_FOLDERS.includes(part))) process.exit(0)
 
 const eslint = findLocalEslint(root)
-if (!eslint) process.exit(0) // not installed here (no `npm install` yet) → nothing to run
+if (!eslint) { tellOnceAboutInstall(root); process.exit(0) } // not installed here (no `npm install` yet) → nothing to run
 
 // Games ignore their framework copies on purpose (they can't be edited there anyway), so their ignores are kept.
 // In a framework checkout nothing is skipped: the framework is the one place its code gets linted.
@@ -48,6 +50,16 @@ if (errors.length) {
   tellClaude(`ESLint found ${errors.length} error${errors.length === 1 ? '' : 's'} in ${where} (the project's own lint rules — fix them now, in this same task):\n${lines.join('\n')}`)
 }
 process.exit(0)
+
+// No local eslint means no lint at all — silently (F80: "the framework needs `npm install` once" was only remembered).
+// Say so once per session per project; never downloads anything itself.
+function tellOnceAboutInstall(folder) {
+  const dir = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx') // (tests use their own folder)
+  const flag = join(dir, `${input.session_id || 'session'}.lint-${createHash('sha1').update(folder).digest('hex').slice(0, 10)}`)
+  if (existsSync(flag)) return
+  try { mkdirSync(dir, { recursive: true }); writeFileSync(flag, folder) } catch {}
+  tellClaude(`${folder} has an ESLint setup but ESLint isn't installed there (no node_modules), so nothing you edit there is being linted. Run \`npm install\` in that folder once (said once per session).`)
+}
 
 // The nearest folder above the file with an ESLint flat config and a package.json.
 function findLintRoot(start) {

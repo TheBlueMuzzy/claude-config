@@ -28,20 +28,40 @@ list_changes() {
   if [ -f "$HUB" ] && ! cmp -s "$HUB" "$REPO/HUB.md"; then echo "HUB.md (~/Documents/dev/HUB.md)"; fi
 }
 
+# Which repo commit this machine's ~/.claude was last brought level with (setup.sh writes it after applying; a push
+# writes its own commit). Until it equals the repo's HEAD, the other machine's changes aren't applied here, and a push
+# would copy this machine's older files over them (F80 review 2026-10-19: the second /save after an INCOMING listed the
+# laptop's newer files as plain CHANGED and pushed over them). Not synced itself: it lives outside the synced folders.
+APPLIED="$LIVE/.config-applied"
+# Prints something when GitHub's copy holds commits this machine hasn't applied. Only commits on GitHub count — this
+# machine's own commit from a push that failed halfway isn't "incoming". An unknown marker (history rewritten) counts.
+unapplied() {
+  [ -f "$APPLIED" ] || return 0
+  local applied; applied=$(cat "$APPLIED")
+  git -C "$REPO" cat-file -e "$applied^{commit}" 2>/dev/null || { echo unknown; return 0; }
+  git -C "$REPO" rev-list "$applied..@{u}" 2>/dev/null | head -1
+}
+
 case "${1:-status}" in
   status)
     before=$(git -C "$REPO" rev-parse HEAD)
+    [ -f "$APPLIED" ] || echo "$before" > "$APPLIED" # first run with this check: the machine counts as level with what it had
     git -C "$REPO" pull -q --ff-only 2>/dev/null || echo "PULL-FAILED: ~/.claude-config couldn't fast-forward — sort it out by hand"
     after=$(git -C "$REPO" rev-parse HEAD)
-    if [ "$before" != "$after" ]; then
-      echo "INCOMING: the other machine pushed config changes:"
-      git -C "$REPO" log --format="  %h %s" "$before..$after"
+    applied=$(cat "$APPLIED")
+    if [ -n "$(unapplied)" ]; then
+      echo "INCOMING: the other machine pushed config changes that aren't applied here yet:"
+      git -C "$REPO" log --format="  %h %s" "$applied..@{u}" 2>/dev/null || echo "  (since $applied)"
       echo "  → apply them here with: cd ~/.claude-config && bash setup.sh (BEFORE pushing anything from this machine)"
     fi
     list_changes | sed 's/^/CHANGED: /'
     ;;
   push)
     msg="${2:-Sync config}"
+    if [ -n "$(unapplied)" ]; then
+      echo "NOT-APPLIED: the other machine's config changes aren't applied here yet — pushing would overwrite them. Run: cd ~/.claude-config && bash setup.sh (a file changed on both machines → keep a copy of this machine's first), then push again"
+      exit 0
+    fi
     for f in $FILES; do [ -f "$LIVE/$f" ] && cp "$LIVE/$f" "$REPO/$f"; done
     for d in $DIRS; do
       # copy this machine's files over the repo's (deletions are NOT pushed — retire things via RETIRED.txt)
@@ -51,6 +71,6 @@ case "${1:-status}" in
     git -C "$REPO" add -A
     if git -C "$REPO" diff --cached --quiet; then echo "NOTHING-TO-PUSH"; exit 0; fi
     git -C "$REPO" commit -qm "$msg"
-    git -C "$REPO" push -q && echo "PUSHED: $(git -C "$REPO" log --format='%h %s' -1)"
+    git -C "$REPO" push -q && git -C "$REPO" rev-parse HEAD > "$APPLIED" && echo "PUSHED: $(git -C "$REPO" log --format='%h %s' -1)"
     ;;
 esac

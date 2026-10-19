@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 # BMUZ checkup — gathers the facts; the `checkup` skill reads them and reports to Muzzy.
-# Read-only: never changes anything.
+# Read-only, except `--done` (below), which closes a checkup.
 
 C="$HOME/.claude"
 cd "$C" || exit 1
+
+# `checkup.sh --done` closes a checkup (F80 — the close steps were remembered, so a forgotten date nagged daily):
+# refuses until today's report is saved, then writes today's date to last-checkup and syncs the setup to the laptop.
+if [ "$1" = "--done" ]; then
+  TODAY=$(date +%F)
+  REPORT="config/bmuz/reviews/checkups/$TODAY.md"
+  if [ ! -s "$REPORT" ]; then
+    echo "REFUSED: save today's report first → ~/.claude/$REPORT (the one-screen report you showed Muzzy), then run --done again."
+    exit 1
+  fi
+  echo "$TODAY" > config/bmuz/last-checkup
+  echo "✓ last-checkup = $TODAY (the session start stops saying 'checkup due' for 30 days)"
+  if [ -f config/bmuz/config-sync.sh ]; then
+    bash config/bmuz/config-sync.sh push "BMUZ checkup $TODAY" || { echo "SYNC FAILED — explain it to Muzzy in plain English (the laptop won't get today's changes yet)"; exit 1; }
+  else
+    echo "config-sync.sh not found — sync by hand (references/config-sync.md)"
+  fi
+  exit 0
+fi
 
 echo "== 1. Upstream changes since we last matched (sources.json)"
 node -e '
@@ -35,7 +54,7 @@ for d in skills/*/; do
 done
 
 echo; echo "== 4. Wiring — which BMUZ files name each specialist skill"
-BMUZ="bmuz discover define develop deliver roadmap sprint gdd tdd play save bug checkup"
+BMUZ="bmuz discover define develop deliver roadmap sprint gdd tdd play save bug checkup ppp sketch sync"
 for d in skills/*/; do
   n=$(basename "$d"); [ "$n" = synced ] && continue
   echo " $BMUZ " | grep -q " $n " && continue

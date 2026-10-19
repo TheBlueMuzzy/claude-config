@@ -1,6 +1,6 @@
 // Proves every BMUZ hook blocks what it should and lets the normal case through (F68).
 // Run: node ~/.claude/config/bmuz/hooks/test-hooks.mjs   (a few seconds; makes throwaway repos in the temp folder)
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, mkdirSync, rmSync, symlinkSync, cpSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
@@ -9,6 +9,9 @@ import { fileURLToPath } from 'node:url'
 const HOOKS = dirname(fileURLToPath(import.meta.url))
 let failed = 0
 let passed = 0
+// Stop hooks count their send-backs per session (lib.stopVerdict) — in a throwaway folder, never the real ~/.claude/ctx
+const CTX = mkdtempSync(join(tmpdir(), 'bmuz-hooks-ctx-'))
+process.env.BMUZ_CTX_DIR = CTX
 
 // Send a tool call to a hook; returns 'deny' | 'block' | 'allow' plus the message.
 export function runHook(script, input) {
@@ -105,6 +108,9 @@ function testGuardGit() {
   mkdirSync(join(repo, '.planning')); writeFileSync(join(repo, '.planning', 'SPRINT.md'), 'x\n')
   expect('"F08: …" plan-only commit on main → allowed', g('git add -A && git commit -m "F08: tick task"'), 'allow')
   expect('`git add .planning && git commit -m "F08: …"` → allowed (the folder itself, found in use)', g('git add .planning && git commit -m "F08: tick task"'), 'allow')
+  writeFileSync(join(repo, 'version.json'), '{"version":"0.1.0","build":3}\n')
+  expect('F80: a "F08: …" save on main (plan files + version.json build bump) → allowed (found by the first real save)', g('git add -A && git commit -m "F08: built, waiting for approval"'), 'allow')
+  rmSync(join(repo, 'version.json'))
   expect('merging a work branch into main → blocked', g('git merge dev/open'), 'deny')
   expect('merging origin/main into main (catching up) → allowed', g('git merge --ff-only origin/main'), 'allow')
   expect('git merge --abort → allowed', g('git merge --abort'), 'allow')
@@ -120,6 +126,13 @@ function testGuardGit() {
   const log = join(root, 'session.jsonl')
   writeFileSync(log, JSON.stringify({ type: 'user', message: { content: '<command-name>/deliver</command-name>' } }) + '\n')
   expect('merge during /deliver → allowed', runHook('guard-git.mjs', { ...bash(repo, 'git merge --no-ff dev/open -m "Release"'), transcript_path: log }), 'allow')
+  // F80: the scripts that change main inside their own process count as a merge into main
+  expect('F80: node merge.mjs outside /deliver → blocked', runHook('guard-git.mjs', { ...bash(repo, 'node ~/.claude/config/bmuz/scripts/merge.mjs dev/open'), transcript_path: mention }), 'deny')
+  expect('F80: node rollback.mjs outside /deliver → blocked (PowerShell)', runHook('guard-git.mjs', { ...pwsh(repo, 'node "$env:USERPROFILE/.claude/config/bmuz/scripts/rollback.mjs" v0.9.2 "crash"'), transcript_path: mention }), 'deny')
+  expect('…merge.mjs during /deliver → allowed', runHook('guard-git.mjs', { ...bash(repo, 'node ~/.claude/config/bmuz/scripts/merge.mjs dev/open'), transcript_path: log }), 'allow')
+  expect('…other scripts (save.mjs) → allowed', runHook('guard-git.mjs', { ...bash(repo, 'node ~/.claude/config/bmuz/scripts/save.mjs "x"'), transcript_path: mention }), 'allow')
+  expect('review: a game\'s own tools/merge.mjs → allowed', runHook('guard-git.mjs', { ...bash(repo, 'node tools/merge.mjs sprites'), transcript_path: mention }), 'allow')
+  expect('review: node --check on BMUZ\'s merge.mjs (a syntax check) → allowed', runHook('guard-git.mjs', { ...bash(repo, 'node --check ~/.claude/config/bmuz/scripts/merge.mjs'), transcript_path: mention }), 'allow')
   expect('"F08: done" in a repo without .planning/STATE.md → allowed (not a BMUZ project)', g('git commit -m "F08: done"'), 'allow')
   rmSync(root, { recursive: true, force: true })
 
@@ -152,6 +165,36 @@ function testGuardGit() {
   expect('F75: a project WITH check:full but no "Last full check" → blocked', d('git add -A && git commit -m "F11: done"'), 'deny')
   writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: F11 done\n**Reviewed through:** def5678\n**Last full check:** def5678 — 2026-10-19 37/37\n')
   expect('F75: both lines updated during F11 → allowed', d('git add -A && git commit -m "F11: done"'), 'allow')
+  // F80: approved → ✅ in ROADMAP first
+  writeFileSync(join(bmuz.repo, '.planning', 'ROADMAP.md'), '# T — Roadmap\n## v0.1 — x ← current\n- 🔨 F11 🎮 Hover — must\n- 🔨 F12 🎮 Wiggle — could\n')
+  const notApproved = d('git add -A && git commit -m "F11: done"')
+  expect('F80: "F11: done" while ROADMAP still says 🔨 → blocked', notApproved, 'deny')
+  expect('…says to set it ✅ in ROADMAP', { result: /F11 ✅|set F11 ✅/.test(notApproved.message) ? 'ok' : 'no', message: notApproved.message }, 'ok')
+  writeFileSync(join(bmuz.repo, '.planning', 'ROADMAP.md'), '# T — Roadmap\n## v0.1 — x ← current\n- ✅ F11 🎮 Hover — must\n- 🎛️ F12 🎮 Wiggle — could\n')
+  expect('…✅ in ROADMAP → allowed', d('git add -A && git commit -m "F11: done"'), 'allow')
+  expect('…🎛️ tuning (tuning goes on) counts too', d('git add -A && git commit -m "F12: done"'), 'allow')
+  expect('…a feature not in ROADMAP at all is not blocked by this rule', d('git add -A && git commit -m "F99: done"'), 'allow')
+  sh(bmuz.repo, 'add', '-A'); sh(bmuz.repo, 'commit', '-q', '-m', 'roadmap')
+  // F80: a stage commit carries STATE.md
+  writeFileSync(join(bmuz.repo, '.planning', 'SPRINT.md'), '# Sprint 04 — hover\n')
+  expect('F80: "Sprint 04: <goal>" without STATE.md → blocked', d('git add .planning/SPRINT.md && git commit -m "Sprint 04: fanned hand"'), 'deny')
+  writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: sprint 04 started\n')
+  expect('…with STATE.md → allowed', d('git add -A && git commit -m "Sprint 04: fanned hand"'), 'allow')
+  expect('"GDD: discover" without STATE → blocked', d('git commit --allow-empty -m "GDD: discover"'), 'deny')
+  expect('"GDD + roadmap: fast-track" without STATE → blocked', d('git commit --allow-empty -m "GDD + roadmap: fast-track"'), 'deny')
+  expect('"GDD: bigger hands" (a /gdd what-if) → allowed', d('git commit --allow-empty -m "GDD: bigger hands"'), 'allow')
+  expect('review: "GDD: define the lobby flow better" (a /gdd change that starts with a stage word) → allowed', d('git commit --allow-empty -m "GDD: define the lobby flow better"'), 'allow')
+  expect('…"GDD: build plan — pass 2" is still a stage commit → blocked', d('git commit --allow-empty -m "GDD: build plan — pass 2"'), 'deny')
+  expect('"Sprint 04 done" (archive-sprint) → allowed', d('git commit --allow-empty -m "Sprint 04 done"'), 'allow')
+  // F80: helpers' worktrees never go into a commit
+  sh(bmuz.repo, 'add', '-A'); sh(bmuz.repo, 'commit', '-q', '-m', 'sprint')
+  const wt = join(bmuz.repo, '.claude', 'worktrees', 'agent-1')
+  mkdirSync(wt, { recursive: true }); execFileSync('git', ['init', '-q', wt]); writeFileSync(join(wt, 'x.txt'), 'x\n')
+  const worktree = d('git add -A && git commit -m "F12: tick"')
+  expect('F80: `git add -A && git commit` with a helper worktree in .claude/worktrees/ → blocked', worktree, 'deny')
+  expect('…says to add the .gitignore line', { result: /\.claude\/worktrees\//.test(worktree.message) && /\.gitignore/.test(worktree.message) ? 'ok' : 'no', message: worktree.message }, 'ok')
+  writeFileSync(join(bmuz.repo, '.gitignore'), '.claude/worktrees/\n')
+  expect('…ignored → allowed', d('git add -A && git commit -m "F12: tick"'), 'allow')
   rmSync(bmuz.root, { recursive: true, force: true })
 }
 
@@ -199,7 +242,42 @@ function testGuardEdits() {
   expect('a commit message quoting "npm test | tail" → allowed', b('git commit -m "fix: npm test | tail hid a failure"'), 'allow')
   expect('read-only sed -n with "-item" in its pattern → allowed', b('sed -n "/multi-item\\b/p" src/a.ts'), 'allow')
   expect('heredoc with a backslash into a quoted path with spaces → blocked', b("cat > \"C:/Program Files/x/a.ts\" <<'EOF'\nconst r = /\\d/\nEOF"), 'deny')
-  expect('python heredoc writing a .ts, no backslash → allowed', b("python - <<'EOF'\nopen('src/a.ts','w').write('export {}')\nEOF"), 'allow')
+  expect("python heredoc writing a .ts, no backslash, newline='' → allowed", b("python - <<'EOF'\nopen('src/a.ts','w',newline='').write('export {}')\nEOF"), 'allow')
+  // F80: Python's text mode turns LF into CRLF on Windows (Glyphtender F71)
+  expect("F80: python writing a .ts without newline= → blocked", b("python - <<'EOF'\nopen('src/a.ts','w').write('export {}')\nEOF"), 'deny')
+  expect("…Path.write_text without newline= → blocked", b("python -c \"from pathlib import Path; Path('src/a.ts').write_text('x')\""), 'deny')
+  expect("…python writing a .md → allowed", b("python - <<'EOF'\nopen('notes.md','w').write('x')\nEOF"), 'allow')
+  expect("…binary mode 'wb' → allowed", b("python - <<'EOF'\nopen('src/a.ts','wb').write(b'x')\nEOF"), 'allow')
+  // F80: servers stop with stop-servers.mjs
+  const killed = b('taskkill //PID 1234 //F')
+  expect('F80: taskkill → blocked, names stop-servers.mjs', { result: killed.result === 'deny' && /stop-servers\.mjs/.test(killed.message) ? 'ok' : 'no', message: killed.message }, 'ok')
+  expect('…PowerShell Stop-Process → blocked', ps('Stop-Process -Id 1234 -Force'), 'deny')
+  expect('…npx kill-port 5173 → blocked', b('npx kill-port 5173'), 'deny')
+  expect('…kill $(lsof -t -i:5173) → blocked', b('kill $(lsof -t -i:5173)'), 'deny')
+  expect('…stop-servers.mjs itself → allowed', b('node ~/.claude/config/bmuz/scripts/stop-servers.mjs 5173'), 'allow')
+  expect('…a commit message mentioning taskkill → allowed', b('git commit -m "never taskkill a server"'), 'allow')
+  expect('review: searching for taskkill (grep -rn taskkill …) → allowed', b('grep -rn taskkill ~/.claude/config/bmuz/scripts'), 'allow')
+  expect('review: Get-Help Stop-Process → allowed', ps('Get-Help Stop-Process'), 'allow')
+  expect('…Get-Process node | Stop-Process → blocked', ps('Get-Process -Name node | Stop-Process'), 'deny')
+  expect("review: python reading src/**/*.ts and writing report.json → allowed", b("python - <<'EOF'\nimport glob, json\nfiles = glob.glob('src/**/*.ts', recursive=True)\nopen('report.json','w').write(json.dumps(files))\nEOF"), 'allow')
+  expect("…python writing a .ts held in a variable → blocked", b("python - <<'EOF'\np = 'src/a.ts'\nopen(p,'w').write('x')\nEOF"), 'deny')
+  expect("review: python with a backslash writing STATE.md whose text names merge.mjs → allowed (it writes no code)", b("python - <<'EOF'\np = 'STATE.md'\ns = 'new merge.mjs + live-check.mjs; nl = \\\\r\\\\n'\nopen(p,'w',newline='').write(s)\nEOF"), 'allow')
+  expect("…the same backslash script writing a .mjs → still blocked", b("python - <<'EOF'\np = 'hooks/x.mjs'\nopen(p,'w',newline='').write('a\\\\nb')\nEOF"), 'deny')
+  // F80: throwaway copies go in ~/Documents/dev/.scratch/, never straight in the home folder
+  const home = join(root, 'home'); mkdirSync(join(home, 'Documents', 'dev'), { recursive: true }); mkdirSync(join(home, 'AppData'))
+  process.env.BMUZ_HOME = home
+  const hb = cmd => runHook('guard-edits.mjs', bash(home, cmd))
+  const spike = hb(`mkdir -p "${join(home, 'spike')}"`)
+  expect('F80: mkdir a new folder in the home folder → blocked, points to .scratch', { result: spike.result === 'deny' && /\.scratch/.test(spike.message) ? 'ok' : 'no', message: spike.message }, 'ok')
+  expect('…cp -r a game into ~/ppp-proof → blocked', hb(`cp -r "${game}" "${join(home, 'ppp-proof')}"`), 'deny')
+  expect('…git worktree add ~/wt → blocked', hb(`git worktree add "${join(home, 'wt')}" main`), 'deny')
+  expect('…a relative mkdir while sitting in the home folder → blocked', hb('mkdir proof-shots'), 'deny')
+  expect('…Write a new file straight into the home folder → blocked', runHook('guard-edits.mjs', { cwd: home, tool_name: 'Write', tool_input: { file_path: join(home, 'shot.png') } }), 'deny')
+  expect('…mkdir under ~/Documents/dev/.scratch → allowed', hb(`mkdir -p "${join(home, 'Documents', 'dev', '.scratch', 'goops-proof')}"`), 'allow')
+  expect('…a dot-folder (~/.claude) → allowed', runHook('guard-edits.mjs', { cwd: home, tool_name: 'Write', tool_input: { file_path: join(home, '.claude', 'x.md') } }), 'allow')
+  expect('…an existing home folder (AppData) → allowed', hb(`mkdir -p "${join(home, 'AppData', 'tmp')}"`), 'allow')
+  expect('…mkdir inside a game → allowed', b('mkdir -p src/new'), 'allow')
+  delete process.env.BMUZ_HOME
   expect('heredoc writing a .md with a backslash → allowed', b("cat > notes.md <<'EOF'\nuse \\d\nEOF"), 'allow')
   expect('commit message heredoc with a backslash and "-> a.ts" → allowed', b("git commit -F - <<'EOF'\nF08: regex \\d -> a.ts\nEOF"), 'allow')
   rmSync(root, { recursive: true, force: true })
@@ -251,6 +329,32 @@ function testCommitTypecheck() {
   expect('`git stage -A && git commit` → blocked', f('git stage -A && git commit -m "x"'), 'deny')
   expect('the type check leaves no files behind (no .tsbuildinfo, no .js)', { result: sh(fresh.repo, 'status', '--porcelain', '--ignored').split('\n').some(l => /tsbuildinfo|\.js$/.test(l)) ? 'no' : 'ok', message: sh(fresh.repo, 'status', '--porcelain', '--ignored') }, 'ok')
   rmSync(fresh.root, { recursive: true, force: true })
+
+  // F80: a bug fix commit needs the whole suite green (/bug "verify")
+  const bugRepo = makeRepo()
+  const b = cmd => runHook('commit-typecheck.mjs', bash(bugRepo.repo, cmd))
+  const marker = join(bugRepo.root, 'runs.txt')
+  process.env.BMUZ_TEST_MARK = marker
+  const runs = () => (existsSync(marker) ? readFileSync(marker, 'utf8').length : 0)
+  const check = exitCode => JSON.stringify({ scripts: { 'check:fast': `node -e "require('fs').appendFileSync(process.env.BMUZ_TEST_MARK,'x');console.log('SUITE OUTPUT');process.exit(${exitCode})"` } })
+  mkdirSync(join(bugRepo.repo, '.planning')); writeFileSync(join(bugRepo.repo, '.planning', 'STATE.md'), '## ▶ RESUME HERE\n')
+  writeFileSync(join(bugRepo.repo, 'package.json'), check(1))
+  const red = b('git add -A && git commit -m "Fix B014: dice pulse"')
+  expect('F80: "Fix B014: …" with check:fast red → blocked', red, 'deny')
+  expect('…shows the suite output', { result: /SUITE OUTPUT/.test(red.message) ? 'ok' : 'no', message: red.message }, 'ok')
+  expect('review: "(suite already red: B015)" but B015 not logged → blocked', b('git add -A && git commit -m "Fix B014: dice pulse (suite already red: B015)"'), 'deny')
+  writeFileSync(join(bugRepo.repo, '.planning', 'BUGS.md'), '# Bugs\n## Open\n### B015 · P2 · the score test was red before\n')
+  expect('…B015 logged in BUGS.md → allowed (on record, not hostage)', b('git add -A && git commit -m "Fix B014: dice pulse (suite already red: B015)"'), 'allow')
+  expect('a normal commit is not checked here (stop-check-fast does it at hand-back)', b('git add -A && git commit -m "F08: tick"'), 'allow')
+  writeFileSync(join(bugRepo.repo, 'package.json'), check(0))
+  const before = runs()
+  expect('…check:fast green → allowed', b('git add -A && git commit -m "Fix B014: dice pulse"'), 'allow')
+  expect('…the same code again → not run twice (green record)', { result: (b('git commit -am "Fix B014: dice pulse"'), runs() === before + 1) ? 'ok' : 'no', message: `runs ${runs() - before}` }, 'ok')
+  rmSync(join(bugRepo.repo, '.planning'), { recursive: true })
+  writeFileSync(join(bugRepo.repo, 'package.json'), check(1))
+  expect('not a BMUZ project (no STATE.md) → not checked', b('git add -A && git commit -m "Fix B014: x"'), 'allow')
+  delete process.env.BMUZ_TEST_MARK
+  rmSync(bugRepo.root, { recursive: true, force: true })
 }
 
 const DEPLOY_WORKFLOW = 'name: Deploy to GitHub Pages\n\non:\n  push:\n    branches:\n      - main\n\n  workflow_dispatch:\n\njobs:\n  deploy:\n    steps:\n      - uses: actions/deploy-pages@v4\n'
@@ -345,6 +449,12 @@ function testStopCheckFast() {
   expect('code changed + red → blocked', red, 'block')
   expect('…with the check output', { result: red.message.includes('CHECK OUTPUT') ? 'ok' : 'no', message: red.message }, 'ok')
   expect('already continuing (stop_hook_active) → allowed', stop({ stop_hook_active: true }), 'allow')
+  // F80 review: global now, so a turn that only answered a question never runs it (nor gets sent back for red WIP)
+  const turnFile = (tools) => { const p = join(root, `turn${tools.length}.jsonl`); writeFileSync(p, [{ type: 'user', message: { content: 'what does F08 do?' } }, ...tools.map(t => ({ type: 'assistant', message: { content: [{ type: 'tool_use', ...t }] } }))].map(e => JSON.stringify(e)).join('\n')); return p }
+  const beforeQ = runs()
+  expect('F80: question-only turn, code red → allowed, check not run', stop({ transcript_path: turnFile([]) }), 'allow')
+  expect('…it really did not run', { result: runs() === beforeQ ? 'ok' : 'no', message: `runs ${runs() - beforeQ}` }, 'ok')
+  expect('…a turn that edited a file → checked (red → blocked)', stop({ transcript_path: turnFile([{ name: 'Edit', input: { file_path: join(repo, 'a.txt') } }]) }), 'block')
   writeFileSync(join(repo, 'new.ts'), 'export {}\n')
   expect('still red after a new file → blocked', stop(), 'block')
   writeFileSync(join(repo, 'package.json'), JSON.stringify({ scripts: { 'check:fast': 'node -e "setTimeout(() => {}, 60000)"' } }))
@@ -409,7 +519,10 @@ function testLintEdit() {
   expect('framework checkout: nothing ignored (--no-ignore) → Claude told', edit(write(join(framework, 'kit', 'part.js'), BAD)), 'block')
 
   const bare = makeProject('bare', 'not-installed', false)
-  expect('no local eslint (never downloads) → skipped quietly', edit(write(join(bare, 'src', 'bad.js'), BAD)), 'allow')
+  const notInstalled = edit(write(join(bare, 'src', 'bad.js'), BAD))
+  expect('F80: no local eslint (never downloads) → Claude told once to run npm install', notInstalled, 'block')
+  expect('…names npm install', { result: /npm install/.test(notInstalled.message) ? 'ok' : 'no', message: notInstalled.message }, 'ok')
+  expect('…only once per session (the next edit is quiet)', edit(write(join(bare, 'src', 'bad2.js'), BAD)), 'allow')
   expect('no eslint setup above the file → skipped', edit(write(join(root, 'loose', 'bad.js'), BAD)), 'allow')
   rmSync(root, { recursive: true, force: true })
 }
@@ -426,7 +539,7 @@ function testHandoffCheck() {
     const path = join(root, `t${n++}.jsonl`)
     writeFileSync(path, entries.map(e => JSON.stringify(e)).join('\n'))
     const last = [...entries].reverse().find(e => e.type === 'assistant' && e.message.content[0].type === 'text')
-    return runHook('handoff-check.mjs', { hook_event_name: 'Stop', transcript_path: path, stop_hook_active: false, last_assistant_message: last?.message.content[0].text, ...extra })
+    return runHook('handoff-check.mjs', { hook_event_name: 'Stop', transcript_path: path, session_id: `hand${n}`, stop_hook_active: false, last_assistant_message: last?.message.content[0].text, ...extra })
   }
   const card = [
     '## F73 Standard hand-off card — ready for you to check',
@@ -448,8 +561,58 @@ function testHandoffCheck() {
   expect('Try it without links or "nothing to try" → sent back', noLinks, 'block')
   expect('…and the message names what is missing', { result: /Try it/.test(noLinks.message) ? 'ok' : 'no', message: noLinks.message }, 'ok')
   expect('a commit counts as work', stop([prompt('go'), tool('Bash', { command: 'git add -A && git commit -m x' }), result, say('committed')]), 'block')
-  expect('already sent back once → allowed (no loop)', stop([...work, say('Done!')], { stop_hook_active: true }), 'allow')
   expect('work in an EARLIER turn only → no card needed now', stop([...work, say(card), prompt('thanks, what next?'), say('F67.')]), 'allow')
+  // F80: sent back until it's fixed (it used to give up after once), but never forever
+  const loop = { session_id: 'loop', stop_hook_active: true }
+  expect('F80: still no card after being sent back → sent back again (2nd)', (stop([...work, say('Done!')], { session_id: 'loop' }), stop([...work, say('Done!')], loop)), 'block')
+  expect('…3rd time', stop([...work, say('Done!')], loop), 'block')
+  expect('…then lets the turn end (no endless loop)', stop([...work, say('Done!')], loop), 'allow')
+  expect('…and the count starts over afterwards', stop([...work, say('Done!')], { session_id: 'loop' }), 'block')
+
+  // F80: what the card promises is checked too
+  const withLinks = (links) => card.replace('nothing to try: it shows up at the next hand-off', links)
+  const deadLink = stop([...work, say(withLinks('PC http://localhost:1/ · phone http://192.168.1.250:1/'))])
+  expect('F80: a local link under Try it that does not answer → sent back', deadLink, 'block')
+  expect('…names the dead link and says to start the servers', { result: /localhost:1\//.test(deadLink.message) && /\/play/.test(deadLink.message) ? 'ok' : 'no', message: deadLink.message }, 'ok')
+  const port = 47000 + Math.floor(Math.random() * 1000)
+  const server = spawn('node', ['-e', `require('http').createServer((q, s) => s.end('ok')).listen(${port})`], { stdio: 'ignore' })
+  for (let i = 0; i < 50 && spawnSync('node', ['-e', `fetch('http://localhost:${port}/').then(() => process.exit(0), () => process.exit(1))`]).status !== 0; i++);
+  expect('…a link that answers → allowed', stop([...work, say(withLinks(`PC http://localhost:${port}/`))]), 'allow')
+  expect('…a working link followed by a comma or a full stop → allowed (review: "…:47123," looked dead)', stop([...work, say(withLinks(`desktop http://localhost:${port}, phone http://localhost:${port}.`))]), 'allow')
+  expect('…a live (https) link is not fetched → allowed', stop([...work, say(withLinks('LIVE https://example.invalid/game/'))]), 'allow')
+  server.kill()
+  const look = (extra = []) => [prompt('make the button blue'), tool('Edit', { file_path: join(root, 'src', 'ui', 'Hud.tsx') }), result, ...extra]
+  const noShot = stop([...look(), say(card)])
+  expect('F80: a src/**/*.tsx edit with no screenshot this turn → sent back', noShot, 'block')
+  expect('…says to screenshot it, or write "no visual change"', { result: /screenshot/.test(noShot.message) && /no visual change/.test(noShot.message) ? 'ok' : 'no', message: noShot.message }, 'ok')
+  expect('…a Playwright screenshot this turn → allowed', stop([...look([tool('mcp__plugin_playwright_playwright__browser_take_screenshot', {}), result]), say(card)]), 'allow')
+  expect('…"no visual change" under Proof → allowed', stop([...look(), say(card.replace('test-hooks 9/9', 'test-hooks 9/9 · no visual change (a rename)'))]), 'allow')
+  expect('…a .ts logic edit is not a visual change → allowed', stop([prompt('go'), tool('Edit', { file_path: join(root, 'src', 'rules.ts') }), result, say(card)]), 'allow')
+  // the feel question for a built feature with a why: line
+  const { root: gameRoot, repo: game } = makeRepo()
+  mkdirSync(join(game, '.planning'))
+  writeFileSync(join(game, '.planning', 'ROADMAP.md'), '# T — Roadmap\n## v0.1 — x ← current\n- 🔨 F08 🎮 Fan — must\n  why: fan layout → players scan the whole hand → Mastery\n')
+  writeFileSync(join(game, '.planning', 'SPRINT.md'), '# Sprint 04 — fan\n## F08 🎮 Fan\n- [x] 🤖 1. a — src/a.ts\n- [x] 🤖 2. b — src/a.ts\n- [x] 🤖 3. c — src/a.ts\n- [ ] 🙋 4. Try it on the phone\n')
+  const inGame = [prompt('go'), { ...tool('Edit', { file_path: join(game, '.planning', 'SPRINT.md') }), cwd: game }, result]
+  const fanCard = card.replace('F73 Standard hand-off card', 'F08 Fan')
+  const noFeel = stop([...inGame, say(fanCard)])
+  expect('F80: F08 built + a why: line, card without the feel question → sent back', noFeel, 'block')
+  expect('…quotes the why', { result: /Did <moment> feel like/.test(noFeel.message) && /Mastery/.test(noFeel.message) ? 'ok' : 'no', message: noFeel.message }, 'ok')
+  expect('…with "Did … feel …?" → allowed', stop([...inGame, say(fanCard.replace('**Questions:** none', '**Questions:** Did fanning 7 cards feel like holding a real hand?'))]), 'allow')
+  expect('…a card about another feature (F08 not named) → allowed', stop([...inGame, say(card)]), 'allow')
+  rmSync(gameRoot, { recursive: true, force: true })
+  // the sprint report header
+  const archive = [prompt('go'), tool('Bash', { command: 'node ~/.claude/config/bmuz/scripts/archive-sprint.mjs' }), result, tool('Edit', { file_path: 'a.ts' }), result]
+  expect('F80: a sprint archived, report without "Sprint NN — <goal>" → sent back', stop([...archive, say(card)]), 'block')
+  expect('…with the header line → allowed', stop([...archive, say(card.replace('## F73', 'Sprint 04 — a fanned hand you can play from\n\n## F73'))]), 'allow')
+  // never "your game"
+  const { root: projRoot, repo: proj } = makeRepo() // "your game" counts in a game project only
+  mkdirSync(join(proj, '.planning'))
+  expect('F80: "your game" in any answer, in a game project → sent back', stop([prompt('how is it?'), say('Your game looks great on the phone.')], { cwd: proj }), 'block')
+  expect('…quoting the rule ("your game") → allowed', stop([prompt('what is the rule?'), say('Never say "your game" — it is his game.')], { cwd: proj }), 'allow')
+  expect('…in backticks (`your game`) → allowed', stop([prompt('what is the rule?'), say('The check looks for `your game` in the card.')], { cwd: proj }), 'allow')
+  expect('…outside a game project (PC help: "your game library in Steam") → allowed', stop([prompt('steam?'), say('Open your game library in Steam.')], { cwd: root }), 'allow')
+  rmSync(projRoot, { recursive: true, force: true })
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -475,6 +638,7 @@ function testPlanLint() {
   const files = { 'ROADMAP.md': roadmap, 'SPRINT.md': sprint, 'BUGS.md': bugs, 'STATE.md': state }
   for (const [name, text] of Object.entries(files)) writeFileSync(join(plan, name), text)
   writeFileSync(join(repo, '.gitignore'), '.planning/ppp.html\n')
+  mkdirSync(join(repo, 'src')); writeFileSync(join(repo, 'src', 'a.ts'), 'export {}\n') // the sprint's tasks name real files
   sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'plan')
   const edit = (name, text) => { writeFileSync(join(plan, name), text); return runHook('plan-lint.mjs', { cwd: repo, hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: join(plan, name) } }) }
   const says = (got, re) => ({ result: re.test(got.message) ? 'ok' : 'no', message: got.message })
@@ -506,6 +670,40 @@ function testPlanLint() {
   expect('Log over 10 entries → told', edit('STATE.md', state + '- old\n'.repeat(11)), 'block')
   expect('RESUME HERE appended, not replaced → told', edit('STATE.md', state.replace('Doing F02.', 'line\n'.repeat(14))), 'block')
   edit('STATE.md', state)
+  // F80: the checks that used to be "remember to…"
+  const add = (line) => roadmap.replace('```mermaid', `${line}\n\`\`\`mermaid`)
+  const ready = edit('ROADMAP.md', add('- ⏳ F04 🎮 Pile — must · needs: F01'))
+  expect('F80: ⏳ waiting but everything it needs is ✅ → told to set it 🟢 (ready rule)', ready, 'block')
+  expect('…names it', says(ready, /F04 is ⏳ waiting/), 'ok')
+  expect('…unless the line says what else it waits for ("· waits: art")', edit('ROADMAP.md', add('- ⏳ F04 🎮 Pile — must · needs: F01 · waits: art')), 'allow')
+  expect('⏳ whose need is still 🔨 → quiet', edit('ROADMAP.md', add('- ⏳ F04 🎮 Pile — must · needs: F02')), 'allow')
+  expect('🟢 with a soft ~need that is only 🔨 (not 🎛️ yet) → told', edit('ROADMAP.md', add('- 🟢 F05 ✨ Glow — could · needs: ~F02')), 'block')
+  expect('…the ~need 🎛️ tuning → quiet', edit('ROADMAP.md', add('- 🟢 F05 ✨ Glow — could · needs: ~F02').replace('- 🔨 F02', '- 🎛️ F02')), 'allow')
+  expect('a feature with no type → told', edit('ROADMAP.md', add('- ⏳ F06 Thing — must · needs: F02')), 'block')
+  expect('a feature with no scope → told', edit('ROADMAP.md', add('- ⏳ F06 🎮 Thing — needs: F02')), 'block')
+  expect('a ❓ decision needs no scope → quiet', edit('ROADMAP.md', add('- ⏳ F06 ❓ Which board? — needs: F02')), 'allow')
+  edit('ROADMAP.md', roadmap)
+  const badPath = edit('SPRINT.md', sprint + '- [ ] 🤖 4. Deep — src/nowhere/deep/x.ts\n')
+  expect('F80: a task naming a file whose folder does not exist → told ("tasks name real files")', badPath, 'block')
+  expect('…names the path', says(badPath, /src\/nowhere\/deep\/x\.ts/), 'ok')
+  expect('a task naming a NEW file in a real folder → quiet', edit('SPRINT.md', sprint + '- [ ] 🤖 4. New — src/new.ts, content/\n'), 'allow')
+  expect('"(tuning)" / "answered 2026-10-19 (…)" are not paths → quiet', edit('SPRINT.md', sprint + '- [ ] 🤖 4. Tune it (tuning)\n- [x] 🙋 5. Read it — answered 2026-10-19 (research/x.md §8: fine)\n'), 'allow')
+  const bugMissing = edit('SPRINT.md', sprint.replace('# Sprint 01 — cards', '# Sprint 02 — hover'))
+  expect('F80: a new sprint that does not name an open P1 (B002) → told', bugMissing, 'block')
+  expect('…names the bug', says(bugMissing, /P1 B002/), 'ok')
+  expect('…named in a task or a Notes line → quiet', edit('SPRINT.md', sprint.replace('# Sprint 01 — cards', '# Sprint 02 — hover') + '## Notes\n- B002 waits for the art pass\n'), 'allow')
+  edit('SPRINT.md', sprint)
+  expect('F80: a "### B…" header the reader can\'t parse → told', edit('BUGS.md', bugs.replace('## Fixed', '### B003 - P2 - open\nx\n## Fixed')), 'block')
+  expect('F80: "Guarded by:" a test file that does not exist → told', edit('BUGS.md', bugs.replace('tests/a.test.ts', 'tests/gone.test.ts')), 'block')
+  mkdirSync(join(repo, 'tests'), { recursive: true }); writeFileSync(join(repo, 'tests', 'real.test.ts'), 'x')
+  expect('…a real one (with "(what it checks)" after it) → quiet', edit('BUGS.md', bugs.replace('tests/a.test.ts', 'tests/real.test.ts ("B001: x", 3 sizes) + e2e')), 'allow')
+  edit('BUGS.md', bugs)
+  writeFileSync(join(plan, 'NOTES.md'), 'side doc\n')
+  const stray = edit('STATE.md', state)
+  expect('F80: a stray file in .planning/ → told on any plan edit', stray, 'block')
+  expect('…names it', says(stray, /\.planning\/NOTES\.md/), 'ok')
+  rmSync(join(plan, 'NOTES.md'))
+  expect('…gone → quiet (ppp.html, gitignored, never counts)', edit('STATE.md', state), 'allow')
   // a problem already in the last commit doesn't nag every edit
   writeFileSync(join(plan, 'STATE.md'), state + '- old\n'.repeat(11)); sh(repo, 'commit', '-qam', 'long log')
   expect('old problem (already committed) → quiet', edit('STATE.md', state + '- old\n'.repeat(11) + '\n'), 'allow')
@@ -539,7 +737,9 @@ function testSessionMoments() {
   ctx(95, 's2')
   expect("another session's context doesn't count here", told(prompt('go', 's3'), /Context is/), 'quiet')
   expect('a command that is not a commit → quiet', told(runHook('session-moments.mjs', { hook_event_name: 'PostToolUse', session_id: 's2', tool_name: 'Bash', tool_input: { command: 'ls' } }), /Context/), 'quiet')
-  delete process.env.BMUZ_CTX_DIR
+  ctx(92, 's4')
+  expect('F80: a save (its commit happens inside save.mjs) counts as a commit', told(runHook('session-moments.mjs', { hook_event_name: 'PostToolUse', session_id: 's4', tool_name: 'Bash', tool_input: { command: 'node ~/.claude/config/bmuz/scripts/save.mjs "F80: x"' } }), /Context is 92%/), 'told')
+  process.env.BMUZ_CTX_DIR = CTX
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -557,13 +757,16 @@ function testStopPlanCheck() {
   const stop = (tools, extra = {}) => {
     const path = join(root, `t${n++}.jsonl`)
     writeFileSync(path, [prompt, ...tools].map(e => JSON.stringify(e)).join('\n'))
-    return runHook('stop-plan-check.mjs', { hook_event_name: 'Stop', transcript_path: path, stop_hook_active: false, ...extra })
+    return runHook('stop-plan-check.mjs', { hook_event_name: 'Stop', transcript_path: path, session_id: `plan${n}`, stop_hook_active: false, ...extra })
   }
   const commitCmd = tool('Bash', { command: 'git add -A && git commit -m "blue button"' })
   commitFile(repo, 'src/button.ts', 'export const blue = 1\n', 'blue button')
   expect('code committed, SPRINT.md untouched → sent back', stop([commitCmd]), 'block')
   expect('…unless SPRINT.md was edited this turn', stop([commitCmd, tool('Edit', { file_path: join(repo, '.planning', 'SPRINT.md') })]), 'allow')
-  expect('already sent back once → allowed (no loop)', stop([commitCmd], { stop_hook_active: true }), 'allow')
+  const stuck = { session_id: 'stuck', stop_hook_active: true }
+  expect('F80: still not fixed after being sent back → sent back again', (stop([commitCmd], { session_id: 'stuck' }), stop([commitCmd], stuck)), 'block')
+  expect('…3rd time', stop([commitCmd], stuck), 'block')
+  expect('…then lets the turn end (no endless loop)', stop([commitCmd], stuck), 'allow')
   expect('no commit this turn → allowed', stop([tool('Edit', { file_path: join(repo, 'src', 'button.ts') })]), 'allow')
   writeFileSync(join(repo, '.planning', 'SPRINT.md'), sprint.replace(/- \[ \]/g, '- [x]'))
   expect('sprint finished (all ticked) → allowed', stop([commitCmd]), 'allow')
@@ -609,12 +812,97 @@ function testStopPlanCheck() {
   expect('an item with no "→ home:" → sent back', stop([wroteLookback]), 'block')
   writeFileSync(lookback, good + '- a fluke → nothing\n')
   expect('"→ nothing" without a reason → sent back', stop([wroteLookback]), 'block')
+  writeFileSync(lookback, good + '- forgot the phone test → checklist: .planning/SPRINT.md (added a line)\n')
+  expect('F80: "→ checklist" without its kind (② / ③) → sent back', stop([wroteLookback]), 'block')
+  writeFileSync(lookback, good + '- forgot the phone test → checklist: .planning/SPRINT.md (③ only Muzzy can judge it on his phone)\n')
+  expect('…with "(③ why)" → allowed', stop([wroteLookback]), 'allow')
   writeFileSync(lookback, good + '- hooks file → hook: ~/.claude/settings.json (wired)\n')
   expect('a ~/ home path is read from the home folder', stop([wroteLookback]), 'allow')
   expect('look-back written in an earlier turn → milestone allowed', stop([tagMilestone]), 'allow')
   writeFileSync(join(gitDir, 'bmuz-ppp-rebuilt'), 'later')
   expect('only ROADMAP edited, planner rebuilt, not republished → sent back (review)', stop([tool('Edit', { file_path: join(repo, '.planning', 'ROADMAP.md') })]), 'block')
   rmSync(root, { recursive: true, force: true })
+
+  // F80 — in a fresh project (no look-back yet, no planner page)
+  const fresh = makeRepo()
+  const r = fresh.repo
+  mkdirSync(join(r, '.planning'))
+  writeFileSync(join(r, '.planning', 'ROADMAP.md'), '# T — Roadmap\n## v0.1 — Cards ← current\n- 🔨 F02 🎮 Cards — must · needs: — · sprint 1\n')
+  writeFileSync(join(r, '.planning', 'SPRINT.md'), sprint)
+  sh(r, 'add', '-A'); sh(r, 'commit', '-q', '-m', 'plan'); sh(r, 'push', '-q')
+  const turnStart = new Date(Date.now() + 1000).toISOString() // this turn begins after the setup
+  const inFresh = (tools, session) => {
+    const path = join(fresh.root, `f${n++}.jsonl`)
+    writeFileSync(path, [{ ...prompt, timestamp: turnStart }, ...tools.map(t => ({ ...t, cwd: r }))].map(e => JSON.stringify(e)).join('\n'))
+    return runHook('stop-plan-check.mjs', { hook_event_name: 'Stop', transcript_path: path, session_id: session || `fresh${n}` })
+  }
+  const releaseCmd = tool('Bash', { command: 'node ~/.claude/config/bmuz/scripts/release.mjs milestone "Cards"' })
+  const tagAt = (name, when) => execFileSync('git', ['-C', r, 'tag', '-a', name, '-m', name], { env: { ...process.env, GIT_COMMITTER_DATE: when.toISOString() } })
+  tagAt('v0.0.0', new Date(Date.now() - 86_400_000)) // a milestone from yesterday
+  expect('F80: release.mjs ran but made no new milestone tag (an old one exists) → no look-back needed', inFresh([releaseCmd]), 'allow')
+  tagAt('v0.1.0', new Date(Date.now() + 2000)) // made by release.mjs inside its own process, this turn
+  expect('F80: release.mjs made a milestone tag (v0.1.0) this turn, no look-back → sent back (audit: it never fired)', inFresh([releaseCmd]), 'block')
+  tagAt('v0.1.1', new Date(Date.now() + 2000))
+  sh(r, 'tag', '-d', 'v0.1.0')
+  expect('…an update tag (v0.1.1) needs no look-back', inFresh([releaseCmd]), 'allow')
+  // an approved feature that isn't saved
+  commitFile(r, 'src/cards.ts', 'export const cards = 1\n', 'F02: done')
+  const doneCmd = tool('Bash', { command: 'git add -A && git commit -m "F02: done"' })
+  const tick = tool('Edit', { file_path: join(r, '.planning', 'SPRINT.md') })
+  const unsaved = inFresh([doneCmd, tick])
+  expect('F80: `F02: done` committed, not pushed → sent back to /save', unsaved, 'block')
+  expect('…says /save', { result: /\/save/.test(unsaved.message) ? 'ok' : 'no', message: unsaved.message }, 'ok')
+  sh(r, 'push', '-q')
+  expect('…pushed (/save ran) → allowed', inFresh([doneCmd, tick]), 'allow')
+  // the sprint's features are all ✅ but SPRINT.md is still there
+  writeFileSync(join(r, '.planning', 'ROADMAP.md'), '# T — Roadmap\n## v0.1 — Cards ← current\n- ✅ F02 🎮 Cards — must · needs: — · sprint 1\n')
+  const finished = inFresh([tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') })])
+  expect('F80: every sprint feature ✅ in ROADMAP, sprint not archived → sent back', finished, 'block')
+  expect('…names archive-sprint.mjs', { result: /archive-sprint\.mjs/.test(finished.message) ? 'ok' : 'no', message: finished.message }, 'ok')
+  writeFileSync(join(r, '.planning', 'BUGS.md'), '# T — Bugs\nOpen: 1 (P0 0 · P1 1 · P2 0 · P3 0)\n## Open\n### B004 · P1 · open · found 2026-10-19\nx\n')
+  const withBugs = inFresh([tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') })])
+  expect('F80: …with an open P1 → the message offers the /bug sweep with the counts', { result: /1 P1/.test(withBugs.message) && /\/bug sweep/.test(withBugs.message) ? 'ok' : 'no', message: withBugs.message }, 'ok')
+  rmSync(join(r, '.planning', 'SPRINT.md'))
+  expect('…archived (no SPRINT.md) → allowed', inFresh([tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') })]), 'allow')
+  // F80: a new data file under content/ is listed in the TDD
+  writeFileSync(join(r, '.planning', 'TDD.md'), '# TDD\n## 3. Data files\n- `content/tuning/` — every tuning knob\n')
+  mkdirSync(join(r, 'content', 'tuning'), { recursive: true }); mkdirSync(join(r, 'content', 'lessons'), { recursive: true })
+  sh(r, 'add', '-A'); sh(r, 'commit', '-q', '-m', 'tdd'); sh(r, 'push', '-q')
+  writeFileSync(join(r, 'content', 'lessons', 'visor.json'), '{}\n')
+  const writeLesson = tool('Write', { file_path: join(r, 'content', 'lessons', 'visor.json') })
+  const unlisted = inFresh([writeLesson])
+  expect('F80: a new content/lessons/visor.json the TDD does not mention → sent back', unlisted, 'block')
+  expect('…names the file and the TDD', { result: /content\/lessons\/visor\.json/.test(unlisted.message) && /TDD/.test(unlisted.message) ? 'ok' : 'no', message: unlisted.message }, 'ok')
+  // review: an untracked draft from BEFORE this turn (Muzzy still writing it) doesn't send every turn back
+  const laterTurn = join(fresh.root, 'later-turn.jsonl')
+  writeFileSync(laterTurn, [{ ...prompt, timestamp: new Date(Date.now() + 60_000).toISOString() }, { ...tool('Edit', { file_path: join(r, '.planning', 'ROADMAP.md') }), cwd: r }].map(e => JSON.stringify(e)).join('\n'))
+  expect('review: an untracked content/ file made before this turn → allowed', runHook('stop-plan-check.mjs', { hook_event_name: 'Stop', transcript_path: laterTurn, session_id: 'draft' }), 'allow')
+  writeFileSync(join(r, 'content', 'tuning', 'speed.json'), '{}\n')
+  rmSync(join(r, 'content', 'lessons'), { recursive: true })
+  expect('…a new file in a folder the TDD already lists (content/tuning/) → allowed', inFresh([tool('Write', { file_path: join(r, 'content', 'tuning', 'speed.json') })]), 'allow')
+  rmSync(join(r, 'content', 'tuning', 'speed.json'))
+  // F80: a changed sketch goes out with the planner
+  writeFileSync(join(r, '.planning', 'STATE.md'), '## ▶ RESUME HERE\nx\n**Planner (PPP):** https://claude.ai/artifact/fff111\n')
+  sh(r, 'add', '-A'); sh(r, 'commit', '-q', '-m', 'state'); sh(r, 'push', '-q')
+  // F80: a release this turn (v0.1.1 was tagged above, "this turn") needs a live check on record
+  const noLive = inFresh([releaseCmd])
+  expect('F80: a release tag made this turn, no .planning/live-pass → sent back to live-check.mjs', noLive, 'block')
+  expect('…names live-check.mjs and the tag', { result: /live-check\.mjs/.test(noLive.message) && /v0\.1\.1/.test(noLive.message) ? 'ok' : 'no', message: noLive.message }, 'ok')
+  writeFileSync(join(r, '.planning', 'live-pass'), 'abc123\nv0.1.0 https://x.github.io/t/\n2026-10-19T10:00:00Z\n')
+  expect('…a live-pass for an OLDER tag → still sent back', inFresh([releaseCmd]), 'block')
+  writeFileSync(join(r, '.planning', 'live-pass'), 'abc123\nv0.1.1 skipped — Release: none (library)\n2026-10-19T10:00:00Z\n')
+  expect('…a live-pass naming the new tag (a recorded skip counts) → allowed', inFresh([releaseCmd]), 'allow')
+  writeFileSync(join(r, '.planning', 'live-pass'), 'abc123\nv0.1.1 https://x.github.io/t/\n2026-10-19T10:00:00Z\nconsole: smoke:live\n')
+  expect('…a real live pass for it → allowed', inFresh([releaseCmd]), 'allow')
+  const sketch = join(r, '.planning', 'research', 'sketches', 'goo.html')
+  const editSketch = tool('Write', { file_path: sketch })
+  const sketchUnsent = inFresh([editSketch])
+  expect('F80: a sketch written, planner not republished with it → sent back', sketchUnsent, 'block')
+  expect('…shows the files entry to send', { result: /"sketches\/goo\.html": "\.planning\/research\/sketches\/goo\.html"/.test(sketchUnsent.message) ? 'ok' : 'no', message: sketchUnsent.message }, 'ok')
+  const ppp = (files) => tool('Artifact', { file_path: join(r, '.planning', 'ppp.html'), url: 'https://claude.ai/artifact/fff111', ...(files ? { files } : {}) })
+  expect('…republished WITHOUT the sketch in files → still sent back', inFresh([editSketch, ppp()]), 'block')
+  expect('…republished with it → allowed', inFresh([editSketch, ppp({ 'sketches/goo.html': '.planning/research/sketches/goo.html' })]), 'allow')
+  rmSync(fresh.root, { recursive: true, force: true })
 }
 
 // F78: no secret in a commit; ask before checkout / restore throws uncommitted changes away
@@ -723,8 +1011,157 @@ function testSessionStartUpdates() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F80: Muzzy stopping + unpushed work → the turn can't end until it's saved
+function testStopUnsaved() {
+  console.log('stop-unsaved — nothing left unpushed when Muzzy walks away')
+  const { root, repo } = makeRepo()
+  const ctx = join(root, 'ctx'); mkdirSync(ctx)
+  let n = 0
+  const run = (prompts, { cwd = repo, session = 's1', tools = [] } = {}) => {
+    const path = join(root, `t${n++}.jsonl`)
+    const entries = [...prompts.map(p => ({ type: 'user', message: { content: p } })), ...tools.map(t => ({ type: 'assistant', cwd, message: { content: [{ type: 'tool_use', ...t }] } }))]
+    writeFileSync(path, entries.map(e => JSON.stringify(e)).join('\n'))
+    const out = spawnSync('node', [join(HOOKS, 'stop-unsaved.mjs')], { input: JSON.stringify({ hook_event_name: 'Stop', cwd, session_id: session, transcript_path: path }), encoding: 'utf8', env: { ...process.env, BMUZ_CTX_DIR: ctx, CLAUDE_PROJECT_DIR: '' } })
+    const text = (out.stdout || '').trim()
+    return text ? { result: JSON.parse(text).decision, message: JSON.parse(text).reason } : { result: 'allow', message: out.stderr || '' }
+  }
+  const stop = (said, opts) => run([said], opts)
+  const says = (got, re) => ({ result: re.test(got.message) ? 'ok' : 'no', message: got.message })
+  expect('stopping, everything pushed → allowed', stop('ok going to bed, night!'), 'allow')
+  writeFileSync(join(repo, 'new.txt'), 'x\n')
+  const dirty = stop('switching to the laptop')
+  expect('stopping, an uncommitted file → sent back', dirty, 'block')
+  expect('…names it and says /save', says(dirty, /1 file\(s\) changed[\s\S]*\/save/), 'ok')
+  expect('not stopping ("make the button blue") → allowed', stop('make the button blue'), 'allow')
+  expect('"I\'m done with the menu, next the HUD" is not stopping → allowed', stop("I'm done with the menu, next the HUD"), 'allow')
+  expect('"I\'m done for tonight" → sent back', stop("I'm done for tonight", { session: 's0' }), 'block')
+  sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'new')
+  const ahead = stop('done for now', { session: 's2' })
+  expect('committed but not pushed → sent back', ahead, 'block')
+  expect('…"1 commit(s) on main that GitHub doesn\'t have"', says(ahead, /1 commit\(s\) on main/), 'ok')
+  expect('a helper report after "going to bed — finish it" → still guarded', run(['going to bed — finish it', '<task-notification>helper done</task-notification>'], { session: 's3' }), 'block')
+  expect('sent back a 2nd time', stop('done for now', { session: 's2' }), 'block')
+  expect('…a 3rd time', stop('done for now', { session: 's2' }), 'block')
+  expect('…then lets go (a push that can\'t work must not trap the session)', stop('done for now', { session: 's2' }), 'allow')
+  sh(repo, 'push', '-q')
+  expect('pushed → allowed', stop('done for now', { session: 's2' }), 'allow')
+  sh(repo, 'checkout', '-q', '-b', 'dev/new')
+  expect('a branch never pushed → sent back', stop('good night', { session: 's4' }), 'block')
+  sh(repo, 'push', '-q', '-u', 'origin', 'dev/new')
+  // another repo worked in this turn counts too; a repo with no remote only needs committing
+  const other = join(root, 'other'); execFileSync('git', ['init', '-q', other]); sh(other, 'config', 'user.email', 't@e.com'); sh(other, 'config', 'user.name', 't')
+  writeFileSync(join(other, 'a.txt'), 'a\n'); sh(other, 'add', '.'); sh(other, 'commit', '-q', '-m', 'one')
+  expect('no remote, all committed → allowed', stop('signing off', { cwd: other, session: 's5' }), 'allow')
+  writeFileSync(join(other, 'b.txt'), 'b\n')
+  expect('a repo edited this turn (not the session folder) with uncommitted work → sent back', stop('signing off', { session: 's6', tools: [{ name: 'Write', input: { file_path: join(other, 'b.txt') } }] }), 'block')
+  rmSync(root, { recursive: true, force: true })
+}
+
+// F80: a new rule line in BMUZ's own instructions says how it happens (① ② ③)
+function testRuleKind() {
+  console.log('rule-kind — every new rule says how it happens')
+  const home = mkdtempSync(join(tmpdir(), 'bmuz-rulekind-'))
+  const skill = join(home, '.claude', 'skills', 'save', 'SKILL.md')
+  mkdirSync(dirname(skill), { recursive: true })
+  const env = { ...process.env, BMUZ_HOME: home }
+  const run = (input) => {
+    const out = spawnSync('node', [join(HOOKS, 'rule-kind.mjs')], { input: JSON.stringify(input), encoding: 'utf8', env })
+    const text = (out.stdout || '').trim()
+    return text ? { result: JSON.parse(text).decision, message: JSON.parse(text).reason } : { result: 'allow', message: out.stderr || '' }
+  }
+  const edit = (file, oldText, newText) => run({ tool_name: 'Edit', tool_input: { file_path: file, old_string: oldText, new_string: newText } })
+  writeFileSync(skill, '# /save\n- Always run the tests first.\n')
+  const told = edit(skill, 'x', '- Always run the tests first.\n- Never push on Fridays.')
+  expect('a new "never…" line without a mark → Claude told', told, 'block')
+  expect('…names the line and the three kinds', { result: /Never push on Fridays/.test(told.message) && /①/.test(told.message) && /③/.test(told.message) ? 'ok' : 'no', message: told.message }, 'ok')
+  expect('a new rule line marked ① → quiet', edit(skill, 'x', '- Always run the tests ① (save.mjs does it).'), 'allow')
+  expect('an unmarked rule line that was already there (in old_string too) → quiet (old lines are the audit\'s)', edit(skill, '- Must stay.\nold', '- Must stay.\nnew words'), 'allow')
+  expect('a line with no rule word → quiet', edit(skill, 'x', '- Lists the open bugs.'), 'allow')
+  expect('review: a scope tag "— must:alpha" in an example ROADMAP line → quiet', edit(skill, 'x', '- 🔨 F08 🎮 Splayed cards — must:alpha · needs: F07'), 'allow')
+  expect('a rule word inside a code block → quiet', edit(skill, 'x', '```\nalways run me\n```'), 'allow')
+  expect('MultiEdit is checked too', run({ tool_name: 'MultiEdit', tool_input: { file_path: skill, edits: [{ old_string: 'a', new_string: '- Make sure the build is green.' }] } }), 'block')
+  expect('a game file (not BMUZ instructions) → quiet', edit(join(home, 'game', 'README.md'), 'x', '- Always wear a hat.'), 'allow')
+  expect('a review report (config/bmuz/reviews) → quiet', edit(join(home, '.claude', 'config', 'bmuz', 'reviews', 'a.md'), 'x', '- Always wear a hat.'), 'allow')
+  expect('F80: the game-doc skeletons (templates/TDD.md) are not BMUZ rules → quiet', edit(join(home, '.claude', 'config', 'bmuz', 'templates', 'TDD.md'), 'x', '- Secrets never in the repo.'), 'allow')
+  expect('…the hand-off template is watched', edit(join(home, '.claude', 'config', 'bmuz', 'templates', 'handoff.md'), 'x', '- Always wear a hat.'), 'block')
+  expect('PROJECT-FILES.md is watched', edit(join(home, '.claude', 'config', 'bmuz', 'PROJECT-FILES.md'), 'x', '- Always wear a hat.'), 'block')
+  // a Write is compared with the last synced copy (~/.claude-config): only lines new since then count
+  const synced = join(home, '.claude-config', 'skills', 'save', 'SKILL.md')
+  mkdirSync(dirname(synced), { recursive: true }); writeFileSync(synced, '# /save\n- Always run the tests first.\n')
+  expect('Write: an old unmarked line (in the synced copy) → quiet', run({ tool_name: 'Write', tool_input: { file_path: skill, content: '# /save\n- Always run the tests first.\n- Lists bugs.\n' } }), 'allow')
+  expect('Write: a new unmarked line → told', run({ tool_name: 'Write', tool_input: { file_path: skill, content: '# /save\n- Always run the tests first.\n- Remember to ping Muzzy.\n' } }), 'block')
+  const all = spawnSync('node', [join(HOOKS, 'rule-kind.mjs'), '--all'], { encoding: 'utf8', env })
+  expect('--all lists every unmarked rule line with a count', { result: /skills\/save\/SKILL\.md — 1/.test(all.stdout) && /1 rule line\(s\) without/.test(all.stdout) ? 'ok' : 'no', message: all.stdout }, 'ok')
+  rmSync(home, { recursive: true, force: true })
+}
+
+// F80: a sketch keeps its sketch kit
+function testSketchLint() {
+  console.log('sketch-lint — a sketch keeps its kit')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-sketch-'))
+  const dir = join(root, '.planning', 'research', 'sketches')
+  mkdirSync(dir, { recursive: true })
+  const starter = readFileSync(join(HOOKS, '..', 'templates', 'sketch', 'sketch-starter.html'), 'utf8')
+  const good = starter.replace('S1: Sketch name', 'S2: Goo wobble').replace('One sentence: what this sketch tries, and what to look for when you play it.', 'Tries a softer wobble; watch the corners.')
+  const write = (name, html) => { writeFileSync(join(dir, name), html); return runHook('sketch-lint.mjs', { hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: join(dir, name) } }) }
+  expect('the starter with a real title + description → quiet', write('goo.html', good), 'allow')
+  const placeholder = write('new.html', starter)
+  expect('the starter\'s placeholder title / description left in → told', placeholder, 'block')
+  expect('…names both', { result: /S1: Sketch name/.test(placeholder.message) && /placeholder sentence/.test(placeholder.message) ? 'ok' : 'no', message: placeholder.message }, 'ok')
+  const noCopy = write('nocopy.html', good.split('Copy values for Claude').join('Copy'))
+  expect('"Copy values for Claude" button gone → told', noCopy, 'block')
+  expect('no presets, no help lines → told', write('bare.html', '<title>S3: x</title><meta name="description" content="y"><button>Copy values for Claude</button>'), 'block')
+  expect('a sketch outside .planning/research/sketches → ignored', runHook('sketch-lint.mjs', { tool_name: 'Write', tool_input: { file_path: join(root, 'page.html') } }), 'allow')
+  rmSync(root, { recursive: true, force: true })
+}
+
+// F80: session start shows this machine's to-do and the open "Ask Muzzy:" questions
+function testSessionStartNotices() {
+  console.log('session-start — machine to-do + Ask Muzzy (F80)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-start2-'))
+  const hub = join(root, 'HUB.md')
+  writeFileSync(hub, '# Hub\n## Projects\n- x\n## 📌 Machine to-do (Claude: do the list for THIS machine)\n\n### Laptop (user joebr) — added 2026-09-30\n- [ ] 1. pull the setup\n- [x] 2. done already\n- [ ] 3. clone glyphtender-original\n\n### PC (user Muzzy)\n- [ ] 1. PC thing\n## Next section\n')
+  const game = join(root, 'game')
+  mkdirSync(join(game, '.planning'), { recursive: true })
+  writeFileSync(join(game, '.planning', 'STATE.md'), '## ▶ RESUME HERE\nF08 next\n## Where we are\nx\n')
+  writeFileSync(join(game, '.planning', 'SPRINT.md'), '# Sprint 04 — x\n## F08 🎮 Fan\n- [ ] 🤖 1. a\nAsk Muzzy: should cards tilt on hover?\n## F09 🎮 Pile\nAsk Muzzy: —\n')
+  execFileSync('git', ['init', '-q', game])
+  const start = (user, source = 'startup') => {
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: game, BMUZ_NO_PULL: '1', BMUZ_HUB: hub, USERNAME: user, USER: user }
+    const r = spawnSync('bash', [join(HOOKS, '..', 'session-start.sh')], { input: `{"source":"${source}"}`, encoding: 'utf8', env, timeout: 60_000 })
+    return r.stdout || r.stderr || ''
+  }
+  const laptop = start('joebr')
+  expect('the laptop (joebr) gets its own to-do: the 2 open items, not the ticked one or the PC\'s', { result: /Machine to-do/.test(laptop) && /pull the setup/.test(laptop) && /clone glyphtender-original/.test(laptop) && !/done already/.test(laptop) && !/PC thing/.test(laptop) ? 'ok' : 'no', message: laptop }, 'ok')
+  const pc = start('Muzzy')
+  expect('the PC (Muzzy) gets the PC\'s item only', { result: /PC thing/.test(pc) && !/pull the setup/.test(pc) ? 'ok' : 'no', message: pc }, 'ok')
+  expect('a machine with nothing listed → no to-do line', { result: /Machine to-do/.test(start('someone')) ? 'no' : 'ok', message: '' }, 'ok')
+  expect('the open "Ask Muzzy:" question is shown; an empty one ("—") is not', { result: /should cards tilt on hover/.test(laptop) && !/Ask Muzzy: —/.test(laptop) ? 'ok' : 'no', message: laptop }, 'ok')
+  expect('after /clear (source clear) the to-do is not repeated', { result: /Machine to-do/.test(start('joebr', 'clear')) ? 'no' : 'ok', message: '' }, 'ok')
+  rmSync(root, { recursive: true, force: true })
+}
+
+// F80: `checkup.sh --done` closes a checkup — refuses without today's report, then writes the date
+function testCheckupDone() {
+  console.log('checkup.sh --done — the close steps run by the script')
+  const home = mkdtempSync(join(tmpdir(), 'bmuz-checkup-'))
+  mkdirSync(join(home, '.claude', 'config', 'bmuz', 'reviews', 'checkups'), { recursive: true })
+  writeFileSync(join(home, '.claude', 'config', 'bmuz', 'last-checkup'), '2026-01-01\n')
+  const done = () => spawnSync('bash', [join(HOOKS, '..', 'checkup.sh'), '--done'], { encoding: 'utf8', env: { ...process.env, HOME: home }, timeout: 60_000 })
+  const today = spawnSync('date', ['+%F'], { encoding: 'utf8' }).stdout.trim()
+  const lastCheckup = () => readFileSync(join(home, '.claude', 'config', 'bmuz', 'last-checkup'), 'utf8').trim()
+  const refused = done()
+  expect('no report for today → refused (exit 1), date not written', { result: refused.status === 1 && /REFUSED/.test(refused.stdout) && lastCheckup() === '2026-01-01' ? 'ok' : 'no', message: refused.stdout + refused.stderr }, 'ok')
+  writeFileSync(join(home, '.claude', 'config', 'bmuz', 'reviews', 'checkups', `${today}.md`), '🩺 BMUZ checkup\nHealthy: 12\n')
+  const ok = done()
+  expect('…report saved → today\'s date written', { result: ok.status === 0 && lastCheckup() === today ? 'ok' : 'no', message: ok.stdout + ok.stderr }, 'ok')
+  expect('…and it says how to sync when config-sync.sh is missing', { result: /sync by hand/.test(ok.stdout) ? 'ok' : 'no', message: ok.stdout }, 'ok')
+  rmSync(home, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck }
+const suites = { 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'checkup-done': testCheckupDone }
+if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

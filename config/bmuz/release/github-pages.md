@@ -22,6 +22,7 @@ Last used: 2026-10-12 (glyphtender v0.9.0 + v0.9.1 — server first (new secret 
 5. Delete the merged work branch locally + on the remote.
 
 ## Check it's live
+- `node ~/.claude/config/bmuz/scripts/live-check.mjs` does step 4 and the fresh fetch: waits for the Pages run, a `?v=<time>` fetch (public, the new version in the page or its JS bundle), `e2e:update`, then `.planning/live-pass`. The console + online checks below stay Claude's unless the game has a `smoke:live` script (F80).
 - A fresh load (`?v=<timestamp>`) only proves the server — it can't see what a RETURNING player gets. PWA games: `npm run e2e:update` must pass before release.
 - `https://thebluemuzzy.github.io/<repo>/` in Playwright: version overlay shows the new `vX.Y.Z.0`, console has 0 errors (one `apple-mobile-web-app-capable` deprecation warning is harmless). Usually live within ~1 min of the workflow finishing; hard-refresh if the old version shows (service worker cache).
 - Online games: press CREATE → a room code appears = front end reaches the new server.

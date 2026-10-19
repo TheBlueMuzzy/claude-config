@@ -1,7 +1,7 @@
 # Hand-off card — how every finished piece of work is handed to Muzzy (F73)
-Muzzy, 2026-10-18: "I never want to see it any other way going forward! BMUZ standardizes the experience of designing as
+① Muzzy, 2026-10-18: "I never want to see it any other way going forward! BMUZ standardizes the experience of designing as
 a non-technical person." A Stop hook (`hooks/handoff-check.mjs`) checks it: a turn where Claude did work (edited files or
-committed) must end with this card — or, while work is still running, with a progress line (below). Edit the labels
+committed) must end with this card ② (sent back until it's there) — or, while work is still running, with a progress line (below). Edit the labels
 here and the check follows (it reads every `**Label:**` in the card).
 
 ## The card

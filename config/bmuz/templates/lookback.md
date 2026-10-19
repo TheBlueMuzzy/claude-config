@@ -15,11 +15,16 @@ without one, or if an item's home doesn't exist.
    - **Went wrong** — a bug that reached Muzzy, a check that missed it, a loop of fixes, a wrong guess.
    - **Done more than once** — the same steps by hand in several sprints, the same fix in two games, a question asked twice.
    - **Built for one game, others need it** — a part, a tool, a script, a test helper that's not game-specific.
+   - **Remembered-only rules** (F80): `node ~/.claude/config/bmuz/hooks/rule-kind.mjs --all` lists every rule line
+     without ①/②/③. Any that this milestone tripped over (a step forgotten, done late, done twice) is an item: make it
+     ① (a script / hook does it) or ② (a hook refuses until it's on record).
    - **Promised but not landed:** take every review list or plan this milestone worked from (`~/.claude/config/bmuz/reviews/…`, a TDD plan, a research doc) and check each item against the real code: landed (where), or not. A "not" gets a home like any other item, and a quiet partial build counts as "not". This came from 2026-10-19: F69 built the installer without the lint step on the Oct 18 list, nobody logged it, and Muzzy found it (audit: `reviews/2026-10-18-reliability/AUDIT-2026-10-19.md`).
 3. **Give each a home**, strongest first — something that runs beats something to remember:
    `hook` (`~/.claude/config/bmuz/hooks/`) · `check` (a module's conformance / check:fast) · `script` (one command for a
    fragile job) · `module` (a framework kit piece) · `checklist` (one line in the skill / PROJECT-FILES rule it belongs to)
    · `game` (only this game: its TDD / STATE) · `nothing` (say why — a one-off).
+   A `checklist` home is the last resort, so it says its kind in the brackets: `(② <what refuses until it's on
+   record>)` or `(③ <why nothing can check it>)` — a Stop hook sends back a checklist item without one.
 4. **Land it now**, in this session: make the change in that file (a big one → a ROADMAP feature with an ID, and the
    home is that ROADMAP line). Then write the item with the file it landed in.
 5. Tell Muzzy in the hand-off card (**Done:** "Look-back: 6 lessons → 2 hooks, 1 check, 3 checklist lines") and ask
@@ -36,7 +41,7 @@ Read: sprints 05–07 · 4 bugs fixed · 38 commits since v0.8.0
 ## Built for one game, others need it
 - <…> → module: ~/Documents/dev/framework/ui-kit/kit/… (…)
 ## Muzzy
-- <his answer to "keep doing / stop doing"> → checklist: ~/.claude/skills/develop/SKILL.md (…)
+- <his answer to "keep doing / stop doing"> → checklist: ~/.claude/skills/develop/SKILL.md (③ taste: …)
 ```
 Each item ends with `→ <home>: <path> (<what changed>)`. The path is a real file (`~/…`, or relative to the project);
 `nothing` takes a reason instead: `→ nothing (a one-off: the laptop's clock was wrong)`.

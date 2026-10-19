@@ -35,7 +35,7 @@ Your docs in Obsidian: dev/<game>/.planning/ (STATE.md = where we are)
 ```
 
 ## `/bmuz specialists` (or "what else can you do?")
-List the specialist skills — Claude uses these on its own inside the commands; Muzzy never needs to remember them. Read each skill's `description` in `~/.claude/skills/` (skip the 13 BMUZ skills above and `synced/`), grouped:
+List the specialist skills — Claude uses these on its own inside the commands; Muzzy never needs to remember them ③ (Claude picks them by judgement; checkup §4 flags one nothing calls ①). Read each skill's `description` in `~/.claude/skills/` (skip the 13 BMUZ skills above and `synced/`), grouped:
 - **Design (in /discover, /define, /develop tuning):** mda-analyze, proto, game-economy, ai-opponent
 - **Building (in /develop):** game-ui (every screen, menu and HUD), tuning-setup, game-feel, save-system, audio-setup, multiplayer-setup, externalize-text, localize, systematic-debugging (behind /bug)
 - **Releasing (in /deliver):** optimize, accessibility-check, organize-assets

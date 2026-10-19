@@ -21,5 +21,6 @@ This stage is for *more* options, not fewer. Don't converge early. Useful moves:
 Skip heavy research if Muzzy just wants to move.
 
 ## Hand-off
-Commit `GDD: discover` (or `Research: <feature>`). STATE: Stage = discover, RESUME HERE → "Discovery done — next: /define".
-Say: *"We've got the space mapped. Say `/define` when you want to narrow it down — pick the concept, set the scope, and map out the build."*
+Steps here are marked by how they happen (F80): ① a script or hook does it · ② judgement, refused until it's on record · ③ judgement only.
+STATE: Stage = discover, RESUME HERE → "Discovery done — next: /define", then commit `GDD: discover` (or `Research: <feature>`) ② (guard-git refuses a `GDD: discover` commit without STATE.md in it).
+Say ② (handoff-check: the card, ending with Next `/define`): *"We've got the space mapped. Say `/define` when you want to narrow it down — pick the concept, set the scope, and map out the build."*

@@ -1,8 +1,10 @@
 // Shared helpers for the BMUZ hooks (F68). Each hook script reads the tool call Claude Code sends on stdin,
 // decides, and answers with JSON on stdout. Plain Node, no packages — runs the same on the PC and the laptop.
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve, isAbsolute, relative } from 'node:path'
+import { execFileSync, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, resolve, isAbsolute, relative } from 'node:path'
 
 // The tool call Claude Code sends: { cwd, tool_name, tool_input: { command | file_path }, ... }
 export function readInput() {
@@ -37,6 +39,24 @@ export function tellClaude(reason) {
   process.exit(0)
 }
 
+// --- Stop hooks: sent back until it's done, not just once (F80) ---------------------
+// A Stop hook with problems sends Claude back — again on the next stop if they're still there (the old "exit when
+// stop_hook_active" let a second miss through) — up to `max` times in a row, then lets the turn end so nothing loops
+// forever (Claude has been told 3 times by then). No problems → the count starts over. One count per hook per session.
+export function stopVerdict(hook, input, problems, { max = 3 } = {}) {
+  const dir = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx') // (tests use their own folder)
+  const counter = join(dir, `${input.session_id || 'session'}.${hook}.sent`)
+  if (!problems) {
+    try { unlinkSync(counter) } catch {}
+    return
+  }
+  let sent = 0
+  try { sent = parseInt(readFileSync(counter, 'utf8'), 10) || 0 } catch {}
+  if (sent >= max) { try { unlinkSync(counter) } catch {} ; return }
+  try { mkdirSync(dir, { recursive: true }); writeFileSync(counter, String(sent + 1)) } catch {}
+  process.stdout.write(JSON.stringify({ decision: 'block', reason: problems }))
+}
+
 // --- files that must never be committed (F78) ------------------------------------
 // One list for guard-git (refuses the commit) and save.mjs (refuses the save): .env files (but .env.example / .sample /
 // .template are fine), keys (*.pem, *.key), credentials.json, client_secret*.json, secrets.json, wrangler's local
@@ -45,7 +65,15 @@ export const NEVER_COMMIT = /(^|\/)(\.env(\.(?!example$|sample$|template$)[^/]*)
 
 // --- reading the conversation log (Stop hooks) ----------------------------------
 
-// What Claude did since Muzzy's last message: { startedAt, tools: [{ name, input, cwd }], lastText }.
+// Muzzy is stopping or switching machines (session-moments reminds, stop-unsaved guards — F80).
+export const STOPPING = /\b(going to bed|off to bed|heading to bed|bed ?time|good ?night|switching (machines|computers|to (the|my) (laptop|pc|desktop))|done for (now|today|tonight|the (day|night))|signing off|calling it a (day|night)|that'?s it for (now|today|tonight)|logging off)\b|\bi'?m (done|off|out)( for (now|today|tonight))?[\s.!]*$/i
+
+// Muzzy's own words — a helper's report or a background-task notice arrives as a "prompt" too (2026-10-18: a review
+// report saying "shutting down" fired the stopping reminder).
+export const fromMuzzy = (text) => !/<(system-reminder|task-notification|agent-message)\b/.test(text || '')
+
+// What Claude did since the last message: { startedAt, tools: [{ name, input, cwd }], lastText, muzzySaid } —
+// muzzySaid = the text of Muzzy's own latest message (helper reports skipped), even from an earlier turn.
 export function readTurn(path) {
   let entries = []
   try {
@@ -53,10 +81,16 @@ export function readTurn(path) {
       try { return JSON.parse(line) } catch { return null }
     }).filter(Boolean)
   } catch {
-    return { startedAt: null, tools: [], lastText: null }
+    return { startedAt: null, tools: [], lastText: null, muzzySaid: '' }
   }
   let start = -1
-  entries.forEach((entry, i) => { if (isPrompt(entry)) start = i })
+  let muzzySaid = ''
+  entries.forEach((entry, i) => {
+    if (!isPrompt(entry)) return
+    start = i
+    const text = promptText(entry)
+    if (fromMuzzy(text)) muzzySaid = text
+  })
   const tools = []
   let lastText = null
   for (const entry of entries.slice(start + 1)) {
@@ -66,7 +100,12 @@ export function readTurn(path) {
       if (block.type === 'tool_use') tools.push({ name: block.name, input: block.input || {}, cwd: entry.cwd })
     }
   }
-  return { startedAt: start >= 0 ? entries[start].timestamp || null : null, tools, lastText }
+  return { startedAt: start >= 0 ? entries[start].timestamp || null : null, tools, lastText, muzzySaid }
+}
+
+function promptText(entry) {
+  const content = entry.message?.content
+  return typeof content === 'string' ? content : content.map(block => block.text || '').join('\n')
 }
 
 // A message from Muzzy (or a helper's report) starts a turn; tool results don't.
@@ -250,6 +289,43 @@ export function git(dir, ...args) {
   } catch {
     return null
   }
+}
+
+// One hash for "the code as it is now": committed code files + uncommitted changes + new files. Docs left out.
+// A green `npm run check:fast` is recorded against it in <git dir>/bmuz-last-green (stop-check-fast, save.mjs), so
+// unchanged code never runs the check twice.
+export function codeFingerprint(dir) {
+  // (version.json too: /save bumps its build number, which isn't a code change — review: check:fast ran twice per save)
+  const isDocs = f => f.startsWith('.planning/') || f.endsWith('.md') || f === 'version.json'
+  const hash = createHash('sha256')
+  const tree = (git(dir, 'ls-tree', '-r', 'HEAD') || '').split('\n').filter(line => !isDocs(line.split('\t')[1] || ''))
+  hash.update(tree.join('\n'))
+  const changed = (git(dir, 'diff', 'HEAD', '--name-only') || '').split('\n').filter(f => f && !isDocs(f))
+  if (changed.length) hash.update(git(dir, 'diff', 'HEAD', '--', ...changed) || '')
+  const added = (git(dir, 'ls-files', '--others', '--exclude-standard') || '').split('\n').filter(f => f && !isDocs(f))
+  for (const f of added) hash.update(f + (git(dir, 'hash-object', '--', f) || ''))
+  return hash.digest('hex')
+}
+
+// `npm run check:fast` with a time limit → { code, output, timedOut }. On a timeout the WHOLE process tree is ended
+// (on Windows npm's vitest / vite children outlive a plain kill — they'd hold ports and files). stop-check-fast,
+// commit-typecheck.
+export function runCheckFast(dir, limitMs) {
+  return new Promise(done => {
+    const child = spawn('npm run check:fast', { cwd: dir, shell: true })
+    let output = ''
+    child.stdout.on('data', d => { output += d })
+    child.stderr.on('data', d => { output += d })
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      try {
+        if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+        else child.kill('SIGKILL')
+      } catch { /* already gone */ }
+    }, limitMs)
+    child.on('close', code => { clearTimeout(timer); done({ code: timedOut ? -1 : code, output, timedOut }) })
+  })
 }
 
 // The branch that holds finished work: origin's default, else main, else master.

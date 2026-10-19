@@ -5,71 +5,60 @@ description: Double Diamond stage 4 — converge and put it out: check the relea
 
 # /deliver — settle it and put it out (converge)
 
-Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session.
-**Old GSD layout?** Don't restructure. Merge, version and release as below; add one dated line to the old STATE. Say "This project still uses the old layout — `/roadmap` or `/sprint` will convert it."
+Steps are marked by how they happen (F80): ① a script or hook does it · ② Claude's judgement, refused until it's on record · ③ judgement only.
+Scripts: `~/.claude/config/bmuz/scripts/` (called `S/` below). Every refusal says why in plain words with a `→` fix: fix that, run it again.
+Rules for the plan files: `~/.claude/config/bmuz/PROJECT-FILES.md`. **Old GSD layout?** Don't restructure; merge, version and release as below, add one dated line to the old STATE, and say "This project still uses the old layout — `/roadmap` or `/sprint` will convert it."
 
-## 1. What kind of delivery?
-Ask only if it's unclear:
-- **Update** — merge finished work and put it on the current live site (most common). Bumps **Z**.
-- **Milestone** — a milestone's features are all done. Bumps **Y**, marks it ✅ in ROADMAP. Completes approved milestones → still a Milestone (Y) even if another milestone stays open; label it with the current release stage.
-- **Release stage** — moving to prototype / alpha / beta / 1.0. Run the **done check** first: `node ~/.claude/config/bmuz/scripts/musts-check.mjs <stage>` (every `must:<stage>` feature ✅; it lists the open ones). Missing musts → list them and ask: finish them first, or release anyway (say what's missing in the release notes). 1.0 → ask about **X** (public release).
+## 1. What kind? ③
+- **update** — finished work onto the live site (most common) → Z.
+- **milestone** — a milestone's features are all done → Y (even if another milestone stays open).
+- **stage** — prototype / alpha / beta / 1.0 → Y, `--stage=<name>`. **major** — only when Muzzy says it's the public 1.0 → X.
 
-## 2. Make sure it's ready
-- Do `/save`'s STATE + Log step first (always — even with nothing uncommitted), so the log records what's being delivered.
-- **Checks** (PROJECT-FILES.md "Checks"): the **Fast** tier always, fresh (**verification-before-completion**: quote the result), plus a **smoke test** (the game loads and one turn/round plays through in Playwright, console clean) = the project's `smoke` npm script, run through `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` **right before the push / deploy** (after the release commit), then commit `.planning/smoke-pass` — a hook refuses any push to a deploying branch or deploy command with code newer than that pass (no `smoke` script yet → add one pointing at an existing e2e that plays a round). **`npm run check:framework`** always (the framework modules' promises — live tuning, pauses, snapshots, UI at every size; a game without it yet → add it, Dev Kit 0.19+). **Full** only if code changed since STATE's `Last full check: <commit>` (docs / .planning changes don't count) — otherwise quote that check instead of re-running it. Any open **P0** in BUGS.md blocks the release (a hook refuses going live with one). Open P1s → list them and ask. Offer a bug sweep if there are several.
-- Release stage → tick what's true in TDD §7 Compliance; anything required by the target platform that's still unticked (e.g. privacy policy for app stores) → list it and ask.
-- Features in this delivery not yet approved by Muzzy? Ask once: "F08 hasn't had your OK yet — release anyway?"
-- Release stage checks, scaled to the stage: **alpha** → a quick look (loads fast, no console errors, works on a phone). **beta / 1.0** → the full **optimize**, **accessibility-check** and **web-design-guidelines** (menus/HUD) skills plus a phone test via `/play`. Fix quick wins; list the rest as 🐞/✨ features.
-- **Credits** are part of `check:framework` (UI kit 0.19+: every asset listed, nothing 🔴, every 🟡 shown). Anything wrong blocks the release until it's fixed or Muzzy decides.
-- A SPRINT.md whose features are all done → `node ~/.claude/config/bmuz/scripts/archive-sprint.mjs`.
-- **Review before merging:** `/security-review` once on the work branch's changes; `/code-review` only on commits after STATE's `Reviewed through: <commit>` (each feature was reviewed in /develop — don't re-read them). They need the session to be inside the repo — if it isn't, hand each review to a subagent working in the repo (same scope: real bugs / real exploits only). Fix real bugs and security issues now. List the rest in plain English and ask.
+## 2. Get it ready (the records release.mjs will look for)
+Do these on the work branch, then commit (/save). release.mjs refuses until each is true — run `release.mjs … --dry-run` any time: it lists **every** open gate at once.
+- ② **Reviews:** `/code-review` (low) on the commits after STATE's `Reviewed through:` → fix real bugs → move `Reviewed through: <commit>`. `/security-review` on the changes since the last release → fix real issues → `Security reviewed: <commit>` in Key facts. Not inside the repo → hand each to a subagent working in it (real bugs / real exploits only). The rest: list in plain English, ask ③.
+- ② **Full check:** only if code changed since `Last full check:` — `npm run check:full`, then update that line. (Fast + check:framework are run by release.mjs itself ①.)
+- ② **Bugs:** an open P0 refuses. Open P1s are printed → ask Muzzy ③: release anyway, or a bug sweep first?
+- ② **Approval:** features with commits since the last tag that aren't ✅ → ask once ③ ("F08 hasn't had your OK yet — release anyway?"); yes → `--unapproved-ok`.
+- ② **Finished sprint** → `node S/archive-sprint.mjs`.
+- ② **Stage release:** musts — not all done → ask ③: finish first, or release anyway (`--musts-open-ok`, say what's missing in the notes). Tick what's true in TDD §7 Compliance; anything the platform still needs (e.g. a privacy policy) → list and ask ③. Stage checks ③: **alpha** a quick look (loads fast, no console errors, works on a phone); **beta / 1.0** the **optimize**, **accessibility-check** and **web-design-guidelines** skills + a phone test via `/play` — fix quick wins, list the rest as 🐞/✨ features.
+- **First release to a platform?** ③ Do its one-time setup (base path, deploy workflow…) here on the work branch, so the tag contains it (see §5).
+- Overrides are Muzzy's calls only — each one used is written into the release commit ("Released with: …").
 
-## 3. First release to a platform? Set it up now
-If §6 will need one-time setup (base path, deploy workflow…), do and commit it here on the work branch — so the version tag in §5 contains it. Follow/write the recipe as in §6.
+## 3. Merge ①
+`node S/merge.mjs <branch>` — pushes the branch, waits for GitHub's Checks to go green (red → it refuses with the link: say it plainly, "GitHub found something broken on this branch: <link>", fix on the branch — never merge around it), pulls main, `merge --no-ff`, deletes the branch here (GitHub's copy goes once main is pushed). `version.json` clashes settle themselves. Other conflicts ③ → it stops mid-merge and lists the files: resolve if obvious, else explain and ask; `git add` + `git commit --no-edit`, run it again (or `git merge --abort`). No Checks workflow / no gh → it warns: say so in §7 and offer `templates/checks.yml`. Already on main with nothing to merge → skip.
 
-## 4. Merge
-- Main branch = `main` or `master` (see Key facts). Already on main with nothing to merge → skip to §5.
-- **GitHub must be green first** (F70): push the branch, then `node ~/.claude/config/bmuz/scripts/checks-gate.mjs <branch>`. Red, still running, or the latest commit never checked → it refuses with the run link: say it in plain words ("GitHub found something broken on this branch: <link>"), fix it on the branch, push, wait for green — never merge around it. No Checks workflow / no gh → it warns; say so in §8 and offer to add `templates/checks.yml`.
-- `git checkout <main>`, `git pull` (only if there's a remote), `git merge --no-ff <branch>`. Conflicts → resolve if obvious (`version.json` → take main's, then bump in §5), otherwise explain and ask.
-- Delete the merged branch locally (and on the remote, if any).
+## 4. Version + notes — one commit
+- ③ **Patch notes:** `git log <last-tag>..HEAD --oneline` → 3–8 player-facing bullets (what players notice, no code talk); a one-line version is the summary. They become §7's "New:" lines (ready for an itch devlog).
+- ② ROADMAP: milestone/stage → its heading ✅ with today's date ("✅ released 2026-11-02 (v0.3.0)"); a stage release moves `Release target:` on ("beta — musts not set (/define)").
+- ② STATE: a Log line dated today; RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)"; Stage = deliver; the Live line. Key facts has a `Release:` line: `<platform> (recipe …)` · `none (library)` · `not set up (declined <date>)` · `<platform> — blocked: <why>`.
+- ① `node S/release.mjs <update|milestone|stage|major> "<summary>" [--stage=alpha]` — checks every gate first (Fast tier, check:framework, reviews, full check, P0, approvals, sprint, ROADMAP, STATE, GitHub green for what was merged), and only then: bump, history, package.json + lock, STATE `Version:`, commit `Release vX.Y.Z: …` with your ROADMAP/STATE edits (the commit hooks check it), tag, cleanup.sh. It prints whether server code changed since the last tag. It never pushes.
 
-## 5. Version + notes (per `~/.claude/references/versioning.md`) — one commit
-- **Patch notes:** read the commits since the last version tag (`git log <last-tag>..HEAD --oneline`) and write 3–8 player-facing bullets: what players will notice, no code talk. A one-line version goes in the `history` summary. The bullets become §8's "New:" lines, ready to paste into an itch devlog.
-- ROADMAP: milestone ✅ with date if finished; release line updated ("alpha — released 2026-11-02"). After a release stage, set `Release target:` to the next stage — if it has no musts yet: "beta — musts not set (/define)".
-- STATE: version, Live line (with release stage), Stage = deliver, RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)".
-- Then `node ~/.claude/config/bmuz/scripts/release.mjs <update|milestone|major> "<history summary>"` — bumps Z / Y / X (build → 0), adds the history entry, syncs package.json + lock, commits `Release vX.Y.Z: …` with your ROADMAP/STATE edits, tags it. (`--dry-run` first tells you the number for STATE.) It refuses uncommitted code, a work branch, or a just-merged branch that's red / unchecked on GitHub. Push with tags after the smoke pass (§2).
+## 5. Release it — the platform's recipe ③
+Recipes: `~/.claude/config/bmuz/release/<platform>.md` (shared by every project; Key facts `Release:` names the platform).
+- ① **Smoke pass first:** `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` (the project's `smoke` script: loads, one turn/round, console clean — no script → add one pointing at an e2e that plays a round), commit `.planning/smoke-pass`, then `git push --follow-tags`. A hook refuses any push to a deploying branch or deploy command without a fresh pass, or with an open P0.
+- **Recipe exists** → follow it step by step. Anything different this time → fix the recipe afterwards.
+- **No recipe yet** → ask where it should go (suggest GitHub Pages for web; it needs a GitHub remote). Set it up, release, and **write the recipe as you go**: prerequisites, one-time setup, release steps, how to check it's live, gotchas. Short and exact. Record `Release:` in Key facts. App stores / Steam → the **deployer** agent, and still write the recipe.
+- **Nothing to host** (a library like `dev/framework`) → `Release: none (library)`; merge, version, tag, push; §7 gives the repo link and what games get from it.
+- **Not yet** (Muzzy doesn't want it hosted) → `Release: not set up (declined <date>)`; say plainly "Merged and versioned v0.1.1 — **not live anywhere yet**."
+- **Blocked** (e.g. no GitHub repo) → do the local setup, write the recipe as far as it goes (untested steps ⚠), `Release: <platform> — blocked: <why>`, a `Muzzy:` line saying what unblocks it, and say it's **not live**.
+- Companion servers (`npm run party:deploy`) only when release.mjs said "server code changed … yes" — server first. "no" → skip it and say "server unchanged — not redeployed".
 
-## 6. Release it — follow the platform's recipe
-Recipes live in `~/.claude/config/bmuz/release/<platform>.md` (shared across all projects). The project's Key facts says which platform(s) it releases to.
-- **Recipe exists** → follow it step by step. If anything was different this time, fix the recipe afterwards.
-- **No recipe yet** (first release to this platform) → ask where it should go (suggest GitHub Pages for web; it needs a GitHub remote). Set it up, release, and **write the recipe as you go**: prerequisites, one-time setup, the release steps, how to check it's live, gotchas hit. Keep it short and exact. Record the platform in Key facts. For app stores / Steam, bring in the **deployer** agent and still write the recipe.
-- **Nothing to host** (a library like `dev/framework` — games copy it): skip §3, §6, §7; merge, version, tag, push, and in §8 give the repo link and what games get from it.
-- **Not yet** (Muzzy doesn't want it hosted) → record `Release: not set up (declined <date>)` in Key facts and say plainly: "Merged and versioned v0.1.1 — **not live anywhere yet**."
-- **Blocked** (platform chosen but something's missing, e.g. no GitHub repo) → do all the local setup, write the recipe as far as it goes (mark untested steps ⚠), record `Release: <platform> — blocked: <why>` in Key facts, add a `Muzzy:` line saying what unblocks it, and say plainly it's **not live**.
-- Companion servers (e.g. `npm run party:deploy` — wrangler) only when their code changed — check `git diff` of the merge. Untouched → skip its deploy and say so ("server unchanged — not redeployed").
-- CI deploys (a workflow in `.github/workflows/`) → pushing main started it; watch with `gh run watch` until done.
+## 6. Is it really live? ①
+`node S/live-check.mjs` — waits for the deploy run, fetches the Live URL with a cache-buster (retrying while the host catches up), refuses unless it's public (no login) and shows the new version, runs `e2e:update` (offline-cache games: returning players get the new version) and `smoke:live` if the project has them, records `.planning/live-pass` (commit it), and deletes merged branches on GitHub. Nothing hosted → it records the skip. The URL changed → `--url=<new>` rewrites STATE's Live line.
+- ③ No `smoke:live` script → the console is your check: open the URL in Playwright — 0 console errors, no failed requests (list them by URL), the new version showing.
+- Something's badly wrong live → `node S/rollback.mjs <last good tag> "<why>"` ① puts the code back as a new commit (history kept), then it prints the rest: log the bug, release, smoke, push, live-check.
+- **Clean up after yourself** (Muzzy, 2026-10-04) ① — release.mjs runs cleanup.sh; its 🧹 line goes in §7. A framework release went out too → `bash ~/.claude/config/bmuz/cleanup.sh ~/Documents/dev/framework`.
 
-## 7. Check it's actually live
-Open the live URL in Playwright: it loads, shows the new version/feature, console clean. Retry after a minute if the host is still updating.
-Site has a service worker / offline cache? Returning players must get the new version on their first visit — run the project's `e2e:update` (recipe setup step 5; add it if missing). Your own first check may show the old version — confirm the deploy with a fresh fetch (`curl "<url>?v=<timestamp>"`), then reload twice.
+## 6b. Look back — milestone or stage only ②
+Follow `~/.claude/config/bmuz/templates/lookback.md`: read the milestone (archived sprints, fixed bugs, Log, commits) → what went wrong · what was done more than once · what one game built that others need → give each a home (hook · check · script · framework module · checklist line · game · nothing) and **land it now** → `.planning/archive/lookbacks/<milestone>.md`. A Stop hook sends the turn back without it, or when a home isn't a real file.
 
-## 7b. Clean up
-- **Clean up after yourself** (Muzzy, 2026-10-04): `bash ~/.claude/config/bmuz/cleanup.sh` — removes helper workspaces whose work is all on the main branch, empties git-ignored check output (`e2e-shots/`…), deletes temporary files (`*.tmp.*`, `e2e/_*.mjs`). Never touches tracked files; keeps (and names) any workspace that still holds work. Run it in the game AND in `dev/framework` if a framework release went out; its line goes in §8.
-
-## 7c. Look back (milestone or release stage only — the self-improving loop)
-Follow `~/.claude/config/bmuz/templates/lookback.md`: read the milestone (archived sprints, fixed bugs, Log, commits) →
-what went wrong · what was done more than once · what one game built that others need → give each a home (hook ·
-check · script · framework module · checklist line · game · nothing) and **land it now** → write
-`.planning/archive/lookbacks/<milestone>.md`. A Stop hook sends the turn back if a milestone goes out without one, or if
-an item's home isn't a real file. Summarise it in §8 in one line ("Look-back: 6 lessons → 2 hooks, 1 check, 3 lines").
-
-## 8. Tell him — always with the clickable public link
-Confirm the link is public (opens without login), put it on its own line as a full URL, and add 2–5 lines on how to test it (with friends too: room codes, what to look for).
+## 7. Tell him — always with the clickable public link ③
+The link on its own line as a full URL (live-check confirmed it's public), and 2–5 lines on how to test it (with friends too: room codes, what to look for).
 ```
 Released v0.3.0 (alpha) — Card play milestone ✅
 Live: https://thebluemuzzy.github.io/card-game/
 New: <2–4 player's-eye bullets>
-Alpha musts: 9/9 ✅
+Alpha musts: 9/9 ✅ · Look-back: 6 lessons → 2 hooks, 1 check, 3 lines
 ```
-If the Live URL changed after the commit, update STATE and commit.
-Milestone or release stage delivered → ask one question: "One thing to keep doing, or stop doing, next time?" — a real answer becomes a look-back item (§7c) with its home, landed the same session. Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."
+Milestone or stage delivered → ask one question: "One thing to keep doing, or stop doing, next time?" — a real answer becomes a look-back item with its home, landed the same session. Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."

@@ -1,5 +1,7 @@
 # BMUZ project files — the shared rules every command follows
 
+**Every step triggers; nothing runs on memory** (F80 — Muzzy, 2026-10-19: "'only runs when it remembers' is a bad thing. 'always runs because it triggers' is much more solid"; "if a real indie studio would do something, we should too"). Every rule in a skill or this file says how it happens: ① a script or hook does it · ② Claude's judgement, refused until it's on record · ③ judgement only, with why. A new rule line without its mark is flagged the moment it's written (hook `rule-kind.mjs`); `rule-kind.mjs --all` lists the old ones, and the milestone look-back converts the ones that slipped. A new "Claude should remember to…" becomes a hook or a script step instead.
+
 ## Layout
 ```
 version.json        X.Y.Z + build (~/.claude/references/versioning.md)
@@ -13,8 +15,11 @@ content/            data the game reads; Muzzy edits it in Obsidian or the Dev K
   STATE.md          ▶ RESUME HERE, key facts, short log   (every command; /save rewrites it)
   design/ research/ bugs/   optional: long design specs linked from the GDD · discovery + sims · bug captures
   archive/          finished sprints, old logs, old GSD files — search it when something feels familiar
+  smoke-pass        the commit the smoke test passed on (hooks/smoke-pass.mjs — live-push needs it)
+  live-pass         the last live check: commit · "<tag> <url>" (or "<tag> skipped — Release: …") · time · console check (scripts/live-check.mjs)
+  ppp.html          the planner page (gitignored, rebuilt by the tools)
 ```
-Nothing else goes in `.planning/` — no summaries, no side docs. Investigations go to archive once their rules are in Key facts.
+Nothing else goes in `.planning/` — no summaries, no side docs ① (plan-lint names any other file there on the next plan edit). Investigations go to archive once their rules are in Key facts ③.
 New project or old GSD project → `~/.claude/config/bmuz/SETUP-AND-CONVERT.md`.
 
 ## Planning model
@@ -26,14 +31,14 @@ RELEASE     prototype → alpha → beta → 1.0     done = all its musts done
 ```
 - **Types:** ❓ decision (often Muzzy's) · 🧱 foundation others stand on · 🎮 player-facing · ✨ polish · 🔧 Dev Kit tool · 🐞 a bug big enough to need its own feature (normal bugs live in BUGS.md; an affected feature notes `LIVE BROKEN → B003`).
 - **States** (only in ROADMAP): ⏳ waiting → 🟢 ready → 🔨 building → 🎛️ tuning (works, being dialled in) → ✅ done.
-- **Ready rule:** all `needs:` are ✅ — or 🎛️ for `~` needs (only has to work).
+- **Ready rule:** all `needs:` are ✅ — or 🎛️ for `~` needs (only has to work) ① (plan-lint names a ⏳ whose needs are met — "set it 🟢", unless the line says what else it waits for: `· waits: <what>` — and a 🟢/🔨/✅ whose needs aren't).
 - **Sprint rule:** a sprint may also take a feature whose needs are earlier *in the same sprint*, lined up after them.
 - **❓ decisions:** 1–2 tasks; ✅ only when Muzzy answers (Claude may recommend). If he's right there, just ask.
-- **Scope:** `must:<stage>` · `should` · `could` (won't-haves stay in the GDD). "Musts X/Y" counts non-❓ features.
+- **Scope:** `must:<stage>` · `should` · `could` (won't-haves stay in the GDD). "Musts X/Y" counts non-❓ features. Every feature in a live milestone has a type and (❓ aside) a scope ① (plan-lint).
 - **Owners:** 🤖 Claude · 🙋 Muzzy (art, decisions, feel checks on a device). Stand-in art is a task `(stand-in)`; handed-over tasks switch owner with a note.
 
 ## Project Planner Page (PPP) — pilot on Goops (2026-10-16; full rules in BMUZ-PLAN "Project Planner Page")
-A read-only visual home page per game, **drawn** from GDD/ROADMAP/SPRINT/BUGS/STATE by `templates/ppp/build-ppp.mjs` (never a second source of truth) → `.planning/ppp.html` (gitignored) → published as a private Artifact; link in STATE Key facts (`Planner (PPP):`); /save republishes. Pilot rules (ROADMAP): states 💡 Idea → 🔍 Discover → 📐 Define → 🔨 Develop → 🚀 Deliver → ✅ Done (+ 💤 Maybe later, ✖ Won't) · % only on milestones = done / all items · Milestone 0 "Design decided" holds the open ❓ questions · `## Parking lot` = 💡 homeless ideas + 💤 maybe-later · end-of-musts checkpoint: leftover should/could → yes stays, no → parking lot · always challenge new things mid-milestone. The old state set below still draws (mapped). Becomes the standard once the pilot holds up.
+A read-only visual home page per game, **drawn** from GDD/ROADMAP/SPRINT/BUGS/STATE by `templates/ppp/build-ppp.mjs` (never a second source of truth) → `.planning/ppp.html` (gitignored) → published as a private Artifact; link in STATE Key facts (`Planner (PPP):`); rebuilt after every plan edit (plan-lint hook) and every save (save.mjs), and a Stop hook sends Claude back until it's republished — with any sketch changed that turn as a `files` entry ① (stop-plan-check). Pilot rules (ROADMAP): states 💡 Idea → 🔍 Discover → 📐 Define → 🔨 Develop → 🚀 Deliver → ✅ Done (+ 💤 Maybe later, ✖ Won't) · % only on milestones = done / all items · Milestone 0 "Design decided" holds the open ❓ questions · `## Parking lot` = 💡 homeless ideas + 💤 maybe-later · end-of-musts checkpoint: leftover should/could → yes stays, no → parking lot · always challenge new things mid-milestone. The old state set below still draws (mapped). Becomes the standard once the pilot holds up.
 **Every section Muzzy sees is written for a non-engineer:** plain words that say whether anything needs doing, and who does it ("A newer Dev Kit is out. Claude updates it in the next /develop"). No version numbers, commands, file or test names unless he opens a "details" fold. Healthy means one green line. (Muzzy 2026-10-19, about the Framework row: "I don't know what I'm looking at … I can't make any decisions based on what is present.")
 **A feature that isn't approved at sprint end gets carried over:** rename its SPRINT heading to `## Carried to sprint NN — <name> (Fxx)` with the reason, and it goes into the next sprint (archive-sprint only reads `## Fxx` headings).
 
@@ -73,7 +78,7 @@ Done when: <what Muzzy sees/plays>
 Check: <test / visual check / "Muzzy fans 7 cards on phone">
 Ask Muzzy: <open questions>   Notes: <decisions, surprises, Tuning: knob old→new — why — result>
 ```
-3–8 tasks per feature (❓: 1–2); tasks name real files. Numbered from 01. Finished → `archive/sprints/sprint-NN.md`, commit `Sprint NN done`.
+3–8 tasks per feature (❓: 1–2) ① (plan-lint); tasks name real files ② (plan-lint flags a path whose file and folder don't exist). Numbered from 01. Finished → `archive/sprints/sprint-NN.md`, commit `Sprint NN done` ① (archive-sprint.mjs; stop-plan-check sends a turn back while a finished sprint sits there). A new sprint names every open P0/P1 bug ② (plan-lint). Starting one: commit `Sprint NN: <goal>` with STATE.md in it ② (guard-git).
 
 ## BUGS.md
 ```markdown
@@ -87,7 +92,7 @@ Steps: 1… 2… · Expected: … · Actual: … · How often: …
 ### B009 · P2 · verified <date> · fixed in a1b2c3d · Guarded by: tests/score.test.ts
 ```
 P0 crash/can't continue/live broken (fix now, blocks /deliver) · P1 feature broken · P2 minor · P3 cosmetic.
-Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for P0/P1) · watching · can't reproduce · won't fix. Old fixed entries → `archive/bugs.md` after each release.
+Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for P0/P1) · watching · can't reproduce · won't fix. Header lines keep the `### B014 · P2 · status · …` shape and `Guarded by:` names a real test file ① (plan-lint). Old fixed entries → `archive/bugs.md` after each release ③ until release.mjs moves them (proposed).
 
 ## content/credits.json  (every font, picture, sound and model the game ships — our own work too, as 🟢 "own work")
 ```json
@@ -99,7 +104,7 @@ Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for 
     "licence": "CC0", "light": "🟢", "url": "https://kenney.nl/assets/...", "credit": "" }
 ]
 ```
-Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships. `npm run check:framework` checks all three (UI kit 0.19+: every file listed, nothing 🔴, every 🟡 credit shown). organize-assets keeps it up to date.
+Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships. `npm run check:framework` checks all three ① (UI kit 0.19+: every file listed, nothing 🔴, every 🟡 credit shown). organize-assets keeps it up to date.
 
 ## Checks — how much to run, and when  (Muzzy, 2026-10-04: "learn from this… move more optimally through testing and delivery")
 Learned in Glyphtender v0.6 (13 sprints in a night): the time went into running the SAME slow checks twice (helper, then
@@ -114,11 +119,11 @@ before /develop hands back, a smoke pass before anything goes live:
 | **Full** | Fast + every e2e script + screenshots, side by side → `e2e-shots/checks.html` (link it) | ONCE per feature, after its merges, before the hand-off — and at /deliver only if code changed since | ~10–15 min |
 Rules:
 - **GitHub re-checks every push** (F70): `.github/workflows/checks.yml` (from `templates/checks.yml`) runs check:fast + check:framework on every branch push — red cross = broken commit. /deliver refuses to merge or release while the branch's latest run is red or still running (`scripts/checks-gate.mjs`, and `release.mjs` again after the merge).
-- **A helper runs Area, not Full.** Claude runs Full once after merging — that catches the combination problems (two pieces of work that each pass alone) a helper can't see. Never both.
+- **A helper runs Area, not Full** ③ (orchestration — it's in the brief). Claude runs Full once after merging — that catches the combination problems (two pieces of work that each pass alone) a helper can't see. Never both.
 - **After a merge:** Fast only when the merge was clean and the helpers touched different files; Area for the overlapping area when git had to combine or resolve the same file.
 - **Record it:** after a green Full, write `Last full check: <commit> — all green (<date>)` in STATE Key facts. /deliver reuses it when HEAD is that commit (or only docs / .planning changed since): Fast + smoke + live check, no Full re-run.
 - **Reviews:** `/code-review` (low) per feature, on that feature's commits — a whole-branch diff is too big to read in one pass. Record `Reviewed through: <commit>` in STATE; /deliver reviews only what's newer + runs `/security-review` once on the branch.
-- Never hand Muzzy a command to run — run it, then link the results page.
+- Never hand Muzzy a command to run — run it, then link the results page ② (handoff-check sends back a card whose local links don't answer) · ③ the manner.
 
 ## STATE.md  (under ~120 lines)
 ```markdown
@@ -128,6 +133,8 @@ Rules:
 Stage · Milestone · Sprint · Doing · Branch · Version · Live (url + release stage)
 ## Key facts
 <~40 lines max, under bold labels (Run/deploy, Rules, Architecture, Don't re-break). Prune stale ones.>
+Release: <platform> | none (library) | not set up (declined <date>) | <platform> — blocked: <why>
+Last full check: <commit> — <date> <result>   ·   Reviewed through: <commit>   ·   Security reviewed: <commit>
 <Don't re-break includes test-infrastructure facts when they bite (ports, e2e run order).>
 ## Log
 <newest first, one line per /save; keep 10, older → archive/log.md>

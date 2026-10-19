@@ -22,6 +22,21 @@ if { [ "$SOURCE" = "startup" ] || [ -z "$SOURCE" ]; } && [ -z "$BMUZ_NO_PULL" ] 
   [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ] && echo "⚙️ Global setup: $BEHIND update(s) from the other machine — tell Muzzy in one line and offer /sync (or just run it if he's about to work)."
 fi
 
+# This machine's to-do from HUB.md (F80 — CLAUDE.md "Machine to-do: do it first"; nothing surfaced it before).
+# PC = user Muzzy, laptop = user joebr: the "### <Machine> (user <name>)" part for this user, open items only.
+HUB="${BMUZ_HUB:-$HOME/Documents/dev/HUB.md}"
+ME="${USERNAME:-$USER}"
+if { [ "$SOURCE" = "startup" ] || [ -z "$SOURCE" ]; } && [ -f "$HUB" ] && [ -n "$ME" ]; then
+  TODO=$(awk -v me="$ME" '
+    /^## / { inTodo = ($0 ~ /Machine to-do/); mine = 0; next }
+    inTodo && /^### / { mine = (index($0, "(user " me ")") > 0); next }
+    inTodo && mine && /^- \[ \]/ { print "  " substr($0, 1, 160) }' "$HUB")
+  if [ -n "$TODO" ]; then
+    echo "📌 Machine to-do for this machine ($ME) in ~/Documents/dev/HUB.md — do these first, one at a time, tick each, then /save (CLAUDE.md):"
+    echo "$TODO"
+  fi
+fi
+
 cd "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null || exit 0
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   # Started in a folder that holds projects (e.g. dev/games) — reviews, RESUME HERE and sync only work inside one
@@ -100,6 +115,16 @@ if [ -f "$STATE" ]; then
     echo ""
     echo "(Old GSD-style STATE.md — offer to convert this project to BMUZ-2 when Muzzy starts work.)"
     head -25 "$STATE"
+  fi
+fi
+
+# Open questions for Muzzy in the sprint (F80 — /develop "ask now" was remembered): every non-empty "Ask Muzzy:" line
+if [ -f .planning/SPRINT.md ]; then
+  ASKS=$(grep -E "Ask Muzzy:" .planning/SPRINT.md | sed -E 's/^.*Ask Muzzy:[[:space:]]*//' | grep -Evi '^(—|-|none|n/a)?[[:space:]]*$' | cut -c1-160 | sed 's/^/  ? /')
+  if [ -n "$ASKS" ]; then
+    echo ""
+    echo "Open questions for Muzzy (SPRINT.md \"Ask Muzzy:\") — ask before the task they block (2–3 options + your pick), answers into Notes:"
+    echo "$ASKS"
   fi
 fi
 exit 0

@@ -71,6 +71,16 @@
           },
           {
             "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/rule-kind.mjs\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/sketch-lint.mjs\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
             "command": "node \"$HOME/.claude/config/bmuz/hooks/plan-lint.mjs\"",
             "timeout": 30
           }
@@ -115,6 +125,16 @@
             "type": "command",
             "command": "node \"$HOME/.claude/config/bmuz/hooks/stop-cleanup.mjs\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/stop-unsaved.mjs\"",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "node \"$HOME/.claude/config/bmuz/hooks/stop-check-fast.mjs\"",
+            "timeout": 360
           }
         ]
       }

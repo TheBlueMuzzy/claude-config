@@ -7,24 +7,23 @@
 import { existsSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { readInput } from './lib.mjs'
+import { readInput, STOPPING, fromMuzzy } from './lib.mjs'
 
 const CTX_DIR = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx') // (tests use their own folder)
 const LEVELS = [90, 80]
-const STOPPING = /\b(going to bed|off to bed|heading to bed|bed ?time|good ?night|switching (machines|computers|to (the|my) (laptop|pc|desktop))|done for (now|today|tonight|the (day|night))|signing off|calling it a (day|night)|that'?s it for (now|today|tonight)|logging off)\b/i
 
 const input = readInput()
 const event = input.hook_event_name
 const notes = []
 
-// only Muzzy's own words: a helper's report or a background-task notice arrives as a "prompt" too (2026-10-18: a
-// review report saying "shutting down" fired this)
-const fromMuzzy = !/<(system-reminder|task-notification|agent-message)\b/.test(input.prompt || '')
-if (event === 'UserPromptSubmit' && fromMuzzy && STOPPING.test(input.prompt || '')) {
+// only Muzzy's own words (lib.fromMuzzy); stop-unsaved.mjs then refuses to end the turn while work isn't pushed (F80)
+if (event === 'UserPromptSubmit' && fromMuzzy(input.prompt) && STOPPING.test(input.prompt || '')) {
   notes.push('Muzzy says they are stopping or switching machines. If they asked you to keep working while they are away (autonomous mode), keep going and /save after every feature. Otherwise run /save now and confirm "pushed — safe to switch machines."')
 }
 
-const isCommit = event === 'PostToolUse' && /\bgit\b[^\n]*\bcommit\b/.test(input.tool_input?.command || '')
+// a commit typed in the shell, or one the BMUZ scripts make inside their own process (saves, releases, merges — the
+// commits autonomous runs make most; audit 2026-10-19)
+const isCommit = event === 'PostToolUse' && /\bgit\b[^\n]*\bcommit\b|\b(save|release|merge|archive-sprint)\.mjs\b/.test(input.tool_input?.command || '')
 if (event === 'UserPromptSubmit' || isCommit) {
   const level = contextLevel(input.session_id)
   if (level) {

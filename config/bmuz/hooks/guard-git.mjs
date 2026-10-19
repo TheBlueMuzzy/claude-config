@@ -13,7 +13,12 @@ import { join, resolve } from 'node:path'
 //   the same list save.mjs refuses (NEVER_COMMIT in lib.mjs).
 //   `git checkout -- <file>` / `git checkout .` / `git restore <file>` over uncommitted changes → Muzzy is ASKED
 //   first (F78): it throws those changes away for good (Goops F17 lost cracks.ts this way). Branch switches stay free.
-import { readInput, deny, ask, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage, NEVER_COMMIT } from './lib.mjs'
+//   (F80) `F08: done` needs F08 ✅ (or 🎛️) in ROADMAP — "Approved" → done in the plan, not just in git.
+//   (F80) nothing under .claude/worktrees/ is committed — helpers' worktrees became embedded repos (Goops 2026-10-17).
+//   (F80) a stage commit (`Sprint 04: <goal>`, `GDD: discover`, `GDD: define|design|build plan`, fast-track) carries
+//   STATE.md — the next session starts from RESUME HERE, so it has to say where things now stand.
+import { readRoadmap } from '../templates/ppp/plan-reader.mjs'
+import { readInput, deny, ask, commands, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage, NEVER_COMMIT } from './lib.mjs'
 
 const input = readInput()
 const command = input.tool_input?.command
@@ -28,6 +33,8 @@ for (const [index, call] of calls.entries()) {
   if (sub === 'checkout' || sub === 'restore' || sub === 'switch') { const why = discardsChanges(call); if (why) asks.push(why) }
   if (sub === 'commit' && !args.includes('--dry-run')) checkFeatureCommitOnMain(calls, index, command)
   if (sub === 'commit' && !args.includes('--dry-run')) checkDoneSavesState(calls, index, command)
+  if (sub === 'commit' && !args.includes('--dry-run')) checkNoWorktrees(calls, index)
+  if (sub === 'commit' && !args.includes('--dry-run')) checkStageCommitSavesState(calls, index, command)
   if (sub === 'merge') checkMergeIntoMain(calls, index)
 
   if (sub === 'reset' && args.includes('--hard')) {
@@ -46,6 +53,17 @@ for (const [index, call] of calls.entries()) {
   }
 
   if (sub === 'branch') checkLocalDeletes(dir, args)
+}
+// (F80) merge.mjs merges into main and rollback.mjs commits on main inside their own process, where this hook can't
+// see the git calls — so the scripts themselves count as a merge into main: /deliver only.
+for (const { words } of commands(command, input.cwd)) {
+  if (!/^node(\.exe)?$/i.test(words[0])) continue
+  // BMUZ's own scripts only — a game's tools/merge.mjs (sprites…) or `node --check` on one is something else (review)
+  if (words.includes('--check')) continue
+  const script = words.slice(1).find(w => /config[\\/]bmuz[\\/]scripts[\\/](merge|rollback)\.mjs$/.test(w))
+  if (!script || deliverRan()) continue
+  const name = script.split(/[\\/]/).pop()
+  deny(`Blocked: ${name} ${name === 'merge.mjs' ? 'merges work into main' : 'puts a released version back on main'}, and only /deliver changes main (after its smoke test and checks). Run /deliver — or, if Muzzy asked for this, have him type /deliver.`)
 }
 if (asks.length) ask(asks.join('\n\n'))
 process.exit(0)
@@ -159,7 +177,9 @@ function checkFeatureCommitOnMain(calls, index, raw) {
   if (!feature) return // a tiny fix or a plan/doc commit
   const top = git(dir, 'rev-parse', '--show-toplevel')
   if (!top) return
-  const code = commitFiles(calls, index, resolve(top)).filter(f => !/^\.planning(\/|$)/.test(f) && !/\.md$/i.test(f)) // `git add .planning` names the folder itself
+  // `git add .planning` names the folder itself; version.json is /save's build number, not code (F80: save commits go
+  // through this hook now, and a plan-only "F80: …" save on main was refused for it)
+  const code = commitFiles(calls, index, resolve(top)).filter(f => !/^\.planning(\/|$)/.test(f) && !/\.md$/i.test(f) && f !== 'version.json')
   if (!code.length) return
   deny(`Blocked: a ${feature} commit with code (${code.slice(0, 3).join(', ')}${code.length > 3 ? ', …' : ''}) on ${target}. Feature work goes on the work branch (\`dev/<milestone>\`, /develop makes it) and reaches ${target} only through /deliver. Switch to the work branch and commit there — or, if this is really a tiny fix, commit it without the "${feature}:" prefix.`)
 }
@@ -174,6 +194,13 @@ function checkDoneSavesState(calls, index, raw) {
   if (!top) return
   const root = resolve(top)
   if (!existsSync(join(root, '.planning', 'STATE.md'))) return // not a BMUZ project
+  // F80: approved → ✅ in ROADMAP first (🎛️ when tuning goes on), so the planner, the ready states and /sprint agree
+  let roadmap = null
+  try { roadmap = readRoadmap(readFileSync(join(root, '.planning', 'ROADMAP.md'), 'utf8').replace(/\r\n/g, '\n')) } catch { /* no roadmap */ }
+  const notDone = roadmap ? ids.match(/F\d+[a-z]?/g).filter(id => roadmap.byId[id] && roadmap.byId[id].state.key !== 'done' && !/^- 🎛/.test(roadmap.byId[id].raw)) : []
+  if (notDone.length) {
+    deny(`Blocked: "${ids}: done" but ROADMAP.md still shows ${notDone.map(id => `${id} as ${roadmap.byId[id].state.label}`).join(', ')}. Approved means done in the plan too: set ${notDone.join(', ')} ✅ in .planning/ROADMAP.md (🎛️ if tuning goes on), refresh which features became 🟢 ready (plan-lint names them), then commit again.`)
+  }
   const feature = ids.match(/F\d+[a-z]?/)[0]
   const first = (git(root, 'log', '--format=%H', '--reverse', `--grep=^${feature}:`) || '').split('\n')[0]
   if (!commitFiles(calls, index, root).includes('.planning/STATE.md')) {
@@ -198,6 +225,32 @@ function checkDoneSavesState(calls, index, raw) {
   if (stale.length) {
     deny(`Blocked: "${feature}: done" but STATE.md's ${stale.map(([l]) => `"${l}"`).join(' and ')} ${stale.length > 1 ? 'weren\'t' : 'wasn\'t'} updated during ${feature}, so ${stale.length > 1 ? 'they describe' : 'it describes'} older work. Every feature gets the same treatment before it's done: ${stale.map(([, how]) => how).join('; ')}. Then write the line${stale.length > 1 ? 's' : ''} into STATE.md and commit again (F75).`)
   }
+}
+
+// Nothing under .claude/worktrees/ (helpers' workspaces) goes into a commit — `git add -A` would add each one as an
+// embedded repo (Goops 2026-10-17). save.mjs adds the ignore line, but helpers can start before the first save.
+function checkNoWorktrees(calls, index) {
+  const top = git(calls[index].dir, 'rev-parse', '--show-toplevel')
+  if (!top) return
+  const bad = commitFiles(calls, index, resolve(top)).filter(f => /^\.claude\/worktrees(\/|$)/.test(f))
+  if (!bad.length) return
+  deny(`Blocked: this commit would include ${bad.slice(0, 3).join(', ')} — a helper's workspace (a whole copy of the repo), which git would store as a broken embedded repo. Add the line \`.claude/worktrees/\` to .gitignore (and \`git rm -r --cached .claude/worktrees\` if it's already staged), then commit again.`)
+}
+
+// A stage commit carries STATE.md (F80): `Sprint 04: <goal>` (/sprint), `GDD: discover`, `GDD: define|design|build
+// plan`, `GDD + roadmap: fast-track` (/discover, /define). Other `GDD: <change>` commits (a /gdd what-if) don't.
+function checkStageCommitSavesState(calls, index, raw) {
+  const { dir, args } = calls[index]
+  const message = commitMessage(raw, args)
+  // the stage word alone (or followed by " — <detail>"): "GDD: define the lobby flow better" is a /gdd change, not a stage
+  const stage = /^\s*Sprint \d+\s*:/i.test(message) || /^\s*GDD(\s*\+\s*roadmap)?\s*:\s*(discover|define|design|build plan|fast-track)\s*([—–-].*)?$/i.test(message.split('\n')[0])
+  if (!stage) return
+  const top = git(dir, 'rev-parse', '--show-toplevel')
+  if (!top) return
+  const root = resolve(top)
+  if (!existsSync(join(root, '.planning', 'STATE.md'))) return // not a BMUZ project
+  if (commitFiles(calls, index, root).includes('.planning/STATE.md')) return
+  deny(`Blocked: "${message.slice(0, 60)}" is a stage commit, but .planning/STATE.md isn't in it — the next session (or the laptop) starts from RESUME HERE. Update STATE first (Stage · Sprint · Doing in "Where we are"; RESUME HERE replaced with the next step — for a gap walk, the next gap), add it, then commit again.`)
 }
 
 function checkMergeIntoMain(calls, index) {

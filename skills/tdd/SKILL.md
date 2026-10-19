@@ -19,7 +19,7 @@ Risks: <top 1–3>
 Compliance: 4/6 ✅ — missing: <items>
 Full doc: .planning/TDD.md (open in Obsidian — diagram renders there)
 ```
-Everything from the doc and the code — never invent. If the doc and the code disagree, say so and fix the doc.
+Everything from the doc and the code — never invent. If the doc and the code disagree, say so and fix the doc ③ (honesty; nothing can check it) — until F92 (tech-lead routine: TDD kept true).
 
 ## `/tdd <section or system>` → that part
 Plain English. Explain *what* it does and *why it's built that way* before *how*. Include the Mermaid diagram if it helps.
@@ -32,5 +32,5 @@ Muzzy often sees simpler or outside-the-box approaches. Take them seriously:
 4. Not adopted (his call) → still log it briefly with why (so it isn't re-argued), unless Muzzy says don't bother. If the idea answers an open ❓ feature, it closes only on his OK.
 
 ## Keeping it true (every verb follows this)
-- /define writes the first TDD (build plan part). /develop updates it when a sprint changes architecture, adds a data file, or adds a Dev Kit tool. /deliver ticks compliance items.
-- Any real "how should we build this" choice made during /develop → Decisions log.
+- /define writes the first TDD (build plan part). /develop updates it when a sprint adds a data file ② (stop-plan-check sends the turn back while TDD.md doesn't mention a new `content/` file or its folder), changes architecture or adds a Dev Kit tool ③ until F92 (tech-lead routine). /deliver ticks compliance items ③.
+- Any real "how should we build this" choice made during /develop → Decisions log ③ (judging what's "real").

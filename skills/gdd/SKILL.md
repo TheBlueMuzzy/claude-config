@@ -18,7 +18,7 @@ Open design questions: 2 (<from ROADMAP ❓ features + GDD open questions>)
 Changed lately: <from `git log` on GDD.md>
 Full doc: .planning/GDD.md (open it in Obsidian)
 ```
-Pull every line from the GDD, ROADMAP ❓ features, and `git log -- .planning/GDD.md` — never invent. Flag stale sections if Key facts lists "GDD out of date: §…".
+Pull every line from the GDD, ROADMAP ❓ features, and `git log -- .planning/GDD.md` — never invent ③ (honesty; nothing can check it). Flag stale sections if Key facts lists "GDD out of date: §…".
 
 **Whole-game map** ("big, simple overview", "show me the beats", a remake or a fresh /define): publish a one-page visual artifact instead of chat text: pitch, the story in Muzzy's words, feel targets, pillars, core loop, screens, story arc, **every feature with a status chip** (settled · kept · new · gap N) and the gap-walk progress. Republish it to the same URL as gaps close (Muzzy, 2026-10-16, Goops).
 

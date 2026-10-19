@@ -5,10 +5,12 @@ description: BMUZ health check — are Muzzy's skills, borrowed skills, referenc
 
 # /checkup — keep BMUZ healthy
 
-Runs about monthly: the session-start hook says **"BMUZ checkup due"** when `~/.claude/config/bmuz/last-checkup` is 30+ days old. When you see that, tell Muzzy in one line and offer to run it. Don't run it in the middle of his game work.
+Steps are marked by how they happen (F80): ① a script or hook does it · ② Claude's judgement, refused until it's on record · ③ judgement only. Most of a checkup is judging ③ — that's its job.
+
+Runs about monthly: the session-start hook says **"BMUZ checkup due"** when `~/.claude/config/bmuz/last-checkup` is 30+ days old ①. When you see that, tell Muzzy in one line and offer to run it. Don't run it in the middle of his game work ③.
 
 ## 1. Gather
-Run `bash ~/.claude/config/bmuz/checkup.sh` (read-only; takes about a minute).
+Run `bash ~/.claude/config/bmuz/checkup.sh` (read-only; takes about a minute) ①.
 
 ## 2. Judge each section
 - **Upstream changed (↑):**
@@ -17,14 +19,15 @@ Run `bash ~/.claude/config/bmuz/checkup.sh` (read-only; takes about a minute).
   - Unknown upstream (?): try to find it once. If you can't, mark it frozen in `sources.json`.
 - **Cards due (↻):** re-verify the facts that go stale (free-tier limits, licences, package names, prices) on the real pages. Update the card and its `checked` date.
 - **Use:** transcripts only cover about 30 days on this machine. Counts include Claude reading a skill while working, including during checkups, so treat them as a hint only. **Unused ≠ unwanted.** Judge each skill by its job: is it wired into a BMUZ step, and would a game actually need it?
-  - Wired, but its job never comes up → ask Muzzy: keep or retire?
+  - Wired, but its job never comes up → ask Muzzy: keep or retire? ③
   - Doing the same job as another skill → propose merging them.
 - **Wiring (✗):** every specialist needs at least one BMUZ step that calls it by name. Propose where to wire it in, or propose retiring it.
 - **Plugins / MCPs:** anything broken, needing login, or disabled for 3+ months → fix or retire it. Check `~/.claude/references/mcp-card.md` for anything a current project now needs.
 - **UI kit:** games with `src/ui/kit/VERSION` older than `~/Documents/dev/framework/ui-kit/kit/VERSION` → offer an update (`install-kit.mjs`, shows what changes). Recipes built in a game but not yet in the framework → harvest them.
 - **Sync:** a difference between `~/.claude` and `~/.claude-config` means something wasn't pushed. A folder that exists only in the repo is a leftover, so propose adding it to `RETIRED.txt`.
 - **Same safety kit in every game** (section 7, F79): each ✗ names its fix (the check-run lock, GitHub checks, check:framework). Offer the fixes. A game on the shelf gets a roadmap line in its own ROADMAP instead of a fix now.
-- **Skill tests (F71):** read `~/.claude/config/bmuz/last-skill-tests.json` (date, Claude Code version, result). Offer a run — never start one unasked (Muzzy, 2026-10-19: "A") — when a skill that has an `evals/` folder changed after that date, or `claude --version` / the model differs. Say the cost first: about $0.20 a case (`ls ~/.claude/skills/*/evals` counts them). On yes: `node ~/.claude/config/bmuz/scripts/test-skills.mjs --muzzy-said-yes` (the script refuses without it); a red case → read its failed checks and fix the skill (or the case) the same session.
+- **Skill tests (F71):** read `~/.claude/config/bmuz/last-skill-tests.json` (date, Claude Code version, result). Offer a run — never start one unasked (Muzzy, 2026-10-19: "A") — when a skill that has an `evals/` folder changed after that date, or `claude --version` / the model differs. Say the cost first: about $0.20 a case (`ls ~/.claude/skills/*/evals` counts them). On yes: `node ~/.claude/config/bmuz/scripts/test-skills.mjs --muzzy-said-yes` ② (the script refuses without it); a red case → read its failed checks and fix the skill (or the case) the same session ③.
+- **Unmarked rules:** `node ~/.claude/config/bmuz/hooks/rule-kind.mjs --all` lists every rule line in the skills and BMUZ docs that doesn't say how it happens ①. Offer to convert the ones in BMUZ's own skills (a hook or script step, or a ①/②/③ mark).
 - **Scan for news (quick):** in the Anthropic plugin marketplace and in the repos in `sources.json`, look for new skills in the areas BMUZ-PLAN cares about. Mention at most 3.
 
 ## 3. Report (one screen, plain English)
@@ -38,10 +41,8 @@ Fixes: <wiring, sync, broken MCP>
 Skill tests: <last run date + result> · <run now? n cases ≈ $x — why (skills changed / new model)>, or "up to date"
 New worth a look: <≤3>
 ```
-Then ask which to do. Nothing gets installed, replaced or retired without his OK. Retiring means adding the skill to `~/.claude-config/RETIRED.txt` (setup.sh archives it; nothing is deleted).
+Then ask which to do. Nothing gets installed, replaced or retired without his OK ③ (consent). Retiring means adding the skill to `~/.claude-config/RETIRED.txt` (setup.sh archives it; nothing is deleted).
 
 ## 4. Close
-- Write today's date to `~/.claude/config/bmuz/last-checkup`.
-- Update the `checked` dates in `sources.json`.
-- Save the report to `config/bmuz/reviews/checkups/<date>.md`.
-- Sync to `~/.claude-config`, commit and push, following `references/config-sync.md`.
+- Update the `checked` dates in `sources.json` for what you re-checked ③ (per item).
+- Save the report to `~/.claude/config/bmuz/reviews/checkups/<date>.md`, then run `bash ~/.claude/config/bmuz/checkup.sh --done` ① — it refuses until today's report is saved, then writes today's date to `last-checkup` and pushes the setup to `~/.claude-config` (the laptop gets it).

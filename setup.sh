@@ -63,6 +63,9 @@ if [ -f "$REPO_DIR/RETIRED.txt" ]; then
   done < "$REPO_DIR/RETIRED.txt"
 fi
 
+# --- Remember which repo commit this machine is now level with (config-sync.sh won't push over newer changes) ---
+git -C "$REPO_DIR" rev-parse HEAD > "$CLAUDE_DIR/.config-applied" 2>/dev/null || true
+
 # --- Install plugins ---
 echo ""
 echo "Installing plugins..."
