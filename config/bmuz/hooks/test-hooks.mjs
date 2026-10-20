@@ -180,6 +180,10 @@ function testGuardGit() {
   // F80: a stage commit carries STATE.md
   writeFileSync(join(bmuz.repo, '.planning', 'SPRINT.md'), '# Sprint 04 — hover\n')
   expect('F80: "Sprint 04: <goal>" without STATE.md → blocked', d('git add .planning/SPRINT.md && git commit -m "Sprint 04: fanned hand"'), 'deny')
+  // the check runs before the line does: an edit earlier on the same line isn't seen — the refusal says so (2026-10-19)
+  const sameLine = d('sed -i "s/a/b/" .planning/STATE.md && git add .planning/SPRINT.md && git commit -m "Sprint 04: fanned hand"')
+  expect('…an edit earlier on the same line → still blocked, and told to edit in its own command first', { result: sameLine.result === 'deny' && /in its own command first/.test(sameLine.message) ? 'ok' : 'no', message: sameLine.message }, 'ok')
+  expect('…a plain refusal (no edit on the line) doesn\'t carry that hint', { result: /in its own command first/.test(d('git add .planning/SPRINT.md && git commit -m "Sprint 04: fanned hand"').message) ? 'no' : 'ok' }, 'ok')
   writeFileSync(join(bmuz.repo, '.planning', 'STATE.md'), 'RESUME HERE: sprint 04 started\n')
   expect('…with STATE.md → allowed', d('git add -A && git commit -m "Sprint 04: fanned hand"'), 'allow')
   expect('"GDD: discover" without STATE → blocked', d('git commit --allow-empty -m "GDD: discover"'), 'deny')

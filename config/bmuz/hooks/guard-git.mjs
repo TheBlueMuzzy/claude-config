@@ -19,11 +19,18 @@ import { join, resolve } from 'node:path'
 //   (F80) a stage commit (`Sprint 04: <goal>`, `GDD: discover`, `GDD: define|design|build plan`, fast-track) carries
 //   STATE.md — the next session starts from RESUME HERE, so it has to say where things now stand.
 import { readRoadmap } from '../templates/ppp/plan-reader.mjs'
-import { readInput, deny, ask, commands, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage, NEVER_COMMIT } from './lib.mjs'
+import { readInput, deny as refuse, ask, commands, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage, NEVER_COMMIT } from './lib.mjs'
 
 const input = readInput()
 const command = input.tool_input?.command
 if (!command) process.exit(0)
+
+// These checks read the files BEFORE the command runs, so a plan edit earlier on the same line as the commit isn't
+// seen yet — say so in every refusal on such a line (Claude hit it 3 times on 2026-10-19: done, done, Sprint NN)
+const editsBeforeCommit = /(sed\s+-i|python|node\s+-e|Set-Content|Out-File|>>?\s*\S)[\s\S]*git\s+(-C\s+\S+\s+)?commit/.test(command)
+function deny(reason) {
+  refuse(editsBeforeCommit ? `${reason}\n(This line also edits files before the commit, and this check runs before the line does — make the edit in its own command first, then commit.)` : reason)
+}
 
 const calls = gitCalls(command, input.cwd)
 const asks = [] // asked only after every call on the line was checked — a refusal later on the line still wins
@@ -201,7 +208,7 @@ function checkDoneSavesState(calls, index, raw) {
   try { roadmap = readRoadmap(readFileSync(join(root, '.planning', 'ROADMAP.md'), 'utf8').replace(/\r\n/g, '\n')) } catch { /* no roadmap */ }
   const notDone = roadmap ? featureIds(ids).filter(id => roadmap.byId[id] && roadmap.byId[id].state.key !== 'done' && !/^- 🎛/.test(roadmap.byId[id].raw)) : []
   if (notDone.length) {
-    deny(`Blocked: "${ids}: done" but ROADMAP.md still shows ${notDone.map(id => `${id} as ${roadmap.byId[id].state.label}`).join(', ')}. Approved means done in the plan too: set ${notDone.join(', ')} ✅ in .planning/ROADMAP.md (🎛️ if tuning goes on), refresh which features became 🟢 ready (plan-lint names them), then commit again — in a separate command (this check reads the files before the command runs, so an edit in the same command as the commit isn't seen yet).`)
+    deny(`Blocked: "${ids}: done" but ROADMAP.md still shows ${notDone.map(id => `${id} as ${roadmap.byId[id].state.label}`).join(', ')}. Approved means done in the plan too: set ${notDone.join(', ')} ✅ in .planning/ROADMAP.md (🎛️ if tuning goes on), refresh which features became 🟢 ready (plan-lint names them), then commit again.`)
   }
   const feature = featureIds(ids)[0]
   const first = (git(root, 'log', '--format=%H', '--reverse', `--grep=^${feature}:`) || '').split('\n')[0]

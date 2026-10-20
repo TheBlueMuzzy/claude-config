@@ -15,9 +15,13 @@ let failed = 0
 const FAKE_SYNC = join(mkdtempSync(join(tmpdir(), 'bmuz-sync-')), 'sync.sh')
 writeFileSync(FAKE_SYNC, 'if [ "$1" = status ]; then [ -n "$FAKE_SYNC_STATUS" ] && printf "%s\\n" "$FAKE_SYNC_STATUS"; else echo "push $2" >> "${FAKE_SYNC_LOG:-/dev/null}"; echo "PUSHED: abc $2"; fi\nexit 0\n')
 
+// A stand-in for `npm audit` (deps-check, F85), so no test asks the network: prints $FAKE_AUDIT, or a clean report.
+const FAKE_AUDIT = join(dirname(FAKE_SYNC), 'audit.mjs')
+writeFileSync(FAKE_AUDIT, "console.log(process.env.FAKE_AUDIT || JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: { low: 0, moderate: 0, high: 0, critical: 0, total: 0 } } }))\n")
+
 // Run a script; returns { code, out }.
 function script(name, args, { cwd, env = {} } = {}) {
-  const r = spawnSync('node', [join(SCRIPTS, name), ...args], { cwd, encoding: 'utf8', env: { ...process.env, BMUZ_CONFIG_SYNC: FAKE_SYNC, ...env }, timeout: 300_000 })
+  const r = spawnSync('node', [join(SCRIPTS, name), ...args], { cwd, encoding: 'utf8', env: { ...process.env, BMUZ_CONFIG_SYNC: FAKE_SYNC, BMUZ_NPM_AUDIT: FAKE_AUDIT, ...env }, timeout: 300_000 })
   return { code: r.status, out: `${r.stdout || ''}${r.stderr || ''}` }
 }
 function expect(name, ok, detail = '') {
@@ -112,9 +116,12 @@ function releaseProject(root, name, opts = {}) {
     s.reviewed !== false ? `Reviewed through: ${s.reviewed} (F01)` : '', s.security !== false ? `**Security reviewed:** ${s.security}` : '', s.full !== false ? `Last full check: ${s.full} — all green` : '',
     '## Log', s.log, '- 2026-01-01 — older', ''].join('\n'))
   write(join(repo, '.planning', 'ROADMAP.md'), opts.roadmap || '# T — Roadmap\nRelease target: alpha\n## v0.1 — First  ← current\n- ✅ F01 🧱 Cards — must:alpha\n')
+  // F84: finished patch notes for the update (0.9.3) and the milestone/stage (0.10.0) versions — notes: false = none
+  if (opts.notes !== false) for (const v of ['0.9.3', '0.10.0']) write(join(repo, '.planning', 'archive', 'releases', `v${v}.md`), GOOD_NOTES(v))
   sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'plan')
   return repo
 }
+const GOOD_NOTES = (v) => `# v${v}\n\n## Highlights\nCards now fan out in your hand.\n\n## New\n- Cards fan out when you hold more than five.\n\n## Changed\n\n## Fixed\n- Fixed the crash when a save is loaded.\n`
 const FAKE_CLEANUP = join(dirname(FAKE_SYNC), 'cleanup.sh')
 writeFileSync(FAKE_CLEANUP, 'echo "🧹 cleaned 1 MB — test"\n')
 

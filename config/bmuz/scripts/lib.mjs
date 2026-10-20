@@ -159,8 +159,9 @@ export function commitsIn(root, value) {
 }
 
 // Code = anything but plan notes, docs and the save/release bookkeeping (save.mjs bumps version.json and may add
-// .gitignore lines on every save — those never need a re-check or a re-review).
-export const isCode = (f) => !!f && !f.startsWith('.planning/') && !/\.md$/i.test(f) && f !== 'version.json' && f !== '.gitignore'
+// .gitignore lines on every save — those never need a re-check or a re-review). The licence notices release.mjs
+// writes (F85) are made from the packages, not written by hand.
+export const isCode = (f) => !!f && !f.startsWith('.planning/') && !/\.md$/i.test(f) && f !== 'version.json' && f !== '.gitignore' && f !== 'public/third-party-notices.txt'
 
 // The newest version tag HEAD contains (null before the first release).
 export const lastTag = (root) => git(root, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', 'HEAD')
