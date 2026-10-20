@@ -122,6 +122,13 @@ fi
 # features, what's waiting on Muzzy). Quiet outside a BMUZ project. Local only — no network.
 [ -d .planning ] && node "$(dirname "$0")/hooks/producer-notes.mjs" . 2>/dev/null
 
+# Is the live game up? (F82): STATE's Live page + room server, ≤ 3 s, a line only when one is DOWN
+# (`timeout 5`: a stuck name lookup can outlive the script's own 3 s limit — review F82; Git Bash has timeout)
+if [ -d .planning ]; then
+  if command -v timeout >/dev/null 2>&1; then timeout 5 node "$(dirname "$0")/hooks/live-ping.mjs" . 2>/dev/null
+  else node "$(dirname "$0")/hooks/live-ping.mjs" . 2>/dev/null; fi
+fi
+
 # Open questions for Muzzy in the sprint (F80 — /develop "ask now" was remembered): every non-empty "Ask Muzzy:" line
 if [ -f .planning/SPRINT.md ]; then
   ASKS=$(grep -E "Ask Muzzy:" .planning/SPRINT.md | sed -E 's/^.*Ask Muzzy:[[:space:]]*//' | grep -Evi '^(—|-|none|n/a)?[[:space:]]*$' | cut -c1-160 | sed 's/^/  ? /')

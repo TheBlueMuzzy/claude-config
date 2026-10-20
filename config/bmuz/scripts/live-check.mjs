@@ -7,6 +7,8 @@
 //   2. fetches the page with a cache-buster (?v=<time>), retrying while the host catches up (BMUZ_LIVE_TRIES, default
 //      8, every BMUZ_POLL_MS, default 20 s): HTTP 200, no login redirect (= public), and the new version is in the
 //      page or one of its scripts (version.json's X.Y.Z)
+//   2b. the room server's /health when STATE names one (`Rooms: https://…`, or a *.workers.dev host on the Release /
+//      Server line — F82): no answer / a server error refuses, 404 (a worker from before /health) warns
 //   3. `npm run e2e:update` when the project has it (returning players get the new version — offline cache)
 //   4. the console: `npm run smoke:live` (LIVE_URL=<url>) when the project has it; otherwise it's Claude's check in
 //      Playwright, and this says so
@@ -16,7 +18,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { git, run, say, ok, refuse, tail, readJson, args, projectDir, gh, sleep, stateValue, lastTag, deleteMergedRemotes } from './lib.mjs'
-import { defaultBranch } from '../hooks/lib.mjs'
+import { askAddress, defaultBranch, liveUrl, roomsHealthUrl } from '../hooks/lib.mjs'
 
 const { flags } = args()
 const root = git(projectDir(), 'rev-parse', '--show-toplevel')
@@ -45,7 +47,7 @@ if (/^(none|not set up)\b/i.test(release) || /blocked\s*:/i.test(release)) {
 
 // the Live URL — a new one given replaces STATE's (D50)
 const urlFlag = [...flags].find(f => f.startsWith('--url='))
-const stateUrl = (state.match(/\bLive:\*{0,2}[ \t]*(https?:\/\/[^\s)>,]+)/) || [])[1]
+const stateUrl = liveUrl(state) // (the same reading as session start's live-ping, F82)
 const url = urlFlag ? urlFlag.slice(6) : stateUrl
 if (!url) refuse('STATE has no `Live: https://…` URL', 'add it under "Where we are" (Live: <url> (vX.Y.Z, <stage>)), or run with --url=<url>')
 if (stateUrl && url !== stateUrl) {
@@ -113,6 +115,19 @@ for (let n = 1; n <= tries; n++) {
 }
 if (!seen.found) refuse(`${url}: ${seen.problem}`, seen.fatal ? 'make the site public (GitHub Pages needs a public repo; check the host\'s visibility settings), then run this again' : 'is the deploy finished? Hard-refresh / check the host, then run this again')
 ok(`${url} is public and shows ${version} (found in ${seen.found})`)
+
+// 2b. the online room server (F82): its /health answers (rooms kit 0.8.0+)
+const roomsHealth = roomsHealthUrl(state)
+if (roomsHealth) {
+  const { status: answer, room } = await askAddress(roomsHealth, Number(process.env.BMUZ_HEALTH_MS || 10_000), { health: true })
+  if (room === 'up') ok(`the room server is up (${roomsHealth})`)
+  else if (room === 'old') say(`⚠ the room server answers, but not at /health yet (${roomsHealth}) — update the rooms kit (install-module.mjs rooms .), add its /health line to party/worker.ts, redeploy the server`)
+  else {
+    // Node 24 on Windows aborts (UV_HANDLE_CLOSING) when process.exit lands right after a few fetches — let them settle
+    await new Promise(r => setTimeout(r, 100))
+    refuse(`the room server is DOWN (${roomsHealth}: ${typeof answer === 'number' ? `HTTP ${answer}` : answer === 'slow' ? 'no answer in time' : answer}) — online play won't work`, 'npm run party:deploy (npx wrangler login once per machine), then run this again')
+  }
+}
 
 // 3. returning players get the new version
 const scripts = readJson(join(root, 'package.json'))?.scripts || {}

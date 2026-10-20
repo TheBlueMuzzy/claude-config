@@ -376,3 +376,51 @@ export function isMergedInto(dir, ref, target) {
     return false
   }
 }
+
+// --- live addresses (F82) ----------------------------------------------------
+
+// STATE's live game page: the first `Live: https://…` (bold or not, own line or "·"-joined). null = nothing hosted.
+export function liveUrl(state) {
+  return trimUrl(((state || '').match(/\bLive:\*{0,2}[ \t]*(https?:\/\/[^\s)>,`]+)/) || [])[1])
+}
+// Markdown and sentence ends stuck to an address ("**Live: https://a.io/g/**", "…/g/.") aren't part of it (review F82)
+const trimUrl = (url) => (url ? url.replace(/[*.,;:'"\]]+$/, '') : null)
+
+// The online room server's health address: a `Rooms: https://…` line wins; otherwise the *.workers.dev host named
+// on the Release / Server line (where Glyphtender and Roll Better record it) + /health. null = no room server.
+export function roomsHealthUrl(state) {
+  const text = state || ''
+  const own = trimUrl((text.match(/^[- \t]*\*{0,2}Rooms:\*{0,2}[ \t]*(https?:\/\/[^\s)>,`]+)/m) || [])[1])
+  if (own) {
+    const base = own.replace(/\/+$/, '')
+    return base.endsWith('/health') ? base : `${base}/health`
+  }
+  for (const line of text.split('\n').filter(l => /^[- \t]*\*{0,2}(Release|Server):/.test(l))) {
+    const host = (line.match(/\b((?:[a-z0-9-]+\.)+workers\.dev)\b/i) || [])[1]
+    if (host) return `https://${host}/health`
+  }
+  return null
+}
+
+// Ask one address (F82): { status } — the HTTP status, or 'slow' (nothing in `ms`) or a network error code.
+// For a room server's /health: 'up' (200, or 404 from a worker that predates /health), 'old' (that 404) or 'down'.
+// Cloudflare answers a worker that doesn't exist with its own 404 "error code: 1042" — that one is down.
+export async function askAddress(url, ms, { health = false } = {}) {
+  let status
+  let body = ''
+  try {
+    const headers = { 'cache-control': 'no-cache', ...(health ? { accept: 'application/json' } : {}) }
+    const res = await fetch(url, { redirect: 'follow', headers, signal: AbortSignal.timeout(ms) })
+    status = res.status
+    if (health && status === 404) body = (await res.text()).slice(0, 2000)
+    else await res.body?.cancel()
+  } catch (e) {
+    status = e.name === 'TimeoutError' || e.name === 'AbortError' ? 'slow' : (e.cause?.code || e.code || 'no answer')
+  }
+  if (!health) return { status }
+  // asked for JSON, Cloudflare says {"title":"Error 1042: Cloudflare Error"…} (curl gets "error code: 1042"; its HTML
+  // page, sent for other Accept headers, doesn't name the code at all — checked 2026-10-20)
+  const cloudflareError = (body.match(/Error (1\d{3}): Cloudflare|error code:\s*(1\d{3})/i) || []).slice(1).find(Boolean)
+  const room = status === 200 ? 'up' : status === 404 && !cloudflareError ? 'old' : status === 'slow' ? 'slow' : 'down'
+  return { status: cloudflareError ? `no such server (Cloudflare error ${cloudflareError})` : status, room }
+}

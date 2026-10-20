@@ -1363,8 +1363,75 @@ function testQaRoutine() {
   rmSync(g.root, { recursive: true, force: true })
 }
 
+// F82: is the live game up? — a local host stands in for the live site and the room server
+function testLivePing() {
+  console.log('live-ping — session start says DOWN only when it is (F82)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-live-ping-'))
+  const ready = join(root, 'ready')
+  // /up 200 · /broken 500 · /slow answers after 10 s · /rooms-up/health 200 · /rooms-old/health the worker's own
+  // 404 · /rooms-gone/health Cloudflare's "no such worker" 404 (as JSON, the way it answers Accept: application/json)
+  writeFileSync(join(root, 'host.mjs'), [
+    "import http from 'node:http'; import { writeFileSync } from 'node:fs'",
+    'const server = http.createServer((q, s) => {',
+    "  const path = q.url.split('?')[0]",
+    "  if (path === '/up/' || path === '/rooms-up/health') { s.writeHead(200); return s.end('ok') }",
+    "  if (path === '/broken/') { s.writeHead(500); return s.end('oops') }",
+    "  if (path === '/slow/') { setTimeout(() => { s.writeHead(200); s.end('late') }, 10_000); return }",
+    "  if (path === '/rooms-old/health') { s.writeHead(404); return s.end('Not found') }",
+    "  if (path === '/rooms-gone/health') { s.writeHead(404, { 'content-type': 'application/json' }); return s.end(JSON.stringify({ title: 'Error 1042: Cloudflare Error', status: 404 })) }",
+    "  s.writeHead(404); s.end('nope')",
+    '})',
+    `server.listen(0, '127.0.0.1', () => writeFileSync(${JSON.stringify(ready)}, String(server.address().port)))`,
+  ].join('\n'))
+  const host = spawn(process.execPath, [join(root, 'host.mjs')], { stdio: 'ignore' })
+  for (let i = 0; i < 100 && !existsSync(ready); i++) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  const base = `http://127.0.0.1:${readFileSync(ready, 'utf8')}`
+  const game = join(root, 'game')
+  mkdirSync(join(game, '.planning'), { recursive: true })
+  // Runs the hook on a STATE; 'quiet' when it prints nothing, else 'down' + the lines
+  const ping = (state, env = {}) => {
+    writeFileSync(join(game, '.planning', 'STATE.md'), state)
+    const started = Date.now()
+    const out = spawnSync('node', [join(HOOKS, 'live-ping.mjs'), game], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, BMUZ_ONLINE_PROBE: 'localhost', ...env } })
+    const text = `${out.stdout || ''}${out.stderr || ''}`.trim()
+    return { result: out.status !== 0 ? `exit ${out.status}` : text ? 'down' : 'quiet', message: text, ms: Date.now() - started }
+  }
+  const state = (live, extra = '') => `# State\n## Where we are\nStage: deliver · Live: ${live} (v0.3.0, alpha)\n## Key facts\n**Release:** GitHub Pages\n${extra}`
+
+  expect('live site up → nothing printed', ping(state(`${base}/up/`)), 'quiet')
+  expect('review: a bold-wrapped "**Live: <url>**" line → the ** isn\'t read as part of the address', ping(`# State\n**Live: ${base}/up/**\n**Release:** GitHub Pages\n`), 'quiet')
+  expect('review: an address ending a sentence ("…/up/.") → still up', ping(`# State\nLive: ${base}/up/.\n**Release:** GitHub Pages\n`), 'quiet')
+  const broken = ping(state(`${base}/broken/`))
+  expect('live site answers HTTP 500 → one DOWN line', broken, 'down')
+  expect('…naming the address and what to do', { result: /The live site is DOWN — .*\/broken\/ \(HTTP 500\).*live-check\.mjs/.test(broken.message) ? 'named' : 'no', message: broken.message }, 'named')
+  const slow = ping(state(`${base}/slow/`))
+  expect('a site that takes 10 s → nothing printed (slow isn\'t proof it\'s down)', slow, 'quiet')
+  expect('…and session start waited ~3 s, not 10', { result: slow.ms < 6000 ? 'fast' : 'held', message: `${slow.ms} ms` }, 'fast')
+  expect('no Live URL → nothing printed', ping('# State\n## Where we are\nLive: nothing to host (library)\n'), 'quiet')
+  expect('Release: none (library) → nothing asked, even with a dead URL', ping(`# State\nLive: ${base}/broken/\n## Key facts\n- Release: none (library)\n`), 'quiet')
+  const bare = join(root, 'not-a-project')
+  mkdirSync(bare)
+  const noState = spawnSync('node', [join(HOOKS, 'live-ping.mjs'), bare], { encoding: 'utf8' })
+  expect('not a BMUZ project (no STATE.md) → nothing printed', { result: noState.status === 0 && !noState.stdout.trim() ? 'quiet' : 'down', message: noState.stdout + noState.stderr }, 'quiet')
+  const refused = state('http://127.0.0.1:1/')
+  expect('nothing listening + this machine offline (no name resolves) → nothing printed', ping(refused, { BMUZ_ONLINE_PROBE: 'no-such-host.invalid' }), 'quiet')
+  expect('nothing listening + online → DOWN', ping(refused), 'down')
+  // the room server
+  expect('room server /health 200 → nothing printed', ping(state(`${base}/up/`, `Rooms: ${base}/rooms-up\n`)), 'quiet')
+  expect('room server from before /health (its own 404) → nothing printed (it answered)', ping(state(`${base}/up/`, `Rooms: ${base}/rooms-old/\n`)), 'quiet')
+  const gone = ping(state(`${base}/up/`, `Rooms: ${base}/rooms-gone\n`))
+  expect('Cloudflare "no such worker" (error 1042) → room server DOWN', gone, 'down')
+  expect('…says the server is gone and to redeploy', { result: /The room server is DOWN — .*no such server \(Cloudflare error 1042\).*party:deploy/.test(gone.message) ? 'named' : 'no', message: gone.message }, 'named')
+  expect('both down → two lines', { result: ping(state(`${base}/broken/`, `Rooms: ${base}/rooms-gone\n`)).message.split('\n').length === 2 ? 'two' : 'other', message: '' }, 'two')
+  // wired into session start
+  const wired = readFileSync(join(HOOKS, '..', 'session-start.sh'), 'utf8').includes('hooks/live-ping.mjs')
+  expect('session-start.sh runs live-ping.mjs', { result: wired ? 'wired' : 'missing', message: '' }, 'wired')
+  host.kill()
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
+const suites = { 'live-ping': testLivePing, 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)

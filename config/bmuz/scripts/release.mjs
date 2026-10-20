@@ -19,6 +19,8 @@
 //                D31 milestone/stage/major: a ROADMAP milestone heading is ✅ with today's date
 //                D4  stage/major: musts-check for --stage (override: --musts-open-ok) and `Release target:` moved on
 //                F87 stage/major: a playtest log dated since the last stage release (override: --no-playtest-ok)
+//                F83 stage/major: .planning/archive/release-checks/<stage>.md with every line for the stage filled in
+//                    and ticked; beta+ also no stand-in art (override: --no-release-check-ok) — release-check.mjs
 //                F84 patch notes: .planning/archive/releases/vX.Y.Z.md exists, isn't a DRAFT, has Highlights, and a
 //                    game's has no dev talk (override: --no-notes-ok) — notes.mjs
 //   package.json + lockfile
@@ -38,11 +40,13 @@ import { defaultBranch } from '../hooks/lib.mjs'
 import { readBugs, isOpenBug, readRoadmap, readSprint } from '../templates/ppp/plan-reader.mjs'
 import { notesFile, itchFile, notesPath, notesProblems, draftNotes, changelogEntry, addToChangelog, itchText } from './notes.mjs'
 import { checkDeps, noticesText, summaryLines } from './deps-check.mjs'
+import { checkFile, releaseCheckProblems, stageRank } from './release-check.mjs'
 
 const KINDS = { update: 2, milestone: 1, stage: 1, major: 0 } // which part of X.Y.Z goes up
 const NOTICES = 'public/third-party-notices.txt' // F85: the licence texts the Credits screen links to
 const OVERRIDES = { '--musts-open-ok': 'released with open musts', '--unapproved-ok': 'released with features Muzzy hasn\'t approved yet', '--no-playtest-ok': 'released without a playtest since the last stage',
-  '--no-notes-ok': 'released without finished patch notes', '--deps-risk-ok': 'released with a risky package (licence or security)' }
+  '--no-notes-ok': 'released without finished patch notes', '--deps-risk-ok': 'released with a risky package (licence or security)',
+  '--no-release-check-ok': 'released with the stage\'s release checklist unfinished' }
 const { words, flags } = args()
 const [kind, summary] = words
 const drafting = flags.has('--draft-notes')
@@ -243,6 +247,12 @@ if (stateText !== null) {
     else if (!override('--no-playtest-ok', `${stage}: no playtest log since ${lastStage}`)) {
       fail(`no playtest log since the last stage release (${lastStage})${logs.length ? ` — the newest is ${logs.sort().at(-1)}` : ''} — a ${stage} goes out after someone has played it`, '/play in watch mode while Muzzy (or a friend) plays it writes .planning/research/playtests/<date>.md; or ask Muzzy: release without one? yes → run again with --no-playtest-ok')
     }
+    // F83: the stage's release checklist, every line filled and ticked; from beta, no stand-in art left
+    const stageChecks = releaseCheckProblems(root, stage)
+    if (!stageChecks.length) ok(`release checklist for ${stage} done (${checkFile(stage)})${stageRank(stage) >= 2 ? ' · no stand-in art' : ''}`)
+    else if (!override('--no-release-check-ok', `${stage}: ${stageChecks.length} release-check item${stageChecks.length > 1 ? 's' : ''} open`)) {
+      for (const [text, fix] of stageChecks) fail(text, fix)
+    } else say(`⚠ released with the ${stage} release checklist unfinished (Muzzy's call) — ${stageChecks.length} open`)
   }
 }
 // ROADMAP's milestone headings as written (readRoadmap keeps only the cleaned-up name)

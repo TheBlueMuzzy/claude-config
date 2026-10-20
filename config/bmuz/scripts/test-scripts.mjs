@@ -721,6 +721,9 @@ async function testLiveCheck() {
     "  const path = q.url.split('?')[0]",
     "  if (path === '/private/') { s.writeHead(403); return s.end('no') }",
     "  if (path === '/members/') { s.writeHead(302, { location: '/login?next=/members/' }); return s.end() }",
+    "  if (path === '/rooms-up/health') { s.writeHead(200); return s.end('{\"ok\":true}') }",
+    "  if (path === '/rooms-broken/health') { s.writeHead(500); return s.end('oops') }",
+    "  if (path === '/rooms-gone/health') { s.writeHead(404, { 'content-type': 'application/json' }); return s.end('{\"title\":\"Error 1042: Cloudflare Error\"}') }",
     "  if (path === '/login') { s.writeHead(200); return s.end('<form>sign in</form>') }",
     "  let body; try { body = readFileSync(join(dir, path.endsWith('/') ? path + 'index.html' : path)) } catch { s.writeHead(404); return s.end('nope') }",
     '  s.writeHead(200); s.end(body)',
@@ -763,6 +766,19 @@ async function testLiveCheck() {
   state('**Release:** GitHub Pages', `${base}/old/`)
   const moved = live({}, `--url=${base}/game/`)
   expect('--url=<new> → STATE\'s Live URL replaced (D50), then checked', moved.code === 0 && /Live URL updated/.test(moved.out) && readFileSync(join(repo, '.planning', 'STATE.md'), 'utf8').includes(`Live: ${base}/game/ (v0.3.0`), moved.out)
+  // F82: the room server's /health
+  const rooms = (line) => { state(`**Release:** GitHub Pages\n${line}`); return live() }
+  const up = rooms(`Rooms: ${base}/rooms-up`)
+  expect('F82: Rooms: <url> answering /health → "the room server is up"', up.code === 0 && /room server is up \(.*\/rooms-up\/health\)/.test(up.out), up.out)
+  const broken = rooms(`Rooms: ${base}/rooms-broken/`)
+  expect('F82: room server answers HTTP 500 → refused: DOWN, with the redeploy step', broken.code === 1 && /room server is DOWN.*HTTP 500/.test(broken.out) && /party:deploy/.test(broken.out), broken.out)
+  const oldWorker = rooms(`Rooms: ${base}/rooms-old`)
+  expect('F82: 404 at /health (a worker from before 0.8.0) → a warning only, the live pass still recorded', oldWorker.code === 0 && /not at \/health yet/.test(oldWorker.out) && /live pass recorded/.test(oldWorker.out), oldWorker.out)
+  const deleted = rooms(`Rooms: ${base}/rooms-gone`)
+  expect('F82: Cloudflare "no such worker" 404 (error 1042) → refused: DOWN, not mistaken for an old worker', deleted.code === 1 && /room server is DOWN.*Cloudflare error 1042/.test(deleted.out), deleted.out)
+  const gone = rooms('Rooms: http://127.0.0.1:1/')
+  expect('F82: nothing listening → refused: DOWN', gone.code === 1 && /room server is DOWN/.test(gone.out), gone.out)
+  state('**Release:** GitHub Pages')
   // e2e:update + smoke:live
   write(join(repo, 'package.json'), JSON.stringify({ scripts: { 'e2e:update': 'node -e "process.exit(1)"' } }))
   expect('e2e:update fails → refused (returning players may get the old version)', /e2e:update fails/.test(live().out))
@@ -860,12 +876,99 @@ function testScriptCommitGuards() {
 }
 
 // F87: a stage release (alpha/beta/1.0) goes out after someone played it — a playtest log since the last stage
+// F83: a stage's release checklist written by release-check.mjs, then every <…> line filled and ticked (or only some)
+function fillChecklist(repo, stage, { leave = [] } = {}) {
+  script('release-check.mjs', [stage], { cwd: repo })
+  const file = join(repo, '.planning', 'archive', 'release-checks', `${stage}.md`)
+  const text = readFileSync(file, 'utf8').replace(/^- \[ \] ((?:\[[^\]]+\] )?)([^:]+): <[^>]*>$/gm, (line, tag, label) => leave.includes(label) ? line : `- [x] ${tag}${label}: done (test)`)
+  write(file, text)
+  return file
+}
+
+// F83: a stage release needs its release checklist (devices, first-time player, store, privacy…) and, from beta, no
+// stand-in art
+function testReleaseStageChecks() {
+  console.log('release — stage-release checklist + no stand-in art from beta (F83)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-stagecheck-'))
+  // commits art (= code) and moves STATE's reviewed / security / full-check marks onto it, as a real review would
+  const commitArt = (repo) => {
+    sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'F01: art')
+    const sha = sh(repo, 'rev-parse', '--short', 'HEAD')
+    const statePath = join(repo, '.planning', 'STATE.md')
+    write(statePath, readFileSync(statePath, 'utf8').replace(/^(Reviewed through: |\*\*Security reviewed:\*\* |Last full check: )[0-9a-f]+/gm, `$1${sha}`))
+    sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'plan')
+  }
+  const release = (repo, ...a) => script('release.mjs', a, { cwd: repo, env: { BMUZ_CLEANUP: FAKE_CLEANUP } })
+  const ready = (name, stage = 'alpha') => {
+    const repo = releaseProject(root, name, { state: { resume: `Released v0.10.0 — ${stage}` },
+      roadmap: `# T — Roadmap\nRelease target: 1.0 — musts not set (/define)\n## v0.1 — First  ✅ released ${TODAY}\n- ✅ F01 🧱 Cards — must:${stage}\n` })
+    write(join(repo, '.planning', 'research', 'playtests', `${TODAY}.md`), '# Playtest\n')
+    return repo
+  }
+  const game = ready('game')
+  const none = release(game, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
+  expect('alpha, no checklist → refused, names the file and how to write it', none.code === 1 && /no release checklist for alpha \(\.planning\/archive\/release-checks\/alpha\.md\)/.test(none.out) && /release-check\.mjs alpha/.test(none.out), none.out)
+  const update = release(game, 'update', 'x', '--dry-run')
+  expect('…a plain update release is never asked for one', !/release checklist/.test(update.out), update.out)
+  const made = script('release-check.mjs', ['alpha'], { cwd: game })
+  const file = join(game, '.planning', 'archive', 'release-checks', 'alpha.md')
+  const alpha = existsSync(file) ? readFileSync(file, 'utf8') : ''
+  expect('release-check.mjs alpha → writes the alpha list (Devices, First-time player, Store page, Privacy…), no beta / 1.0 lines', made.code === 0 && /^# Release check — alpha/.test(alpha) && /Devices:/.test(alpha) && /First-time player:/.test(alpha) && /Store page:/.test(alpha) && /Privacy and age rating:/.test(alpha) && !/^- \[.\] \[(beta\+|1\.0)\]/m.test(alpha), made.out + alpha)
+  write(file, alpha.replace('- [ ] Devices: <', '- [x] Devices: <'))
+  const blank = release(game, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
+  expect('untouched list → refused, each line named once (ticked but unfilled = "isn\'t filled in")', blank.code === 1 && /"Devices" isn't filled in/.test(blank.out) && /"First-time player" isn't filled in/.test(blank.out) && (blank.out.match(/release checklist: "/g) || []).length === 8, blank.out)
+  write(file, alpha)
+  const again = script('release-check.mjs', ['alpha'], { cwd: game })
+  expect('…run again → the edited list is kept, not overwritten', /already there/.test(again.out), again.out)
+  fillChecklist(game, 'alpha', { leave: ['Store page'] })
+  write(file, readFileSync(file, 'utf8').replace('- [x] Devices: done (test)', '- [ ] Devices: iPhone 13, PC Chrome'))
+  const half = release(game, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
+  expect('half done → refused naming only what\'s open: Devices filled but unticked, Store page unfilled', half.code === 1 && /"Devices" isn't ticked/.test(half.out) && /"Store page" isn't filled in/.test(half.out) && !/"First-time player"/.test(half.out), half.out)
+  write(file, readFileSync(file, 'utf8').replace(/^- \[ \] Store page:.*$/m, ''))
+  expect('a line deleted → refused: "the Store page line is missing"', /the "Store page" line is missing/.test(release(game, 'stage', 'Alpha', '--stage=alpha', '--dry-run').out))
+  rmSync(file)
+  fillChecklist(game, 'alpha')
+  const full = release(game, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
+  expect('every line filled + ticked → passes ("release checklist for alpha done")', full.code === 0 && /release checklist for alpha done/.test(full.out), full.out)
+  write(join(game, 'content', 'credits.json'), JSON.stringify([{ paths: ['public/art/hero.png'], source: 'Muzzy — stand-in until redrawn', licence: 'own work', light: '🟢' }]))
+  commitArt(game)
+  expect('alpha with stand-in art → still passes (stand-ins are fine before beta)', release(game, 'stage', 'Alpha', '--stage=alpha', '--dry-run').code === 0)
+
+  // beta: the beta+ lines, and no stand-in art
+  const beta = ready('beta', 'beta')
+  fillChecklist(beta, 'beta')
+  const betaList = readFileSync(join(beta, '.planning', 'archive', 'release-checks', 'beta.md'), 'utf8')
+  expect('the beta list has the beta+ lines (No stand-in art, Bugs) but not the 1.0 ones', /\[beta\+\] No stand-in art:/.test(betaList) && /\[beta\+\] Bugs:/.test(betaList) && !/^- \[.\] \[1\.0\]/m.test(betaList), betaList)
+  expect('beta, list done, no stand-ins → passes', release(beta, 'stage', 'Beta', '--stage=beta', '--dry-run').code === 0)
+  write(join(beta, 'content', 'credits.json'), JSON.stringify([
+    { paths: ['public/art/hero.png'], source: 'Muzzy — stand-in until redrawn', licence: 'own work', light: '🟢' },
+    { paths: ['public/sfx/tap.mp3'], source: 'ZzFX', licence: 'own work', light: '🟢', standIn: true },
+    { paths: ['public/fonts/nunito.woff2'], source: 'Google Fonts', licence: 'SIL OFL 1.1', light: '🟡', credit: 'Nunito' },
+  ]))
+  write(join(beta, 'public', 'art', 'placeholder-card.png'), 'png')
+  write(join(beta, '.planning', 'SPRINT.md'), '# Sprint 09 — x\n## F12 🎮 Cards\n- [ ] 🙋 3. Card backs (stand-in)\n- [x] 🙋 4. Card fronts (stand-in)\n')
+  commitArt(beta)
+  const art = release(beta, 'stage', 'Beta', '--stage=beta', '--dry-run')
+  expect('beta with stand-ins → refused, naming each: credits "stand-in" text, standIn: true, a placeholder file, an open (stand-in) task', art.code === 1 && /stand-in art left in a beta \(4\)/.test(art.out) && /public\/art\/hero\.png/.test(art.out) && /public\/sfx\/tap\.mp3 — "standIn: true"/.test(art.out) && /file: public\/art\/placeholder-card\.png/.test(art.out) && /SPRINT\.md: 🙋 3\. Card backs \(stand-in\)/.test(art.out) && !/nunito/.test(art.out) && !/Card fronts/.test(art.out), art.out)
+  const skipped = release(beta, 'stage', 'Beta', '--stage=beta', '--no-release-check-ok')
+  const body = sh(beta, 'log', '-1', '--format=%B')
+  expect('--no-release-check-ok (Muzzy\'s call) → released, on record in the commit body', skipped.code === 0 && /Released with: --no-release-check-ok \(beta: 1 release-check item open\)/.test(body), `${skipped.out}\n${body}`)
+
+  // 1.0 (a major release): the name check + press kit
+  const gold = ready('gold', '1.0')
+  fillChecklist(gold, '1.0', { leave: ['Press kit'] })
+  const goldList = readFileSync(join(gold, '.planning', 'archive', 'release-checks', '1.0.md'), 'utf8')
+  const one = release(gold, 'major', '1.0', '--dry-run')
+  expect('1.0 → its list has Name check + Press kit; an unfilled Press kit is refused', /\[1\.0\] Name check:/.test(goldList) && one.code === 1 && /"Press kit" isn't filled in/.test(one.out) && !/"Name check"/.test(one.out), one.out)
+  rmSync(root, { recursive: true, force: true })
+}
+
 function testReleasePlaytest() {
   console.log('release — a stage release needs a playtest log (F87)')
   const root = mkdtempSync(join(tmpdir(), 'bmuz-playtest-'))
   const release = (repo, ...a) => script('release.mjs', a, { cwd: repo, env: { BMUZ_CLEANUP: FAKE_CLEANUP } })
-  const ready = (name) => releaseProject(root, name, { state: { resume: 'Released v0.10.0 — alpha' },
-    roadmap: `# T — Roadmap\nRelease target: beta — musts not set (/define)\n## v0.1 — First  ✅ released ${TODAY}\n- ✅ F01 🧱 Cards — must:alpha\n` })
+  const ready = (name) => { const repo = releaseProject(root, name, { state: { resume: 'Released v0.10.0 — alpha' },
+    roadmap: `# T — Roadmap\nRelease target: beta — musts not set (/define)\n## v0.1 — First  ✅ released ${TODAY}\n- ✅ F01 🧱 Cards — must:alpha\n` }); fillChecklist(repo, 'alpha'); return repo }
   const logs = (repo, ...dates) => { for (const date of dates) write(join(repo, '.planning', 'research', 'playtests', `${date}.md`), `# Playtest ${date}\n`) }
   const none = ready('none')
   const noLog = release(none, 'stage', 'Alpha', '--stage=alpha', '--dry-run')
@@ -1052,7 +1155,7 @@ async function testDepsCheck() {
 }
 
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck }
+const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)
