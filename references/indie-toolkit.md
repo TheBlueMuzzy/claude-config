@@ -11,7 +11,7 @@ what to use for placeholders, feel, hosting and analytics. Source: `config/bmuz/
   - 🟡 **free, credit required.** CC-BY: use it, log it with its exact credit line, and show the credit in-game. (OFL fonts are 🟡 too, but only need the licence kept — a credits line is good practice, not required.)
   - 🔴 **avoid.** Non-commercial (NC), share-alike (SA), GPL media, unclear licences. Ask Muzzy before using one, and never ship it.
 - Prefer 🟢 sources. The licence is per item on mixed sites, so check each download.
-- Every imported asset gets an entry in `content/credits.json` (format in `config/bmuz/PROJECT-FILES.md`).
+- Every imported asset gets an entry in `content/credits.json` (format in `config/bmuz/PROJECT-FILES.md`). Stand-in art gets `"standIn": true` there — a beta release is refused while any is left (F83, release-check.mjs).
 - No paid generators. AI-generated art only if Muzzy asks.
 
 ## Placeholder ladder (climb only as far as the task needs)

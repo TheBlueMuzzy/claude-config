@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const SCRIPTS = dirname(fileURLToPath(import.meta.url))
 let passed = 0
@@ -243,6 +243,7 @@ function testReleaseGates() {
   expect('D31: …and "Release target:" still says alpha → refused', /"Release target:" still says alpha/.test(stOpen.out), stOpen.out)
   write(join(st, '.planning', 'ROADMAP.md'), readFileSync(join(st, '.planning', 'ROADMAP.md'), 'utf8').replace('Release target: alpha', 'Release target: beta — musts not set (/define)'))
   write(join(st, '.planning', 'research', 'playtests', `${TODAY}.md`), '# Playtest\n') // F87: a stage needs a playtest log
+  fillChecklist(st, 'alpha') // F83: …and its release checklist
   const stOk = release(st, 'stage', 'Alpha', '--stage=alpha', '--musts-open-ok')
   expect('D4: --musts-open-ok (Muzzy\'s call) → released, open musts listed for the notes', stOk.code === 0 && sh(st, 'tag') === 'v0.10.0' && /released with open musts/.test(stOk.out), stOk.out)
   expect('…the override is on record in the release commit body ("Released with: --musts-open-ok (alpha: F05)")', /Released with: --musts-open-ok \(alpha: F05\)/.test(sh(st, 'log', '-1', '--format=%B')), sh(st, 'log', '-1', '--format=%B'))
@@ -887,7 +888,7 @@ function fillChecklist(repo, stage, { leave = [] } = {}) {
 
 // F83: a stage release needs its release checklist (devices, first-time player, store, privacy…) and, from beta, no
 // stand-in art
-function testReleaseStageChecks() {
+async function testReleaseStageChecks() {
   console.log('release — stage-release checklist + no stand-in art from beta (F83)')
   const root = mkdtempSync(join(tmpdir(), 'bmuz-stagecheck-'))
   // commits art (= code) and moves STATE's reviewed / security / full-check marks onto it, as a real review would
@@ -960,6 +961,23 @@ function testReleaseStageChecks() {
   const goldList = readFileSync(join(gold, '.planning', 'archive', 'release-checks', '1.0.md'), 'utf8')
   const one = release(gold, 'major', '1.0', '--dry-run')
   expect('1.0 → its list has Name check + Press kit; an unfilled Press kit is refused', /\[1\.0\] Name check:/.test(goldList) && one.code === 1 && /"Press kit" isn't filled in/.test(one.out) && !/"Name check"/.test(one.out), one.out)
+
+  // review F83: stage names, real answers with <…>, camelCase stand-in files, odd credits.json
+  const { stageRank, readChecklist, standIns } = await import(pathToFileURL(join(import.meta.dirname, 'release-check.mjs')).href)
+  const ranks = ['alpha', 'Beta', 'beta2', 'open-beta', 'rc1', '1.0.0', 'gold', 'demo'].map(s => `${s}=${stageRank(s)}`).join(' ')
+  expect('stage names: beta2 / open-beta → beta rules, rc1 / 1.0.0 / gold → 1.0 rules, demo → alpha', ranks === 'alpha=1 Beta=2 beta2=2 open-beta=2 rc1=3 1.0.0=3 gold=3 demo=1', ranks)
+  const answers = readChecklist('- [x] Store page: <https://muzzy.itch.io/glyphtender>\n- [x] First-time player: Sam, under <10 min, works >90%\n- [X]  Devices :  iPhone 13 <3\n- [x] Press kit: <link to the press kit: short and long description>\r\n')
+  expect('real answers with a <link>, "<10 min … >90%", "<3" count as filled; the template\'s own <prompt> doesn\'t', answers.map(a => `${a.label}:${a.filled && a.ticked}`).join(' ') === 'Store page:true First-time player:true Devices:true Press kit:false', JSON.stringify(answers))
+  const odd = join(root, 'odd')
+  write(join(odd, 'content', 'credits.json'), JSON.stringify([null, 'x', { paths: 'public/a.png', source: 'placeholder by Muzzy' }, { source: 'Google Fonts', licence: 7 }]))
+  write(join(odd, 'public', 'PlaceholderIcon.png'), 'png')
+  write(join(odd, 'public', 'standInHero.webp'), 'png')
+  write(join(odd, 'public', 'Planet.png'), 'png')
+  let found = []
+  try { found = standIns(odd) } catch (e) { found = [`crashed: ${e.message}`] }
+  expect('odd credits.json (null, a string, "paths" as one string, a number) → no crash, the stand-in still found; PlaceholderIcon.png + standInHero.webp found, Planet.png not', found.length === 3 && found.some(f => /credits\.json: public\/a\.png — "placeholder"/.test(f)) && found.some(f => /PlaceholderIcon/.test(f)) && found.some(f => /standInHero/.test(f)), found.join('\n'))
+  write(join(odd, 'content', 'credits.json'), JSON.stringify({ entries: [{ paths: ['public/b.png'], standIn: true }] }))
+  expect('credits.json wrapped as { entries: [...] } → still read', standIns(odd).some(f => /public\/b\.png — "standIn: true"/.test(f)), standIns(odd).join('\n'))
   rmSync(root, { recursive: true, force: true })
 }
 

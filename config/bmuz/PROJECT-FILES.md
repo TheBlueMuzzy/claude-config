@@ -133,6 +133,15 @@ Cards now fan out in your hand, and the deck shuffles twice as fast.
 ```
 A game: Highlights · New · Changed · Balance (old → new) · Fixed · Known issues (with a status). A library (`Release: none (library)`): Highlights · Breaking (+ the upgrade steps a game must do) · New · Fixed. Empty sections are left out of everything made from it. Neutral voice, the player's side — "Fixed the crash when…", never "We…" ③ (Muzzy, 2026-10-19). `release.mjs <kind> --draft-notes` drafts it from the commits since the last tag (marked DRAFT, never over an existing file) ①; the release refuses while it's missing, still DRAFT, has no Highlights, or a game's has dev talk (feature/bug ids like "F12:" or "B012", file names, "Dev Kit", checks, git talk — not key names like F11) ① — `--no-notes-ok` is Muzzy's call (when only dev-talk lines were flagged, the notes still make the CHANGELOG + itch text). On release ①: `CHANGELOG.md` at the project root gets the entry on top (`## vX.Y.Z — date`), and `vX.Y.Z-itch.txt` beside the notes holds plain text for the itch devlog editor (printed too).
 
+## Release checklist — `.planning/archive/release-checks/<stage>.md`  (F83: one per stage — alpha.md, beta.md, 1.0.md)
+```markdown
+# Release check — beta
+- [x] Devices: iPhone 13 (Safari), Pixel 7 (Chrome), PC (Chrome, Edge)
+- [x] First-time player: Sam (never saw it) finished a game alone in 9 min
+- [ ] [beta+] No stand-in art: <every picture, sound and font is the real one>
+```
+Made from `~/.claude/config/bmuz/templates/release-check.md` by `node ~/.claude/config/bmuz/scripts/release-check.mjs <stage>` (only the lines for that stage; never over an existing list). A stage release (alpha / beta / 1.0) is refused until every line is filled in (no `<…>` left) and ticked ① (release.mjs → release-check.mjs); from beta also while stand-in art is left — a credits.json entry saying "stand-in" / "placeholder" or `"standIn": true`, a file named so in public/ src/ assets/ content/, or an open `(stand-in)` task ①. Releasing anyway is Muzzy's call: `--no-release-check-ok`, on record in the release commit ②. Mark stand-in art in credits.json when it goes in: `"standIn": true` ③ (organize-assets / the placeholder ladder).
+
 ## Checks — how much to run, and when  (Muzzy, 2026-10-04: "learn from this… move more optimally through testing and delivery")
 Learned in Glyphtender v0.6 (13 sprints in a night): the time went into running the SAME slow checks twice (helper, then
 Claude after the merge) and running every e2e script one at a time. Three tiers, one command each (a web game has

@@ -10,14 +10,19 @@ import { fileURLToPath } from 'node:url'
 const TEMPLATE = join(import.meta.dirname, '..', 'templates', 'release-check.md')
 export const checkFile = (stage) => `.planning/archive/release-checks/${stage}.md`
 
-// alpha 1 · beta 2 · 1.0 (or rc / gold / launch) 3; any other stage name counts as alpha
+// alpha 1 · beta 2 · 1.0 (or rc / gold / launch) 3; any other stage name counts as alpha.
+// No word break after the name: "beta2", "rc1", "open-beta" count too (review F83).
 export function stageRank(stage) {
   const s = String(stage || '').toLowerCase()
-  if (/^(1\.0|1|rc|gold|launch|release)\b/.test(s)) return 3
-  if (/^beta\b/.test(s)) return 2
+  if (/^(1(\.0)*\b|rc|gold|launch|release)/.test(s)) return 3
+  if (/beta/.test(s)) return 2
   return 1
 }
 const TAG_RANK = { 'beta+': 2, '1.0': 3 }
+
+// The template's own <…> prompt left in place: a long phrase starting with a letter — not a real answer's
+// <https://…> link or "under <10 min, works >90%" (review F83)
+const TEMPLATE_PROMPT = /<(?!https?:|mailto:)[a-z][^<>]{14,}>/i
 
 // Checklist lines as { label, tag, ticked, filled, text }. "- [x] [beta+] No stand-in art: <…>" → label "No stand-in art".
 export function readChecklist(text) {
@@ -26,7 +31,7 @@ export function readChecklist(text) {
     const m = line.match(/^\s*-\s*\[( |x|X)\]\s*(?:\[(beta\+|1\.0)\]\s*)?([^:]+):(.*)$/)
     if (!m) continue
     const [, box, tag, label, rest] = m
-    lines.push({ label: label.trim(), tag: tag || null, ticked: box !== ' ', filled: rest.trim() !== '' && !/<[^>]*>/.test(rest), text: rest.trim() })
+    lines.push({ label: label.trim(), tag: tag || null, ticked: box !== ' ', filled: rest.trim() !== '' && !TEMPLATE_PROMPT.test(rest), text: rest.trim() })
   }
   return lines
 }
@@ -39,14 +44,18 @@ export function linesFor(stage) {
 
 // Stand-in art still in the game (beta+): credits.json entries marked stand-in, open (stand-in) tasks, files named so
 const ART = /\.(png|jpe?g|webp|gif|svg|avif|mp3|ogg|wav|m4a|flac|woff2?|ttf|otf|glb|gltf|fbx|obj)$/i
-const STAND_IN = /\bstand-?ins?\b|\bplaceholders?\b|\btemp(?:orary)? art\b/i
+const STAND_IN = /\bstand[- ]?ins?\b|\bplaceholders?\b|\btemp(?:orary)? art\b/i
 export function standIns(root) {
   const found = []
   let credits = []
   try { credits = JSON.parse(readFileSync(join(root, 'content', 'credits.json'), 'utf8')) } catch { /* none or unreadable — the framework check covers that */ }
-  for (const entry of Array.isArray(credits) ? credits : []) {
-    const said = [entry.source, entry.licence, entry.credit, entry.note].filter(Boolean).join(' ')
-    if (entry.standIn === true || STAND_IN.test(said)) found.push(`credits.json: ${(entry.paths || []).join(', ') || entry.source} — "${entry.standIn === true ? 'standIn: true' : said.match(STAND_IN)[0]}"`)
+  // (odd shapes — a null entry, "paths" as one string, a wrapped { entries: [...] } — never crash a release; review F83)
+  const entries = Array.isArray(credits) ? credits : Array.isArray(credits?.entries) ? credits.entries : []
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue
+    const said = [entry.source, entry.licence, entry.credit, entry.note].filter(v => typeof v === 'string').join(' ')
+    const paths = [].concat(entry.paths || []).join(', ')
+    if (entry.standIn === true || STAND_IN.test(said)) found.push(`credits.json: ${paths || entry.source || '(an entry)'} — "${entry.standIn === true ? 'standIn: true' : said.match(STAND_IN)[0]}"`)
   }
   try {
     for (const line of readFileSync(join(root, '.planning', 'SPRINT.md'), 'utf8').split(/\r?\n/)) {
@@ -56,7 +65,8 @@ export function standIns(root) {
   for (const top of ['public', 'src', 'assets', 'content']) {
     for (const file of walk(join(root, top))) {
       const rel = relative(root, file).split('\\').join('/')
-      if (ART.test(rel) && STAND_IN.test(rel.replace(/[_/.]/g, ' '))) found.push(`file: ${rel}`)
+      // "PlaceholderIcon.png", "standInHero.png" → words first (review F83)
+      if (ART.test(rel) && STAND_IN.test(rel.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_/.]/g, ' '))) found.push(`file: ${rel}`)
     }
   }
   return found
