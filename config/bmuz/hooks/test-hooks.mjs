@@ -233,6 +233,7 @@ function testGuardEdits() {
   expect('git log | head → allowed', b('git log --oneline | head -5'), 'allow')
   expect("python heredoc writing a .ts with a backslash → blocked", b("python - <<'EOF'\nopen('src/a.ts','w').write(\"x.split('\\\\n')\")\nEOF"), 'deny')
   expect("python heredoc, file name in a variable → blocked", b("python - <<'EOF'\np='src/a.mjs'\ns=open(p).read().replace('a','\\\\d')\nopen(p,'w').write(s)\nEOF"), 'deny')
+  expect("…even when the text has => and <Tag /> (they read as shell > targets — F102 2026-10-20) → blocked", b("python - <<'EOF'\np='kit/a.test.mjs'\ns=open(p,encoding='utf-8',newline='').read()\ns+='''it('x', () => { f('<Settings />\\\\nb') })'''\nopen(p,'w',encoding='utf-8',newline='').write(s)\nEOF"), 'deny')
   const catHeredoc = b("cat > src/a.ts <<'EOF'\nconst r = /\\d+/\nEOF")
   expect('cat > a.ts heredoc with a backslash → blocked, for that reason', { result: catHeredoc.result === 'deny' && /writes a code file/.test(catHeredoc.message) ? 'ok' : 'no', message: catHeredoc.message }, 'ok')
   expect('python -c writing a .js with a backslash → blocked', b("python -c \"open('a.js','w').write('a\\\\nb')\""), 'deny')

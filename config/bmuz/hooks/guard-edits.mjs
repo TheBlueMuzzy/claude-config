@@ -139,7 +139,9 @@ function refuseKitCopy(path) {
 // note that happened to end in ".mjs" blocked a script writing SPRINT.md (found in use, 2026-10-19).
 function writesCodeFile(s) {
   const literal = [...writeTargets(s), ...[...s.matchAll(/Path\(\s*r?(['"])([^'"]+)\1\s*\)\s*\.\s*write_text/g)].map(m => m[2])]
-  if (literal.length) return literal.some(t => CODE_FILE.test(t))
+  if (literal.some(t => CODE_FILE.test(t))) return true
+  // (no early "false" on other literals: a `=>` or `<Tag />` in the script's text reads as a shell `> word` target and
+  // hid `open(p, 'w')` with p = '….test.mjs' — a test's backslash-n became real line breaks, framework F102 2026-10-20)
   const vars = [...s.matchAll(/(?:open|Path|writeFileSync|writeFile)\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)].map(m => m[1])
   return vars.some(v => [...s.matchAll(new RegExp(`(?:^|[\\s;(])${v}\\s*=\\s*(['"])([^'"\\n]+)\\1`, 'gm'))].some(m => CODE_FILE.test(m[2]) && !/[*?]/.test(m[2])))
 }

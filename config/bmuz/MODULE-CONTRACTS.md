@@ -63,6 +63,11 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 - A **golden save per version** in `tests/saves/<key>-v<N>.json`, each save listed in `tests/saves/saves.test.ts` ② (check:framework Saves: a missing version fails; the save test — golden saves load, round trip, damaged saves, full storage — runs inside it).
 - A **phone / desktop build opens its saves before the first read** — `await openSaves(backend, { game })` in main.tsx before rendering (saves 0.6.0); a web build needs nothing. Other formats (C# for Unity) are built from `saves/FORMAT.md` and tested on the same golden saves ③ (no store build yet — F97 / F99 add the checks).
 
+## Version (every web game — `framework/version`)
+- **One source:** `version.json` (`/save` bumps the build) read only by `versionPlugin()` in vite.config — it bakes in `import.meta.env.APP_VERSION` and puts `<meta name="app-version">` in the page ② (check:framework Version: the plugin in vite.config, a readable version.json, and any other file importing version.json is named and fails).
+- **One format, the same places:** `versionLabel` ("vX.Y.Z.B") on the main-menu footer (`<MainMenu version>`), the bottom of every Settings tab (`<Settings version>`, UI kit 0.24.0) and the Dev Kit adapter's `version` (snapshots + bug files) ② (check:framework Version: each one names the line that passes something else, or nothing).
+- **No test on a stale build:** an e2e script calls `checkVersion(page)` after `page.goto` — a stale build or a cached service worker stops it with a plain message ② (check:framework Version: an e2e file calls it; the browser check compares the page's meta tag with version.json).
+
 ## When a new module is made
 Add its section here (what the game must provide, how it's checked) in the same commit as the module, and a
 "What a game must provide" section to the module's README.
