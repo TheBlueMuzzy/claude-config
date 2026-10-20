@@ -67,7 +67,8 @@ src/rooms/...              # framework rooms module (create/join, identity, rejo
 **Gotchas (each cost us a bug):**
 - **Late close on reconnect:** a phone that reconnects reuses its id and its NEW socket can open before the OLD one's close arrives; PartyServer's
   connection list then forgets the new socket too → seat marked away → a bot takes it. Keep the server's own `LiveConnections` (forget a socket only if it's still the live one) and wire `onError` too.
-- **Eviction:** an empty in-memory Durable Object is evicted after ~1–2 min — "keep the empty room for 5 min" is an upper bound, not a promise.
+- **Eviction:** an empty in-memory Durable Object is evicted after ~1–2 min — "keep the empty room for 5 min" is an upper bound, not a promise. Rooms 0.10.0 keeps a match being played in DO storage, so eviction/restarts no longer end it.
+- **`keepMatchDays` is a game-style decision — settle it at /define** (content/rooms.json; live ~7, async Scrabble-with-friends ~30, any number); the installer asks for it. Games with their own timers add `rules.onRestore`.
 - **Local storage lock:** two `wrangler dev` processes sharing `.wrangler/state` crash with `SQLITE_BUSY`. EVERY local instance gets its own
   `--persist-to` folder: party:dev → `.wrangler/state-dev`, /play → `.wrangler/state-play`, each e2e run → `.wrangler/state-e2e-<port>`.
 - **Generated-file lock (Windows):** a build step that copies a file for the server (e.g. the word list → `party/words.gen.txt`) must skip the copy when the target is already identical — two `wrangler dev` starting at once (side-by-side e2e) otherwise hit `EBUSY` and one server never starts (Glyphtender B023).
