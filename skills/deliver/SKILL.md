@@ -29,10 +29,12 @@ Do these on the work branch, then commit (/save). release.mjs refuses until each
 `node S/merge.mjs <branch>` — pushes the branch, waits for GitHub's Checks to go green (red → it refuses with the link: say it plainly, "GitHub found something broken on this branch: <link>", fix on the branch — never merge around it), pulls main, `merge --no-ff`, deletes the branch here (GitHub's copy goes once main is pushed). `version.json` clashes settle themselves. Other conflicts ③ → it stops mid-merge and lists the files: resolve if obvious, else explain and ask; `git add` + `git commit --no-edit`, run it again (or `git merge --abort`). No Checks workflow / no gh → it warns: say so in §7 and offer `templates/checks.yml`. Already on main with nothing to merge → skip.
 
 ## 4. Version + notes — one commit
-- ③ **Patch notes:** `git log <last-tag>..HEAD --oneline` → 3–8 player-facing bullets (what players notice, no code talk); a one-line version is the summary. They become §7's "New:" lines (ready for an itch devlog).
+- ① **Patch notes draft:** `node S/release.mjs <kind> --draft-notes` → `.planning/archive/releases/vX.Y.Z.md`, the commits since the last tag grouped by feature, marked DRAFT (never over an existing file). Format: PROJECT-FILES "Patch notes".
+- ② **Edit them with Muzzy:** rewrite each line as what the player notices, in a neutral voice ("Fixed the crash when…", never "We…") — no feature/bug ids, file names, "Dev Kit", checks or git talk in a game's notes; 1–3 sentences of Highlights; Balance as old → new; Known issues with a status; a library: Breaking + upgrade steps first. Show him the file, take his words, delete the DRAFT line. release.mjs refuses a missing / DRAFT / highlight-less / dev-talk file, naming each line (`--no-notes-ok` only on his say-so). The Highlights' first sentence is a good summary.
 - ② ROADMAP: milestone/stage → its heading ✅ with today's date ("✅ released 2026-11-02 (v0.3.0)"); a stage release moves `Release target:` on ("beta — musts not set (/define)").
 - ② STATE: a Log line dated today; RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)"; Stage = deliver; the Live line. Key facts has a `Release:` line: `<platform> (recipe …)` · `none (library)` · `not set up (declined <date>)` · `<platform> — blocked: <why>`.
-- ① `node S/release.mjs <update|milestone|stage|major> "<summary>" [--stage=alpha]` — checks every gate first (Fast tier, check:framework, reviews, full check, P0, approvals, sprint, ROADMAP, STATE, GitHub green for what was merged), and only then: bump, history, package.json + lock, STATE `Version:`, commit `Release vX.Y.Z: …` with your ROADMAP/STATE edits (the commit hooks check it), tag, cleanup.sh. It prints whether server code changed since the last tag. It never pushes.
+- ① `node S/release.mjs <update|milestone|stage|major> "<summary>" [--stage=alpha]` — checks every gate first (Fast tier, check:framework, reviews, full check, P0, approvals, sprint, ROADMAP, STATE, patch notes, packages, GitHub green for what was merged), and only then: bump, history, package.json + lock, STATE `Version:`, CHANGELOG.md (newest first) + the itch text (saved as `vX.Y.Z-itch.txt` beside the notes and printed), `public/third-party-notices.txt` for a game, commit `Release vX.Y.Z: …` with your ROADMAP/STATE/notes edits (the commit hooks check it), tag, cleanup.sh. It prints whether server code changed since the last tag. It never pushes.
+- ② **Packages** (F85, `S/deps-check.mjs`): a GPL / AGPL / LGPL / unlicensed package or a high security problem in what players get refuses, naming the package and who pulls it in — swap or update it on a work branch; release anyway only on Muzzy's say-so (`--deps-risk-ok`). "Couldn't reach npm's security list" is a warning: say it in §7.
 
 ## 5. Release it — the platform's recipe ③
 Recipes: `~/.claude/config/bmuz/release/<platform>.md` (shared by every project; Key facts `Release:` names the platform).
@@ -58,7 +60,9 @@ The link on its own line as a full URL (live-check confirmed it's public), and 2
 ```
 Released v0.3.0 (alpha) — Card play milestone ✅
 Live: https://thebluemuzzy.github.io/card-game/
-New: <2–4 player's-eye bullets>
+New: <the notes file's Highlights + 2–4 of its bullets, as written>
 Alpha musts: 9/9 ✅ · Look-back: 6 lessons → 2 hooks, 1 check, 3 lines
+Devlog: paste .planning/archive/releases/v0.3.0-itch.txt into itch (or "no itch page")
 ```
+The "New:" lines come from the notes file ① (release.mjs printed its itch text) — never re-written from the commits ③.
 Milestone or stage delivered → ask one question: "One thing to keep doing, or stop doing, next time?" — a real answer becomes a look-back item with its home, landed the same session. Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."

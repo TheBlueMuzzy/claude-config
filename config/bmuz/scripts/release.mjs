@@ -211,10 +211,13 @@ if (stateText !== null) {
   // F84: the patch notes — written, edited (not a DRAFT), with Highlights, and in the player's words for a game
   notesText = (() => { try { return readFileSync(notesPath(root, next), 'utf8') } catch { return null } })()
   const notesIssues = notesProblems(notesText, { game: !library, file: notesFile(next), kind })
-  if (notesIssues.length && !override('--no-notes-ok', notesText === null ? 'no notes file' : 'notes not finished')) for (const [text, fix] of notesIssues) fail(text, fix)
+  // only dev-talk lines left (Muzzy says they're fine) → the notes are still finished: CHANGELOG + itch text are made
+  const onlyTalk = notesIssues.length > 0 && notesIssues.every(([, , what]) => what === 'talk')
+  if (notesIssues.length && !override('--no-notes-ok', notesText === null ? 'no notes file' : onlyTalk ? 'dev-talk lines kept' : 'notes not finished')) for (const [text, fix] of notesIssues) fail(text, fix)
+  else if (onlyTalk) say(`⚠ patch notes released with the lines flagged as dev talk (Muzzy's call) — CHANGELOG + itch text made as written`)
   else if (notesIssues.length) say(`⚠ released without finished patch notes (Muzzy's call) — no CHANGELOG entry or itch text this time`)
   else ok(`patch notes ready: ${notesFile(next)}`)
-  notesReady = !notesIssues.length
+  notesReady = !notesIssues.length || onlyTalk
   // D31 / D4: a milestone or stage release closes its milestone (and a stage release its stage)
   if (at < 2) {
     // (the milestone's own "· target: <date>" doesn't count as the day it was closed — review)
@@ -263,7 +266,7 @@ if (problems.length) {
 if (flags.has('--dry-run')) { say('Dry run — every gate passes; nothing changed.'); process.exit(0) }
 
 // --- release ------------------------------------------------------------------------------------------------------
-const date = new Date().toISOString().slice(0, 10)
+const date = today[0] // the local date (UTC said "tomorrow" for an evening release — F84's CHANGELOG showed it)
 // what will change, and a dry-run `git add` of it — an ignored or unreadable file refuses BEFORE anything is written
 const lock = readJson(join(root, 'package-lock.json'))
 // F84 / F85: the files made from the notes and the packages — { path: new text }, only the ones that change
@@ -281,9 +284,13 @@ const ignored = [...before].filter(([f, text]) => text === null && git(root, 'ch
 if (ignored.length) refuse(`.gitignore hides ${ignored.join(', ')}, so the release commit couldn't hold ${ignored.length > 1 ? 'them' : 'it'} — nothing was changed`, 'take that line out of .gitignore (these files belong in the repo), commit, then release')
 const trial = run('git', ['add', '-n', '--', ...new Set([...changed.filter(f => before.get(f) !== null), ...dirty])], { cwd: root })
 if (trial.code !== 0) refuse(`git can't stage these files, so nothing was changed:\n${trial.out.trim()}`)
+// the index as it is now: files the user had already staged stay staged when a failed release is put back
+const stagedBefore = new Set(changedFiles(root).filter(f => !/^[ ?]/.test(f.status)).map(f => f.path))
 const putBack = () => {
   for (const [f, text] of before) text === null ? rmSync(join(root, f), { force: true }) : writeFileSync(join(root, f), text)
-  run('git', ['reset', '-q', '--', ...changed], { cwd: root })
+  // unstage what the release staged — its own files AND the user's plan edits it carried along (review fix)
+  const unstage = [...new Set([...changed, ...dirty])].filter(f => !stagedBefore.has(f))
+  if (unstage.length) run('git', ['reset', '-q', '--', ...unstage], { cwd: root })
 }
 
 version.version = next

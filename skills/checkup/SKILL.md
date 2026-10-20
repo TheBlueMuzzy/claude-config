@@ -26,6 +26,12 @@ Run `bash ~/.claude/config/bmuz/checkup.sh` (read-only; takes about a minute) �
 - **UI kit:** games with `src/ui/kit/VERSION` older than `~/Documents/dev/framework/ui-kit/kit/VERSION` → offer an update (`install-kit.mjs`, shows what changes). Recipes built in a game but not yet in the framework → harvest them.
 - **Sync:** a difference between `~/.claude` and `~/.claude-config` means something wasn't pushed. A folder that exists only in the repo is a leftover, so propose adding it to `RETIRED.txt`.
 - **Same safety kit in every game** (section 7, F79): each ✗ names its fix (the check-run lock, GitHub checks, check:framework). Offer the fixes. A game on the shelf gets a roadmap line in its own ROADMAP instead of a fix now.
+- **Dependencies + licences** (section 8, F85 — gathered by checkup.sh ①; judging them ③):
+  - ✗ licence problem (GPL / AGPL / LGPL / no licence) or a high security problem → name the package in plain words and offer the fix: update it, or swap out what pulls it in. The next release refuses it anyway ① (release.mjs runs deps-check).
+  - "N with a newer version" → only offer updates for packages players get, a few at a time, each a week old or more (min-release-age), on a work branch with the full check after. Big version jumps (react, vite) → a roadmap line, not a checkup fix ③.
+  - "licences to read" → read each one's licence once; fine → say so, not fine → treat as ✗ ③.
+  - "no min-release-age" → offer to add the line to that project's `.npmrc` (install-module.mjs adds it on the next module install ①).
+  - "not installed on this machine" / "security not checked (offline?)" → say it plainly, no fix needed ③.
 - **Skill tests (F71):** read `~/.claude/config/bmuz/last-skill-tests.json` (date, Claude Code version, result). Offer a run — never start one unasked (Muzzy, 2026-10-19: "A") — when a skill that has an `evals/` folder changed after that date, or `claude --version` / the model differs. Say the cost first: about $0.20 a case (`ls ~/.claude/skills/*/evals` counts them). On yes: `node ~/.claude/config/bmuz/scripts/test-skills.mjs --muzzy-said-yes` ② (the script refuses without it); a red case → read its failed checks and fix the skill (or the case) the same session ③.
 - **Unmarked rules:** `node ~/.claude/config/bmuz/hooks/rule-kind.mjs --all` lists every rule line in the skills and BMUZ docs that doesn't say how it happens ①. Offer to convert the ones in BMUZ's own skills (a hook or script step, or a ①/②/③ mark).
 - **Scan for news (quick):** in the Anthropic plugin marketplace and in the repos in `sources.json`, look for new skills in the areas BMUZ-PLAN cares about. Mention at most 3.
@@ -38,6 +44,7 @@ Updates ready: <skill — what's new — copy or borrow idea>
 Needs a re-check: <card — what I verified/changed>
 Maybe retire: <skill — why (job never comes up / duplicate)>
 Fixes: <wiring, sync, broken MCP>
+Packages: <per game: ✓ fine / what's risky, outdated count — or "all fine">
 Skill tests: <last run date + result> · <run now? n cases ≈ $x — why (skills changed / new model)>, or "up to date"
 New worth a look: <≤3>
 ```

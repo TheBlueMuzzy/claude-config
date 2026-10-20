@@ -5,6 +5,7 @@
 ## Layout
 ```
 version.json        X.Y.Z + build (~/.claude/references/versioning.md)
+CHANGELOG.md        every release's notes, newest first — written by release.mjs from .planning/archive/releases/ (F84)
 content/            data the game reads; Muzzy edits it in Obsidian or the Dev Kit (tuning/, anim/, text/, data/, ui/ = style.json + settings.json from game-ui, credits.json)
 .planning/
   GDD.md            the design: what it is, how it plays, how it should feel, scope   (/discover /define · /gdd)
@@ -15,6 +16,7 @@ content/            data the game reads; Muzzy edits it in Obsidian or the Dev K
   STATE.md          ▶ RESUME HERE, key facts, short log   (every command; /save rewrites it)
   design/ research/ bugs/   optional: long design specs linked from the GDD · discovery + sims · bug captures
   archive/          finished sprints, old logs, old GSD files — search it when something feels familiar
+  archive/releases/ vX.Y.Z.md = each release's patch notes (+ vX.Y.Z-itch.txt) — "Patch notes" below
   smoke-pass        the commit the smoke test passed on (hooks/smoke-pass.mjs — live-push needs it)
   live-pass         the last live check: commit · "<tag> <url>" (or "<tag> skipped — Release: …") · time · console check (scripts/live-check.mjs)
   ppp.html          the planner page (gitignored, rebuilt by the tools)
@@ -111,7 +113,25 @@ Statuses: open → fixing → fixed → verified (Muzzy confirmed; required for 
     "licence": "CC0", "light": "🟢", "url": "https://kenney.nl/assets/...", "credit": "" }
 ]
 ```
-Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships. `npm run check:framework` checks all three ① (UI kit 0.19+: every file listed, nothing 🔴, every 🟡 credit shown). organize-assets keeps it up to date.
+Light and credit lines come from `~/.claude/references/indie-toolkit.md`. 🟡 → the `credit` line must show in the game's Credits screen. 🔴 → never ships. `npm run check:framework` checks all three ① (UI kit 0.19+: every file listed, nothing 🔴, every 🟡 credit shown). A non-commercial licence (CC-BY-NC, "non-commercial use") counts as 🔴 whatever its light ① (UI kit 0.22+). organize-assets keeps it up to date.
+Code packages are checked at each release instead ① (release.mjs → `scripts/deps-check.mjs`: no GPL / AGPL / LGPL / unlicensed package and no high security problem in what players get; it writes `public/third-party-notices.txt`, which the kit's Credits opens). Every project's `.npmrc` has `min-release-age=7` ① (install-module.mjs adds it).
+
+## Patch notes — `.planning/archive/releases/vX.Y.Z.md`  (F84: one file per release; CHANGELOG.md + the itch text are made from it)
+```markdown
+# v0.4.0
+## Highlights
+Cards now fan out in your hand, and the deck shuffles twice as fast.
+## New
+- A shuffle button on the table.
+## Changed
+## Balance
+- Bombs per round: 3 → 2.
+## Fixed
+- Fixed the crash when a saved game is loaded.
+## Known issues
+- Sounds can lag on older phones — fix coming.
+```
+A game: Highlights · New · Changed · Balance (old → new) · Fixed · Known issues (with a status). A library (`Release: none (library)`): Highlights · Breaking (+ the upgrade steps a game must do) · New · Fixed. Empty sections are left out of everything made from it. Neutral voice, the player's side — "Fixed the crash when…", never "We…" ③ (Muzzy, 2026-10-19). `release.mjs <kind> --draft-notes` drafts it from the commits since the last tag (marked DRAFT, never over an existing file) ①; the release refuses while it's missing, still DRAFT, has no Highlights, or a game's has dev talk (feature/bug ids like "F12:" or "B012", file names, "Dev Kit", checks, git talk — not key names like F11) ① — `--no-notes-ok` is Muzzy's call (when only dev-talk lines were flagged, the notes still make the CHANGELOG + itch text). On release ①: `CHANGELOG.md` at the project root gets the entry on top (`## vX.Y.Z — date`), and `vX.Y.Z-itch.txt` beside the notes holds plain text for the itch devlog editor (printed too).
 
 ## Checks — how much to run, and when  (Muzzy, 2026-10-04: "learn from this… move more optimally through testing and delivery")
 Learned in Glyphtender v0.6 (13 sprints in a night): the time went into running the SAME slow checks twice (helper, then

@@ -7,9 +7,10 @@
 //   2. the installer's dry run (what will change)
 //   3. the real install (skipped with --dry-run)
 //   4. the module's code checks in the game: check:framework --static --only <module>
+//   (after 3: `min-release-age=7` in the game's .npmrc, added once — F85)
 // The installer prints the hand-wiring steps left; this script repeats where to look.
 import { join } from 'node:path'
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { FRAMEWORK, run, say, ok, refuse, tail, readJson, args, projectDir, exists } from './lib.mjs'
 
 const CHECK_ID = { devkit: 'devkit', 'ui-kit': 'ui', audio: 'audio', table: 'table', ai: 'ai', rooms: 'rooms', saves: 'saves' }
@@ -46,6 +47,14 @@ const real = run('node', [installerPath, game, ...extra])
 if (real.code !== 0) refuse(`the install failed part-way:\n${tail(real.out)}`, 'git status in the game shows what it changed — `git checkout -- src/` puts the old copy back (ask Muzzy first if there is other uncommitted work)')
 say(real.out.trim())
 ok(`${module} installed`)
+// F85: every game waits 7 days before taking a brand-new package version — the 2025 npm worm pushed poisoned versions
+// that were caught within days. npm 11.10+ reads min-release-age from .npmrc (older npm ignores the line, no harm).
+const npmrc = join(game, '.npmrc')
+const rc = existsSync(npmrc) ? readFileSync(npmrc, 'utf8') : ''
+if (!/^\s*min-release-age\s*=/m.test(rc)) {
+  writeFileSync(npmrc, `${rc}${rc && !rc.endsWith('\n') ? '\n' : ''}min-release-age=7\n`)
+  ok('.npmrc: min-release-age=7 (new package versions are only taken once they\'re a week old) — commit it with the module')
+}
 
 // 4. the module's code checks in the game
 const runner = ['src/devkit/check-framework.mjs'].find(p => exists(game, p))

@@ -9,7 +9,7 @@
 // release.mjs runs the same check as a gate (and writes the notices for games) — research: framework
 // .planning/research/patch-notes-and-dependencies.md. BMUZ_NPM_AUDIT = tests' stand-in for `npm audit` (a .mjs file).
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { run, say, ok, readJson, args, projectDir, tail } from './lib.mjs'
 
@@ -55,6 +55,24 @@ function allowed(text) {
   return either()
 }
 
+// No licence in package.json, but a LICENSE file → which well-known licence its text is (Roll Better's webgl-constants
+// has only the file). Returns '' when the text isn't one it knows.
+const KNOWN_TEXTS = [
+  [/GNU (AFFERO |LESSER )?GENERAL PUBLIC LICENSE/i, (m) => (m[1] ? (/AFFERO/i.test(m[1]) ? 'AGPL' : 'LGPL') : 'GPL')],
+  [/Apache License,?\s+Version 2\.0/i, () => 'Apache-2.0'],
+  [/Mozilla Public License,?\s+(version\s+)?2\.0/i, () => 'MPL-2.0'],
+  [/Permission is hereby granted, free of charge/i, () => 'MIT'],
+  [/Permission to use, copy, modify, and\/or distribute this software for any purpose/i, () => 'ISC'],
+  [/Redistribution and use in source and binary forms[\s\S]*Neither the name/i, () => 'BSD-3-Clause'],
+  [/Redistribution and use in source and binary forms/i, () => 'BSD-2-Clause'],
+  [/This is free and unencumbered software released into the public domain/i, () => 'Unlicense'],
+]
+function licenceFromFile(dir) {
+  const text = licenceFiles(dir).filter(([name]) => !/^notice/i.test(name)).map(([, t]) => t).join('\n')
+  for (const [re, name] of KNOWN_TEXTS) { const m = text.match(re); if (m) return name(m) }
+  return ''
+}
+
 // The licence + NOTICE files a package carries (LICENSE, LICENSE.md, LICENCE-MIT, COPYING, NOTICE…), as [name, text].
 function licenceFiles(dir) {
   let names = []
@@ -85,18 +103,29 @@ export function checkDeps(dir) {
     return result
   }
   const seen = new Map()
+  const lockPackages = readJson(join(dir, 'package-lock.json'))?.packages || {} // tells which installed packages are dev tools
   const walk = (node, chain) => {
     for (const [name, dep] of Object.entries(node.dependencies || {})) {
       if (dep.missing) { if (!dep.optional && !dep.peerMissing) result.warnings.push(`${name} is wanted but not installed — run \`npm ci\``); continue }
-      // the same package listed again further down · or "extraneous": installed but nothing players get needs it (a dev
-      // tool's optional part — Glyphtender's sharp-wasm32 showed up at the top level this way)
-      if (!dep.path || dep.deduped || dep.extraneous) continue
+      if (!dep.path || dep.deduped) continue // the same package listed again further down
+      // "extraneous": installed, but nothing in package.json needs it. A dev tool's optional part (Glyphtender's
+      // sharp-wasm32 showed up at the top level this way) is skipped quietly; anything else may be an
+      // `npm install --no-save` package the game imports, which would ship unchecked → a warning (review fix)
+      if (dep.extraneous) {
+        const locked = lockPackages[relative(dir, dep.path).split('\\').join('/')]
+        if (!locked?.dev && !locked?.devOptional) result.warnings.push(`${name}@${dep.version} is installed but package.json doesn't list it (an \`npm install --no-save\`?) — if the game uses it, it ships unchecked: add it to package.json, or \`npm ci\` to clear it`)
+        continue
+      }
       const key = `${name}@${dep.version}`
       if (!seen.has(key)) {
         const own = readJson(join(dep.path, 'package.json')) || dep
-        const licence = licenceOf(own)
+        const said = licenceOf(own)
+        const fromFile = said ? '' : licenceFromFile(dep.path)
+        const licence = said || fromFile
+        const verdict = licenceVerdict(licence)
+        if (fromFile) verdict.why = verdict.why && `${verdict.why} (read from its LICENSE file — package.json names none)`
         // a package the game asks for itself is "added directly", even when npm lists it first under another one
-        seen.set(key, { name, version: dep.version, licence, ...licenceVerdict(licence), by: wanted.includes(name) ? [] : chain, dir: dep.path, homepage: own.homepage || '' })
+        seen.set(key, { name, version: dep.version, licence: fromFile ? `${fromFile} (LICENSE file)` : licence, ...verdict, by: wanted.includes(name) ? [] : chain, dir: dep.path, homepage: own.homepage || '' })
       }
       walk(dep, [...chain, name])
     }

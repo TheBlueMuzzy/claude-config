@@ -11,14 +11,16 @@ export const notesFile = (version) => `.planning/archive/releases/v${version}.md
 export const itchFile = (version) => `.planning/archive/releases/v${version}-itch.txt`
 export const notesPath = (root, version) => join(root, notesFile(version))
 
-// What players don't follow in a game's notes: [pattern, what it is]
+// What players don't follow in a game's notes: [pattern, what it is]. Feature / bug numbers only where they're used as
+// ids — "F12: …" / "- F12 …" at a line start / "(F12)" / a three-digit bug "B012" — never a key ("Press F11 for
+// fullscreen", "F1–F12 keys"). Only git's own words count, not "Commit your move" (review, 2026-10-19).
 const DEV_TALK = [
-  [/\b[FB]\d{2,3}[a-z]?\b/, 'a feature or bug number'],
+  [/^\s*(?:[-*]\s+)?[FB]\d{2,3}[a-z]?\b(?!\s*[–-]|\s*keys?\b)|\([FB]\d{2,3}[a-z]?\)|\b[FB]\d{2,3}[a-z]?:|\bB\d{3}\b/, 'a feature or bug number'],
   [/\b(?:src|scripts|content|public|tests?|e2e|party|kit)\/[\w./-]+/, 'a file path'],
   [/\b[\w-]+\.(?:tsx?|jsx?|mjs|cjs|json|css|html)\b/, 'a file name'],
   [/\bdev ?kit\b/i, '"Dev Kit"'],
   [/\bcheck:/i, 'a check name'],
-  [/\bcommit(?:s|ted)?\b/i, '"commit"'],
+  [/\bcommit (?:hash|id|sha)\b|\bgit\b|\bpull request\b|\bmerged? (?:the )?(?:branch|into)\b|\bwork branch\b/i, 'git talk'],
 ]
 
 // The notes as { draft, sections: [{ name, lines }] }. <!-- hints --> are dropped, so an untouched draft section is empty.
@@ -38,7 +40,7 @@ export function parseNotes(text) {
   return { draft, sections: sections.filter(s => s.lines.length) }
 }
 
-// Why these notes can't go out yet: [[text, fix]] (empty = fine). `file` names the file in the messages.
+// Why these notes can't go out yet: [[text, fix, kind?]] (empty = fine). `file` names the file in the messages.
 export function notesProblems(text, { game, file, kind = 'update' }) {
   if (text === null) return [[`no patch notes for this release (${file})`, `node ~/.claude/config/bmuz/scripts/release.mjs ${kind} --draft-notes — writes a draft from the commits; edit it with Muzzy, then release`]]
   const notes = parseNotes(text)
@@ -52,7 +54,8 @@ export function notesProblems(text, { game, file, kind = 'update' }) {
       const what = DEV_TALK.filter(([re]) => re.test(line)).map(([, w]) => w)
       if (what.length) found.push(`line ${n + 1}: "${line.trim().slice(0, 70)}" (${what.join(', ')})`)
     })
-    if (found.length) problems.push([`the patch notes have dev talk players won't follow (${file}):\n    ${found.slice(0, 6).join('\n    ')}${found.length > 6 ? `\n    … and ${found.length - 6} more` : ''}`, 'say what the player notices instead: "Fixed the crash when a save is loaded" — no feature or bug numbers, file names, "Dev Kit", checks or commits'])
+    // marked 'talk': if Muzzy overrides only this, the notes are still finished enough for CHANGELOG + the itch text
+    if (found.length) problems.push([`the patch notes have dev talk players won't follow (${file}):\n    ${found.slice(0, 6).join('\n    ')}${found.length > 6 ? `\n    … and ${found.length - 6} more` : ''}`, 'say what the player notices instead: "Fixed the crash when a save is loaded" — no feature or bug numbers, file names, "Dev Kit", checks or git talk (or, if a line is fine as it is, Muzzy\'s call: --no-notes-ok)', 'talk'])
   }
   return problems
 }
@@ -65,6 +68,7 @@ export function draftNotes({ version, commits, game }) {
   const fixed = []
   const other = []
   for (const { subject } of commits) {
+    if (/^Release v\d/.test(subject)) continue // an earlier release's own commit (version bookkeeping)
     const id = (subject.match(/^\s*(F\d+[a-z]?)\b/) || [])[1]
     if (id) { if (!groups.has(id)) groups.set(id, []); groups.get(id).push(subject.replace(/^\s*F\d+[a-z]?(\s*\+\s*F\d+[a-z]?)*\s*:?\s*/, '')) }
     else if (/^fix|\bB\d{3}\b|\bbug\b/i.test(subject)) fixed.push(subject)
@@ -80,7 +84,7 @@ export function draftNotes({ version, commits, game }) {
   }
   const sections = (game ? GAME_SECTIONS : LIBRARY_SECTIONS).map(name => [`## ${name}`, ...(hints[name] ? [hints[name]] : []), ...(fill[name] || []), ''].join('\n'))
   return ['DRAFT — edit, then delete this line', `# v${version}`,
-    `<!-- Neutral voice, the player's side: "Fixed the crash when…", never "We…". ${game ? 'No feature or bug numbers, file names, "Dev Kit", checks or commits. ' : 'For the games that use it: what changed and what they must do. '}Empty sections are left out. -->`, '',
+    `<!-- Neutral voice, the player's side: "Fixed the crash when…", never "We…". ${game ? 'No feature or bug ids (F12:, B012), file names, "Dev Kit", checks or git talk. ' : 'For the games that use it: what changed and what they must do. '}Empty sections are left out. -->`, '',
     ...sections].join('\n')
 }
 

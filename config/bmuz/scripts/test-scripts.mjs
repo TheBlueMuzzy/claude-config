@@ -73,6 +73,10 @@ function testInstallModule() {
   rmSync(join(audio, 'RED'))
   const good = install('audio', '.')
   expect('green → installed, the wiring steps are shown', good.code === 0 && existsSync(join(game, 'src', 'audio', 'VERSION')) && /Wire it/.test(good.out), good.out)
+  expect('F85: ….npmrc gets min-release-age=7 (a week before taking a new package version), said', readFileSync(join(game, '.npmrc'), 'utf8') === 'min-release-age=7\n' && /min-release-age=7/.test(good.out), good.out)
+  write(join(game, '.npmrc'), 'save-exact=true')
+  install('audio', '.'); install('audio', '.')
+  expect('F85: …an existing .npmrc keeps its lines and gets the line once, never twice', readFileSync(join(game, '.npmrc'), 'utf8') === 'save-exact=true\nmin-release-age=7\n', readFileSync(join(game, '.npmrc'), 'utf8'))
   // the game's framework checks run after the install
   write(join(game, 'src', 'devkit', 'check-framework.mjs'), "console.log('✗ audio: no volume setting'); process.exit(process.argv.includes('audio') ? 1 : 0)")
   const unwired = install('audio', '.')
@@ -884,8 +888,171 @@ function testReleasePlaytest() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F84: one notes file per release — drafted from the commits, refused until it's finished, then CHANGELOG + itch text
+function testReleaseNotes() {
+  console.log('release — patch notes (F84): draft, gates, CHANGELOG.md, itch text')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-notes-'))
+  const release = (repo, ...a) => script('release.mjs', a, { cwd: repo, env: { BMUZ_CLEANUP: FAKE_CLEANUP } })
+  const notes = (repo, v = '0.9.3') => join(repo, '.planning', 'archive', 'releases', `v${v}.md`)
+
+  // missing → refused, says --draft-notes
+  const lib = releaseProject(root, 'lib', { notes: false })
+  const none = release(lib, 'update', 'x', '--dry-run')
+  expect('no notes file for v0.9.3 → refused, names the file and --draft-notes', none.code === 1 && /no patch notes for this release \(\.planning\/archive\/releases\/v0\.9\.3\.md\)/.test(none.out) && /release\.mjs update --draft-notes/.test(none.out), none.out)
+  // --draft-notes: library notes from the commits, never overwritten
+  const drafted = release(lib, 'update', '--draft-notes')
+  const draft = existsSync(notes(lib)) ? readFileSync(notes(lib), 'utf8') : ''
+  expect('--draft-notes → v0.9.3.md drafted: DRAFT first line, the commits grouped by feature ("F01: cards"), library sections', drafted.code === 0 && /^DRAFT — edit, then delete this line/.test(draft) && /## New\n- F01: cards/.test(draft) && /## Breaking/.test(draft) && !/## Balance/.test(draft), drafted.out + draft)
+  write(notes(lib), draft + '\nMuzzy was here\n')
+  const again = release(lib, 'update', '--draft-notes')
+  expect('…run again → refused, the edited file is not overwritten', again.code === 1 && /already exists — not overwritten/.test(again.out) && readFileSync(notes(lib), 'utf8').includes('Muzzy was here'), again.out)
+  const stillDraft = release(lib, 'update', 'x', '--dry-run')
+  expect('a DRAFT with empty Highlights → refused for both, in the one list', stillDraft.code === 1 && /still a draft/.test(stillDraft.out) && /no Highlights/.test(stillDraft.out), stillDraft.out)
+  expect('…a library\'s notes may name features (no dev-talk check for the framework)', !/dev talk/.test(stillDraft.out), stillDraft.out)
+
+  // a game: dev talk refused, naming the lines
+  const game = releaseProject(root, 'game', { notes: false, state: { release: 'Release: GitHub Pages (recipe github-pages.md)' } })
+  release(game, 'update', '--draft-notes')
+  const gameDraft = readFileSync(notes(game), 'utf8')
+  expect('a game\'s draft has the game sections (Highlights · New · Changed · Balance · Fixed · Known issues)', ['Highlights', 'New', 'Changed', 'Balance', 'Fixed', 'Known issues'].every(s => gameDraft.includes(`## ${s}`)), gameDraft)
+  write(notes(game), '# v0.9.3\n## Highlights\nFixed B012 in src/x.ts\n## New\n- Better tuning in the Dev Kit\n- Faster check:fast, merged the branch\n- F07: card arc\n')
+  const talk = release(game, 'update', 'x', '--dry-run')
+  expect('"Fixed B012 in src/x.ts" in a game\'s notes → refused, naming each line and what\'s wrong', talk.code === 1 && /dev talk players won't follow/.test(talk.out) && /line 3: "Fixed B012 in src\/x\.ts" \(a feature or bug number, a file path, a file name\)/.test(talk.out) && /"Dev Kit"/.test(talk.out) && /a check name, git talk/.test(talk.out) && /"- F07: card arc" \(a feature or bug number\)/.test(talk.out), talk.out)
+  // review fix: ordinary player sentences with a key name or the word "commit" aren't dev talk
+  const keys = releaseProject(root, 'keys', { notes: false, state: { release: 'Release: GitHub Pages (recipe github-pages.md)' } })
+  write(notes(keys), '# v0.9.3\n## Highlights\nPress F11 for fullscreen.\n## New\n- Commit your move with the new confirm button.\n- The F1–F12 keys pick a card.\n- F11 key toggles fullscreen.\n')
+  const keysRun = release(keys, 'update', 'x', '--dry-run')
+  expect('"Press F11 for fullscreen" / "Commit your move with the new confirm button" / "F1–F12 keys" → not dev talk, passes', keysRun.code === 0 && /patch notes ready/.test(keysRun.out), keysRun.out)
+  // review fix: Muzzy keeps flagged lines (--no-notes-ok) → the notes are still used for CHANGELOG + itch text
+  const kept = releaseProject(root, 'kept', { notes: false, state: { release: 'Release: GitHub Pages (recipe github-pages.md)' } })
+  write(notes(kept), '# v0.9.3\n## Highlights\nThe B612 asteroid level is back.\n')
+  const keptRun = release(kept, 'update', 'x', '--no-notes-ok')
+  expect('only dev-talk lines + --no-notes-ok → released WITH CHANGELOG.md + itch text, on record as "dev-talk lines kept"', keptRun.code === 0 && existsSync(join(kept, 'CHANGELOG.md')) && /B612 asteroid/.test(readFileSync(join(kept, 'CHANGELOG.md'), 'utf8')) && existsSync(join(kept, '.planning', 'archive', 'releases', 'v0.9.3-itch.txt')) && /--no-notes-ok \(dev-talk lines kept\)/.test(sh(kept, 'log', '-1', '--format=%B')), keptRun.out)
+
+  // good notes → released: CHANGELOG.md made (newest first, dated), itch text printed + saved, all in the release commit
+  write(notes(game), GOOD_NOTES('0.9.3'))
+  const up = release(game, 'update', 'Cards fan out')
+  const changelog = existsSync(join(game, 'CHANGELOG.md')) ? readFileSync(join(game, 'CHANGELOG.md'), 'utf8') : ''
+  const itchPath = join(game, '.planning', 'archive', 'releases', 'v0.9.3-itch.txt')
+  expect('good notes → released; CHANGELOG.md made with a header and "## v0.9.3 — <date>", empty sections left out', up.code === 0 && /^# Changelog\n\n## v0\.9\.3 — \d{4}-\d{2}-\d{2}\n\nCards now fan out in your hand\.\n\n### New\n- Cards fan out/.test(changelog) && !/### Changed/.test(changelog), up.out + changelog)
+  expect('…the itch text printed and saved beside the notes (plain text: NEW, • bullets)', /itch\.io devlog text/.test(up.out) && /^NEW$/m.test(up.out) && /• Cards fan out when you hold more than five\./.test(up.out) && existsSync(itchPath) && /^FIXED\n• Fixed the crash/m.test(readFileSync(itchPath, 'utf8')), up.out)
+  const files = sh(game, 'show', '--name-only', '--format=', 'HEAD')
+  expect('…CHANGELOG.md, the notes and the itch text are in the release commit, nothing left over', files.includes('CHANGELOG.md') && files.includes('v0.9.3-itch.txt') && !sh(game, 'status', '--porcelain'), files)
+  // the next release goes on top
+  write(join(game, '.planning', 'STATE.md'), readFileSync(join(game, '.planning', 'STATE.md'), 'utf8').replace('Released v0.9.3', 'Released v0.9.4'))
+  write(notes(game, '0.9.4'), '# v0.9.4\n## Highlights\nThe deck shuffles faster.\n')
+  sh(game, 'add', '-A'); sh(game, 'commit', '-q', '-m', 'notes')
+  const up2 = release(game, 'update', 'Faster shuffle')
+  const log2 = readFileSync(join(game, 'CHANGELOG.md'), 'utf8')
+  expect('…the next release\'s entry goes above the old one (newest first)', up2.code === 0 && log2.indexOf('## v0.9.4') > 0 && log2.indexOf('## v0.9.4') < log2.indexOf('## v0.9.3') && log2.startsWith('# Changelog'), up2.out + log2)
+
+  // --no-notes-ok: Muzzy's call, on record, no CHANGELOG entry
+  const skip = releaseProject(root, 'skip', { notes: false })
+  const skipped = release(skip, 'update', 'x', '--no-notes-ok')
+  expect('--no-notes-ok → released without notes, on record ("Released with: --no-notes-ok (no notes file)"), no CHANGELOG.md', skipped.code === 0 && /Released with: --no-notes-ok \(no notes file\)/.test(sh(skip, 'log', '-1', '--format=%B')) && !existsSync(join(skip, 'CHANGELOG.md')), skipped.out)
+
+  // the commit fails → the new files are taken away again (putBack)
+  const fails = releaseProject(root, 'fails')
+  write(join(fails, '.git', 'hooks', 'pre-commit'), '#!/bin/sh\necho "hook says no"\nexit 1\n')
+  try { execFileSync('chmod', ['+x', join(fails, '.git', 'hooks', 'pre-commit')]) } catch { /* Windows: git runs it anyway */ }
+  write(join(fails, '.planning', 'research', 'idea.md'), 'an idea\n') // the user's own plan edits, carried along…
+  write(join(fails, '.planning', 'research', 'staged.md'), 'staged\n'); sh(fails, 'add', '.planning/research/staged.md') // …one already staged
+  const failed = release(fails, 'update', 'x')
+  expect('the release commit fails → CHANGELOG.md and the itch text are removed again, version.json put back', failed.code === 1 && !existsSync(join(fails, 'CHANGELOG.md')) && !existsSync(join(fails, '.planning', 'archive', 'releases', 'v0.9.3-itch.txt')) && JSON.parse(readFileSync(join(fails, 'version.json'), 'utf8')).version === '0.9.2', failed.out)
+  const index = sh(fails, 'diff', '--cached', '--name-only')
+  expect('…and the index is as it was: the user\'s plan edit unstaged again, the file they had staged still staged (review fix)', index === '.planning/research/staged.md', index)
+  rmSync(root, { recursive: true, force: true })
+}
+
+// Fake installed packages: { name: { license, deps: { child: '1.0.0' }, licenseFile, dev } } → node_modules + a lockfile
+function fakePackages(dir, packages, direct) {
+  const lock = { name: 'g', version: '0.9.2', lockfileVersion: 3, requires: true, packages: { '': { name: 'g', version: '0.9.2', dependencies: {}, devDependencies: {} } } }
+  for (const [name, p] of Object.entries(packages)) {
+    write(join(dir, 'node_modules', name, 'package.json'), JSON.stringify({ name, version: '1.0.0', ...(p.license !== undefined ? { license: p.license } : {}), dependencies: p.deps || {} }))
+    if (p.licenseFile) write(join(dir, 'node_modules', name, 'LICENSE'), p.licenseFile)
+    lock.packages[`node_modules/${name}`] = { version: '1.0.0', ...(p.license !== undefined ? { license: p.license } : {}), ...(p.deps ? { dependencies: p.deps } : {}), ...(p.dev ? { dev: true } : {}) }
+  }
+  for (const name of direct) lock.packages[''][packages[name].dev ? 'devDependencies' : 'dependencies'][name] = '1.0.0'
+  const pkg = JSON.parse(existsSync(join(dir, 'package.json')) ? readFileSync(join(dir, 'package.json'), 'utf8') : '{"name":"g","version":"0.9.2"}')
+  pkg.dependencies = lock.packages[''].dependencies; pkg.devDependencies = lock.packages[''].devDependencies
+  write(join(dir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n')
+  write(join(dir, 'package-lock.json'), JSON.stringify(lock, null, 2) + '\n')
+}
+
+// F85: deps-check — the packages players get: licences, security, the notices file; and release.mjs's gate
+async function testDepsCheck() {
+  console.log('deps-check (F85) — licences + security of what players get, notices, the release gate')
+  const { licenceVerdict } = await import('./deps-check.mjs')
+  const v = (l) => licenceVerdict(l).verdict
+  expect('licences: MIT / "Apache 2.0" / BSD-3-Clause / 0BSD / MPL-2.0 / CC0-1.0 / Unlicense → fine', ['MIT', 'Apache 2.0', 'BSD-3-Clause', '0BSD', 'MPL-2.0', 'CC0-1.0', 'Unlicense', 'ISC'].every(l => v(l) === 'ok'))
+  expect('…"(MIT OR GPL-3.0)" → fine (either side will do); "(MIT AND GPL-3.0)" → refused (both must)', v('(MIT OR GPL-3.0)') === 'ok' && v('(MIT AND GPL-3.0)') === 'refuse')
+  expect('…GPL-3.0 / AGPL-3.0 / LGPL-2.1 / "Apache-2.0 AND LGPL-3.0-or-later AND MIT" / none / UNLICENSED → refused', ['GPL-3.0', 'AGPL-3.0-only', 'LGPL-2.1', 'Apache-2.0 AND LGPL-3.0-or-later AND MIT', '', 'UNLICENSED'].every(l => v(l) === 'refuse'))
+  expect('…CC-BY-4.0 / "SEE LICENSE IN x" → a warning to read it, not a refusal', v('CC-BY-4.0') === 'warn' && v('SEE LICENSE IN LICENSE.txt') === 'warn')
+
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-deps-'))
+  const check = (dir, env = {}, ...a) => script('deps-check.mjs', [dir, ...a], { env })
+  // a project pulling in a GPL package through another one, a package with no licence, and a GPL dev tool (never ships)
+  const risky = join(root, 'risky')
+  fakePackages(risky, { good: { license: 'MIT', licenseFile: 'MIT License\nCopyright (c) Good' }, wrapper: { license: 'MIT', deps: { gplthing: '1.0.0' } }, gplthing: { license: 'GPL-3.0' }, bare: {}, devtool: { license: 'GPL-3.0', dev: true } }, ['good', 'wrapper', 'bare', 'devtool'])
+  const r = check(risky)
+  expect('GPL package pulled in by another → refused in plain words, naming it and who pulls it in', r.code === 1 && /✗ gplthing@1\.0\.0 is GPL-3\.0 — a "copyleft" licence/.test(r.out) && /pulled in by wrapper/.test(r.out), r.out)
+  expect('…a package with no licence → refused ("all rights reserved", added directly)', /✗ bare@1\.0\.0 has no licence at all/.test(r.out) && /bare@1\.0\.0 [^\n]*added directly in package\.json/.test(r.out), r.out)
+  expect('…the GPL dev tool isn\'t counted (dev tools never ship)', !/devtool/.test(r.out) && /production only\): 4/.test(r.out), r.out)
+  // security: a high advisory refuses; npm unreachable → a warning
+  const clean = join(root, 'clean')
+  fakePackages(clean, { good: { license: 'MIT', licenseFile: 'MIT License\nCopyright (c) Good' }, helper: { license: '(MIT OR Apache-2.0)' },
+    fileonly: { licenseFile: 'Copyright 2020 X\n\nPermission is hereby granted, free of charge, to any person obtaining a copy' } }, ['good', 'helper', 'fileonly'])
+  write(join(clean, 'node_modules', 'helper', 'NOTICE'), 'Helper\nCopyright Apache folks')
+  const high = JSON.stringify({ vulnerabilities: { good: { name: 'good', severity: 'high', via: [{ title: 'Prototype pollution in good' }], fixAvailable: { name: 'good', version: '1.0.1', isSemVerMajor: false } } }, metadata: { vulnerabilities: { high: 1, moderate: 2 } } })
+  const sec = check(clean, { FAKE_AUDIT: high })
+  expect('a high security problem → refused, naming the package, the advisory and the fix', sec.code === 1 && /✗ good has a high security problem: Prototype pollution in good/.test(sec.out) && /update good to 1\.0\.1/.test(sec.out) && /2 moderate\/low — not blocking/.test(sec.out), sec.out)
+  const offline = check(clean, { FAKE_AUDIT: JSON.stringify({ error: { code: 'ENOTFOUND', summary: 'request to registry.npmjs.org failed' } }) })
+  // review fix: an installed package package.json doesn't list (`npm i --no-save`) → a warning; a dev tool's leftover → quiet
+  const stray = join(root, 'stray')
+  fakePackages(stray, { good: { license: 'MIT' } }, ['good'])
+  write(join(stray, 'node_modules', 'sneaky', 'package.json'), JSON.stringify({ name: 'sneaky', version: '3.0.0', license: 'GPL-3.0' }))
+  write(join(stray, 'node_modules', 'devbit', 'package.json'), JSON.stringify({ name: 'devbit', version: '1.0.0', license: 'LGPL-3.0' }))
+  const strayLock = JSON.parse(readFileSync(join(stray, 'package-lock.json'), 'utf8'))
+  strayLock.packages['node_modules/devbit'] = { version: '1.0.0', dev: true, optional: true }
+  write(join(stray, 'package-lock.json'), JSON.stringify(strayLock, null, 2))
+  const strayRun = check(stray)
+  expect('an installed package package.json doesn\'t list → a warning (it would ship unchecked), not a refusal; a dev tool\'s leftover stays quiet', strayRun.code === 0 && /⚠ sneaky@3\.0\.0 is installed but package\.json doesn't list it/.test(strayRun.out) && !/devbit/.test(strayRun.out), strayRun.out)
+  expect('no licence in package.json but an MIT LICENSE file → read from the file, fine to ship', /MIT \(LICENSE file\) 1/.test(offline.out) && !/fileonly/.test(offline.out), offline.out)
+  expect('npm unreachable (offline) → a warning that says it wasn\'t checked, not a refusal', offline.code === 0 && /⚠ security: couldn't reach npm's security list \(offline\? request to registry\.npmjs\.org failed\) — not checked this time/.test(offline.out), offline.out)
+  // --notices: every shipped package with its licence text + NOTICE
+  const n = check(clean, {}, '--notices')
+  const text = existsSync(join(clean, 'public', 'third-party-notices.txt')) ? readFileSync(join(clean, 'public', 'third-party-notices.txt'), 'utf8') : ''
+  expect('--notices → public/third-party-notices.txt: each package, its licence, its LICENSE and NOTICE text', n.code === 0 && /good@1\.0\.0 — MIT\n\nMIT License\nCopyright \(c\) Good/.test(text) && /helper@1\.0\.0 — \(MIT OR Apache-2\.0\)/.test(text) && /Copyright Apache folks/.test(text), n.out + text)
+  const noModules = join(root, 'nomods'); write(join(noModules, 'package.json'), JSON.stringify({ name: 'x', dependencies: { react: '1' } }))
+  expect('production packages but no node_modules → refused, says npm ci', /aren't installed here[\s\S]*npm ci/.test(check(noModules).out))
+
+  // release.mjs: the gate, its override, and the notices file in a game's release commit
+  const release = (repo, ...a) => script('release.mjs', a, { cwd: repo, env: { BMUZ_CLEANUP: FAKE_CLEANUP } })
+  const game = releaseProject(root, 'game', { state: { release: 'Release: GitHub Pages (recipe github-pages.md)' } })
+  write(join(game, 'public', 'favicon.txt'), 'x\n')
+  fakePackages(game, { good: { license: 'MIT', licenseFile: 'MIT License' }, wrapper: { license: 'MIT', deps: { gplthing: '1.0.0' } }, gplthing: { license: 'AGPL-3.0' } }, ['good', 'wrapper'])
+  sh(game, 'add', '-A'); sh(game, 'commit', '-q', '-m', 'packages')
+  const sha = sh(game, 'rev-parse', '--short', 'HEAD')
+  write(join(game, '.planning', 'STATE.md'), readFileSync(join(game, '.planning', 'STATE.md'), 'utf8').replace(/(Reviewed through:|Security reviewed:\*\*|Last full check:) \w+/g, `$1 ${sha}`)); sh(game, 'commit', '-qam', 'reviews')
+  const refused = release(game, 'update', 'x', '--dry-run')
+  expect('release: an AGPL package in a game → refused in the one list, says --deps-risk-ok', refused.code === 1 && /package check: gplthing@1\.0\.0 is AGPL-3\.0/.test(refused.out) && /--deps-risk-ok/.test(refused.out), refused.out)
+  const risked = release(game, 'update', 'x', '--deps-risk-ok')
+  expect('…--deps-risk-ok (Muzzy\'s call) → released, on record in the commit body', risked.code === 0 && /Released with: --deps-risk-ok \(gplthing@1\.0\.0\)/.test(sh(game, 'log', '-1', '--format=%B')), risked.out)
+  expect('…a game\'s release commit carries public/third-party-notices.txt listing every shipped package', sh(game, 'show', '--name-only', '--format=', 'HEAD').includes('public/third-party-notices.txt') && ['good@1.0.0', 'wrapper@1.0.0', 'gplthing@1.0.0'].every(p => readFileSync(join(game, 'public', 'third-party-notices.txt'), 'utf8').includes(p)), risked.out)
+  // a library (Release: none (library)) gets the check but no notices file
+  const lib = releaseProject(root, 'lib')
+  write(join(lib, 'public', 'x.txt'), 'x\n')
+  fakePackages(lib, { good: { license: 'MIT' } }, ['good'])
+  sh(lib, 'add', '-A'); sh(lib, 'commit', '-q', '-m', 'packages')
+  const libSha = sh(lib, 'rev-parse', '--short', 'HEAD')
+  write(join(lib, '.planning', 'STATE.md'), readFileSync(join(lib, '.planning', 'STATE.md'), 'utf8').replace(/(Reviewed through:|Security reviewed:\*\*|Last full check:) \w+/g, `$1 ${libSha}`)); sh(lib, 'commit', '-qam', 'reviews')
+  const libUp = release(lib, 'update', 'x')
+  expect('…a library: checked ("1 of 1 … fine to ship"), released, no notices file', libUp.code === 0 && /licences: 1 of 1 packages players get are fine to ship \(MIT 1\)/.test(libUp.out) && !existsSync(join(lib, 'public', 'third-party-notices.txt')), libUp.out)
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest }
+const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)

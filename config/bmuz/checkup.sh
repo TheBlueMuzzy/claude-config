@@ -93,4 +93,38 @@ for g in "$HOME"/Documents/dev/games/*/; do
   [ -z "$miss" ] && echo "  ✓ $name" || echo "  ✗ $name$miss"
 done
 
+echo; echo "== 8. Dependencies + licences — the packages players get, per project (F85; needs the network)"
+# per game + the framework (root and each module): licences + npm's security list (deps-check.mjs, production only),
+# how many shipped packages have a newer version, and whether .npmrc waits 7 days before taking a brand-new version
+DEPS="$C/config/bmuz/scripts/deps-check.mjs"
+for g in "$HOME"/Documents/dev/games/*/ "$HOME"/Documents/dev/framework/ "$HOME"/Documents/dev/framework/*/; do
+  [ -f "$g/package.json" ] || continue
+  case "$g" in */framework/) name="framework" ;; */framework/*/) name="framework/$(basename "$g")" ;; *) name=$(basename "$g") ;; esac
+  outdated=$(cd "$g" && npm outdated --omit=dev --json 2>/dev/null | node -e 'let s = ""; process.stdin.on("data", d => s += d).on("end", () => { try { console.log(Object.values(JSON.parse(s || "{}")).filter(p => p.current && p.current !== p.latest).length) } catch { console.log("?") } })')
+  npmrc=no; grep -qs '^[[:space:]]*min-release-age' "$g/.npmrc" && npmrc=yes
+  node "$DEPS" "$g" --json 2>/dev/null | node -e '
+    let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+      const [name, outdated, npmrc] = process.argv.slice(1)
+      let r = null; try { r = JSON.parse(s) } catch {}
+      const bits = []
+      let bad = false
+      if (!r) { bits.push("deps-check gave no answer"); bad = true }
+      else if (r.skipped) bits.push("no packages players get")
+      else if (r.refusals.some(([t]) => /aren.t installed|couldn.t list/.test(t))) { bits.push("packages not installed on this machine — npm ci there to check them"); bad = true }
+      else {
+        const lic = r.refusals.filter(([t]) => !/security problem/.test(t))
+        const sec = r.refusals.filter(([t]) => /security problem/.test(t))
+        bits.push(`${r.packages.length} packages players get`)
+        bits.push(lic.length ? `licence problems: ${lic.map(([t]) => t.split(" ")[0]).join(", ")}` : "licences fine")
+        bits.push(!r.audit.checked ? "security not checked (offline?)" : sec.length ? `security: ${sec.map(([t]) => t.split(" ")[0]).join(", ")} (high)` : "no high security problems")
+        if (lic.length || sec.length) bad = true
+        const warn = r.warnings.filter(w => !/^security:/.test(w)).length
+        if (warn) bits.push(`${warn} licence${warn > 1 ? "s" : ""} to read`)
+      }
+      bits.push(outdated === "?" ? "outdated: no answer from npm" : `${outdated} with a newer version`)
+      if (npmrc !== "yes") { bits.push(".npmrc has no min-release-age=7 (install-module.mjs adds it, or add the line)"); bad = true }
+      console.log(`  ${bad ? "✗" : "✓"} ${name} — ${bits.join(" · ")}`)
+    })' "$name" "$outdated" "$npmrc"
+done
+
 echo; echo "== Last checkup: $(cat config/bmuz/last-checkup 2>/dev/null || echo never)"
