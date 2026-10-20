@@ -91,9 +91,9 @@ import settings from '../content/ui/settings.json'
 applyStyle(style)                              // style.json → CSS variables; call again to restyle live
 applyAccessibility(loadSettings(settings))     // text size + reduce motion before any screen opens
 ```
-Screens go through one stack (Esc / Back close the top one; `kitScreens` adds Confirm):
+Screens go through one stack (Esc / Back close the top one; the kit's own Confirm is always in it, kit 0.25.0+) ① (ScreenStack adds kitScreens itself):
 ```tsx
-<ScreenStack screens={{ ...kitScreens, settings: SettingsScreen, pause: PauseScreen }}>
+<ScreenStack screens={{ settings: SettingsScreen, pause: PauseScreen }}>
   <Game />            {/* the always-there bottom layer, e.g. the HUD */}
 </ScreenStack>
 <ToastStack />
