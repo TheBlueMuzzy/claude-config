@@ -58,7 +58,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - Muzzy's engineering ideas are often simpler and better — weigh them honestly and credit them in the TDD Decisions log.
 - Muzzy edits docs in Obsidian too: read his changes, don't overwrite them, and commit them with /save.
 - Specialist skills (proto, mda-analyze, save-system, audio-setup, etc.) are yours to reach for — when one fits, use it and say so in one line. Muzzy won't remember their names; that's fine.
-- Ideas that aren't for right now → ROADMAP → Ideas with the date; say "Noted in the roadmap's Ideas."
+- Ideas that aren't for right now → ROADMAP → Ideas with the date; say "Noted in the roadmap's Ideas." only after reading the line back from the file (framework sprint 23: an edit missed its spot in a CRLF file, said nothing, and the idea was lost) ③
 - Small tweaks and fixes don't need a task — just do them, committed on whatever branch you're on (main is fine for tiny fixes). Sprints are for features that take real work.
 - Old GSD projects (`.planning/PROJECT.md`, `phases/`) get converted the first time we work in them — see PROJECT-FILES.md.
 - Undo ("undo that"): something just done this session → rewind (Esc Esc); anything committed → `git revert` (never `reset --hard`, never force-push, only fully merged branches get deleted — hooks enforce these: `config/bmuz/HOOKS.md`). Show what will be undone first. ① (guard-git refuses reset --hard, force-push and deleting unmerged branches)
