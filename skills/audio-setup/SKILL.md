@@ -132,7 +132,8 @@ ffmpeg -i sound.wav -c:a libmp3lame -q:a 4 sound.mp3
 If ffmpeg not available, suggest online converters or npm packages.
 
 ### Step 6: Volume Normalization
-Check all audio files for consistent volume levels:
+**Games with the framework audio module (0.4.0+): run `npm run audio:check`** — a table of every file's loudness, peak and onset; `npm run audio:check -- --fix` levels the flagged ones to `content/audio.json` "loudness" (default −18 for every folder, originals kept in `audio-originals/`). Files are made even; the mix stays in the buses. The Dev Kit Sound tab's drop levels new files the same way (framework F31).
+Otherwise, check all audio files for consistent volume levels:
 - SFX should be normalized to similar perceived loudness
 - Music should be quieter than SFX (typically -6dB)
 - Ambient should be quieter than music
