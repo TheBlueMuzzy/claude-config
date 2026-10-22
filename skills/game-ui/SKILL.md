@@ -49,6 +49,10 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    **Short screens are a size, not an edge case:** shoot every card at 844×390 and 768×343 too — a card too tall for
    the window scrolls INSIDE itself (kit 0.7.0), never leans on its slot; Glyphtender's Pause "Leave game" hung off
    the screen for 6 releases because only phone-upright + desktop got looked at (e2e/previews.mjs short-screen guard).
+   **Except a portrait-only game:** `content/ui/style.json` `"orientation": "portrait"` (UI kit 0.26.0) — then those two
+   sizes are never shot or checked (Goops shows a "turn your phone upright" card there); `"landscape"` drops the upright
+   phones. Ask once at a new game's style pick which way up it plays, and write it there ① (check:framework's UI
+   part skips the sizes it rules out and says so) · ③ the asking.
    **Anything that scrolls: prove it with a real finger swipe** (CDP `Input.dispatchTouchEvent`, starting ON the card),
    not just "scrollHeight > clientHeight" — Glyphtender's New Game measured as scrollable but a phone swipe on the card
    did nothing (B027, kit 0.8.2). Headless Chrome can't touch-scroll in full screen: turn full screen off in the test.
