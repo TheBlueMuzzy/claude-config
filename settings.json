@@ -155,10 +155,10 @@
     "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command '& \"$env:USERPROFILE\\.claude\\statusline.ps1\"'"
   },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
-    "playground@claude-plugins-official": false,
+    "playground@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "context7@claude-plugins-official": true
   },
@@ -166,6 +166,11 @@
   "skipDangerousModePermissionPrompt": true,
   "agentPushNotifEnabled": true,
   "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "Bash(npx party:deploy:*) in glyphtender — deploy script, scope to confirm before running unattended",
+      "Force-push or history rewrite on origin/main for glyphtender (reinforces CLAUDE.md's never-force-push rule since no branch protection is configured server-side)"
+    ],
     "environment": [
       "### Org-wide",
       "**Organization**: None configured",
@@ -192,11 +197,6 @@
       "**Trusted repo**: C:\\Users\\Muzzy\\Documents\\dev\\games\\glyphtender, working directory and origin remote https://github.com/TheBlueMuzzy/glyphtender.git — PUBLIC repo: only this repo's own work is OK to commit/push; confidential material should not be committed here",
       "**Org-specific CLIs**: `gws` (Google Workspace CLI — Drive, Docs, Sheets, Slides, Tasks; Gmail MCP tools explicitly denied per global CLAUDE.md); `gh` (GitHub CLI); `gcloud` (seen in shell history, no project scoping found); `adb` (Android debugging, seen in shell history)",
       "**Routine under this repo's paths**: BMUZ workflow commands (/discover, /define, /develop, /deliver, /save, /bug, etc.) and npm scripts (dev, build, lint, test, e2e:*, sim*, golden:*, party:dev, party:deploy) are routine within glyphtender/"
-    ],
-    "soft_deny": [
-      "$defaults",
-      "Bash(npx party:deploy:*) in glyphtender — deploy script, scope to confirm before running unattended",
-      "Force-push or history rewrite on origin/main for glyphtender (reinforces CLAUDE.md's never-force-push rule since no branch protection is configured server-side)"
     ]
   }
 }
