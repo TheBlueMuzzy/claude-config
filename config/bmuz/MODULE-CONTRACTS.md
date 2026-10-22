@@ -68,6 +68,13 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 - **One format, the same places:** `versionLabel` ("vX.Y.Z.B") on the main-menu footer (`<MainMenu version>`), the bottom of every Settings tab (`<Settings version>`, UI kit 0.24.0) and the Dev Kit adapter's `version` (snapshots + bug files) ② (check:framework Version: each one names the line that passes something else, or nothing).
 - **No test on a stale build:** an e2e script calls `checkVersion(page)` after `page.goto` — a stale build or a cached service worker stops it with a plain message ② (check:framework Version: an e2e file calls it; the browser check compares the page's meta tag with version.json).
 
+## Crashes (any game players play away from Muzzy — `framework/crashes`)
+- **Errors are caught from the start:** `startCrashes({ config: readCrashesConfig(crashesJson), version: versionLabel })` in main.tsx, before the first render; a React game passes `crashRootOptions()` to `createRoot` (a broken screen says "Something broke · Reload", never a blank page) ② (check:framework Crashes: startCrashes in the game's code + content/crashes.json; createRoot without crashRootOptions fails).
+- **The player can turn it off:** the `crashReports` toggle (CRASH_SETTINGS_ROWS) in Settings, and `applyCrashSetting(values)` at start-up and on change ② (check:framework Crashes: the row and the call, or it fails). The privacy page carries the crash paragraph (design/crashes.md "Privacy wording") ③ (release-check privacy line).
+- **Moments are code names + numbers only** — `moment('roundStart', 3)`, never a player's name or typed text ① (the module drops any name that isn't a code name).
+- **No source map ships:** `crashesMaps()` in vite.config; `releases/<version>/maps/` is committed ② (check:framework Crashes: any .map in public/ or dist/ fails).
+- **Going live is Muzzy's call** (a public server): token per machine in `~/.config/bmuz/crashes/<game>.token`, `npm run crashes:deploy`, `client.url`, and `Crashes: <address>` in STATE Key facts for session start ③.
+
 ## When a new module is made
 Add its section here (what the game must provide, how it's checked) in the same commit as the module, and a
 "What a game must provide" section to the module's README.

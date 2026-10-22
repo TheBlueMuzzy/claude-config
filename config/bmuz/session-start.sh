@@ -93,7 +93,7 @@ FW="${BMUZ_FRAMEWORK:-$HOME/Documents/dev/framework}"
 if [ -f package.json ] && [ -d "$FW" ]; then
   UPDATES=""
   # game copy : framework module : name Muzzy knows
-  for PIECE in "ui/kit:ui-kit:UI kit" "devkit:devkit:Dev Kit" "audio:audio:Audio" "table:table:Table" "ai/kit:ai:AI" "rooms:rooms:Rooms"; do
+  for PIECE in "ui/kit:ui-kit:UI kit" "devkit:devkit:Dev Kit" "audio:audio:Audio" "table:table:Table" "ai/kit:ai:AI" "rooms:rooms:Rooms" "saves:saves:Saves" "version:version:Version" "crashes:crashes:Crashes"; do
     COPY=${PIECE%%:*}; REST=${PIECE#*:}; MODULE=${REST%%:*}; NAME=${REST#*:}
     [ -f "src/$COPY/VERSION" ] && [ -f "$FW/$MODULE/kit/VERSION" ] || continue
     HAVE=$(head -1 "src/$COPY/VERSION" | tr -d '\r' | awk '{print $1}')
@@ -127,6 +127,13 @@ fi
 if [ -d .planning ]; then
   if command -v timeout >/dev/null 2>&1; then timeout 5 node "$(dirname "$0")/hooks/live-ping.mjs" . 2>/dev/null
   else node "$(dirname "$0")/hooks/live-ping.mjs" . 2>/dev/null; fi
+fi
+
+# What broke for players since last time? (framework F89): a game with a `Crashes:` line in STATE, ≤ 3 s, a line only
+# when there are new kinds of error or a fixed one came back
+if [ -d .planning ]; then
+  if command -v timeout >/dev/null 2>&1; then timeout 5 node "$(dirname "$0")/hooks/crash-news.mjs" . 2>/dev/null
+  else node "$(dirname "$0")/hooks/crash-news.mjs" . 2>/dev/null; fi
 fi
 
 # Open questions for Muzzy in the sprint (F80 — /develop "ask now" was remembered): every non-empty "Ask Muzzy:" line

@@ -1431,8 +1431,78 @@ function testLivePing() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F89 (framework): what broke for players since last time? — a local host stands in for the game's crash server
+function testCrashNews() {
+  console.log('crash-news — session start says "N new errors from players" only when there are (framework F89)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-crash-news-'))
+  const ready = join(root, 'ready')
+  const asked = join(root, 'asked')
+  // /news: 3 new, 1 came back · /one: 1 new · /quiet: nothing new · /slow: answers after 10 s · no token: 404
+  writeFileSync(join(root, 'host.mjs'), [
+    "import http from 'node:http'; import { appendFileSync, writeFileSync } from 'node:fs'",
+    'const server = http.createServer((q, s) => {',
+    `  appendFileSync(${JSON.stringify(asked)}, q.url + '\\n')`,
+    "  if (q.headers.authorization !== 'Bearer right') { s.writeHead(404); return s.end('Not found') }",
+    "  const answer = (body) => { s.writeHead(200, { 'content-type': 'application/json' }); s.end(JSON.stringify(body)) }",
+    "  if (q.url.startsWith('/news/summary')) return answer({ newKinds: 3, cameBack: 1, reports: 40, dropped: 0, kinds: [], now: 1700000000000 })",
+    "  if (q.url.startsWith('/one/summary')) return answer({ newKinds: 1, cameBack: 0, reports: 1, dropped: 0, kinds: [], now: 1700000000000 })",
+    "  if (q.url.startsWith('/quiet/summary')) return answer({ newKinds: 0, cameBack: 0, reports: 12, dropped: 0, kinds: [], now: 1700000000000 })",
+    "  if (q.url.startsWith('/slow/summary')) { setTimeout(() => answer({ newKinds: 5, cameBack: 0, now: 1 }), 10_000); return }",
+    "  s.writeHead(404); s.end('nope')",
+    '})',
+    `server.listen(0, '127.0.0.1', () => writeFileSync(${JSON.stringify(ready)}, String(server.address().port)))`,
+  ].join('\n'))
+  const host = spawn(process.execPath, [join(root, 'host.mjs')], { stdio: 'ignore' })
+  for (let i = 0; i < 100 && !existsSync(ready); i++) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  const base = `http://127.0.0.1:${readFileSync(ready, 'utf8')}`
+  const game = join(root, 'goops')
+  const tokens = join(root, 'tokens')
+  mkdirSync(join(game, '.planning'), { recursive: true })
+  mkdirSync(tokens)
+  const news = (state, env = {}) => {
+    writeFileSync(join(game, '.planning', 'STATE.md'), state)
+    const started = Date.now()
+    const out = spawnSync('node', [join(HOOKS, 'crash-news.mjs'), game], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, CRASHES_TOKEN: '', BMUZ_CRASHES_DIR: tokens, ...env } })
+    const text = `${out.stdout || ''}${out.stderr || ''}`.trim()
+    return { result: out.status !== 0 ? `exit ${out.status}` : text ? 'said' : 'quiet', message: text, ms: Date.now() - started }
+  }
+  const state = (path) => `# State\n## Key facts\n- **Crashes:** ${base}/${path}\n`
+
+  expect('no Crashes line → nothing printed', news('# State\nLive: https://example.com/\n'), 'quiet')
+  const noToken = news(state('news'))
+  expect('a Crashes line but no token on this machine → one line saying where it goes', noToken, 'said')
+  expect('…naming the token file', { result: noToken.message.includes(join(tokens, 'goops.token')) ? 'named' : 'no', message: noToken.message }, 'named')
+  writeFileSync(join(tokens, 'goops.token'), 'wrong\n')
+  const wrong = news(state('news'))
+  expect('a wrong token → one line saying the server refused it', { result: /didn't accept this machine's token/.test(wrong.message) ? 'refused' : 'other', message: wrong.message }, 'refused')
+  writeFileSync(join(tokens, 'goops.token'), 'right\n')
+  const said = news(state('news'))
+  expect('3 new + 1 came back → the line', { result: said.message === '🐞 3 new errors from players, 1 came back since last time — `npm run crashes` shows them with real file lines. Tell Muzzy first thing.' ? 'exact' : 'other', message: said.message }, 'exact')
+  expect('…and "last time" is now the server\'s clock', { result: readFileSync(join(tokens, 'goops.seen'), 'utf8') === '1700000000000' ? 'kept' : 'not', message: '' }, 'kept')
+  news(state('news'))
+  const lastAsk = readFileSync(asked, 'utf8').trim().split('\n').pop()
+  expect('…the next session asks since that time', { result: lastAsk === '/news/summary?since=1700000000000' ? 'since' : 'other', message: lastAsk }, 'since')
+  expect('1 new error → "1 new error" (no s)', { result: news(state('one')).message.startsWith('🐞 1 new error from players since last time') ? 'one' : 'other', message: '' }, 'one')
+  expect('nothing new (only repeats of known errors) → nothing printed', news(state('quiet')), 'quiet')
+  const slow = news(state('slow'))
+  expect('a server that takes 10 s → nothing printed', slow, 'quiet')
+  expect('…and session start waited ~3 s, not 10', { result: slow.ms < 6000 ? 'fast' : 'held', message: `${slow.ms} ms` }, 'fast')
+  expect('nothing listening → nothing printed', news('# State\nCrashes: http://127.0.0.1:1/\n'), 'quiet')
+  expect('the token from CRASHES_TOKEN works too', news(state('news'), { BMUZ_CRASHES_DIR: join(root, 'empty'), CRASHES_TOKEN: 'right' }), 'said')
+  expect('the token never travels in the address', { result: readFileSync(asked, 'utf8').includes('right') ? 'leaked' : 'header only', message: '' }, 'header only')
+  // the token file is named after package.json "name" like the installer says (F89 review: my-first-baby is "myfirstbaby")
+  writeFileSync(join(game, 'package.json'), JSON.stringify({ name: 'goopsgame' }))
+  writeFileSync(join(tokens, 'goopsgame.token'), 'right\n')
+  rmSync(join(tokens, 'goops.token'))
+  expect('the token file is named after package.json "name", not the folder', news(state('news')), 'said')
+  const wired = readFileSync(join(HOOKS, '..', 'session-start.sh'), 'utf8').includes('hooks/crash-news.mjs')
+  expect('session-start.sh runs crash-news.mjs', { result: wired ? 'wired' : 'missing', message: '' }, 'wired')
+  host.kill()
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'live-ping': testLivePing, 'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
+const suites = { 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)
