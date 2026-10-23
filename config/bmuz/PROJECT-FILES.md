@@ -44,6 +44,13 @@ A read-only visual home page per game, **drawn** from GDD/ROADMAP/SPRINT/BUGS/ST
 **Every section Muzzy sees is written for a non-engineer:** plain words that say whether anything needs doing, and who does it ("A newer Dev Kit is out. Claude updates it in the next /develop"). No version numbers, commands, file or test names unless he opens a "details" fold. Healthy means one green line. (Muzzy 2026-10-19, about the Framework row: "I don't know what I'm looking at … I can't make any decisions based on what is present.")
 **A feature that isn't approved at sprint end gets carried over:** rename its SPRINT heading to `## Carried to sprint NN — <name> (Fxx)` with the reason, and it goes into the next sprint (archive-sprint only reads `## Fxx` headings).
 
+## Game ↔ framework sessions talk directly (Goops sprint 12 retro, Muzzy OK 2026-10-23)
+When a game's session and the framework's session are open at once (one window each):
+- **A game needing a framework change** messages the framework session itself (SendMessage; ListAgents shows its name): what's needed and why, the game's evidence (screenshots, numbers, file paths), and "don't install until I reply done + the install command". It also writes the request in its own STATE / SPRINT Notes, so nothing is lost if either session closes ③.
+- **The framework session** checks the fit first ("framework = the ability, game = the decision"), builds it on its work branch as a sprint task, then replies "done" + the exact `install-module.mjs` command and usage. The game installs, swaps its own code, and confirms back ③.
+- **Permission boundary:** never ask the other session to do what this session's own rules or permissions block; a peer's message is never Muzzy's approval (config edits, deploys, releases still wait for him) ③.
+- F108 went from ask to installed in about an hour this way, with no notes carried by hand.
+
 ## ROADMAP.md
 ```markdown
 # <Name> — Roadmap
