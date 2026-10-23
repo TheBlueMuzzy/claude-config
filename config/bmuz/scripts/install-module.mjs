@@ -1,6 +1,6 @@
 // Install or update one framework module in a game — the one safe way (F69).
 //   node ~/.claude/config/bmuz/scripts/install-module.mjs <module> [game-folder] [--dry-run] [extra installer args]
-//   modules: devkit · ui-kit · audio · table · ai · rooms · saves · version · crashes     e.g.  install-module.mjs ui-kit . cozy
+//   modules: devkit · ui-kit · audio · table · ai · rooms · saves · version · crashes · emotes     e.g.  install-module.mjs ui-kit . cozy
 // Steps, stopping at the first problem:
 //   1. the module's OWN tests + type check (+ ui-kit's check-ui) pass in the framework — a red module never ships
 //      (ui-kit 0.4.4 once shipped with its own check-ui failing)
@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { FRAMEWORK, run, say, ok, refuse, tail, readJson, args, projectDir, exists } from './lib.mjs'
 
-const CHECK_ID = { devkit: 'devkit', 'ui-kit': 'ui', audio: 'audio', table: 'table', ai: 'ai', rooms: 'rooms', saves: 'saves', version: 'version', crashes: 'crashes' }
+const CHECK_ID = { devkit: 'devkit', 'ui-kit': 'ui', audio: 'audio', table: 'table', ai: 'ai', rooms: 'rooms', saves: 'saves', version: 'version', crashes: 'crashes', emotes: 'emotes' }
 const { words, flags } = args()
 const [module, gameArg, ...words2] = words
 const extra = [...words2, ...[...flags].filter(f => f !== '--dry-run')] // the installer's own options (a style, --force…) go through

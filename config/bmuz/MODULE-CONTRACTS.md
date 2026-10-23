@@ -76,6 +76,13 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 - **No source map ships:** `crashesMaps()` in vite.config; `releases/<version>/maps/` is committed ② (check:framework Crashes: any .map in public/ or dist/ fails).
 - **Going live is Muzzy's call** (a public server): token per machine in `~/.config/bmuz/crashes/<server host>.token`, `npm run crashes:deploy`, `client.url`, and `Crashes: <address>` in STATE Key facts for session start ③.
 
+## Emotes (any game where players share a table — `framework/emotes`)
+- **One path for every seat:** people, bots, local and online all go through `createEmotes(…)` (`sendEmote` / a bot's `say`), and the words live only in `content/text/en.json` `"emotes"` — never typed into the game's code ② (check:framework Emotes: every phrase id in content/emotes.json has words; a phrase's English words in `src/` fail, named).
+- **Never a nuisance:** a spam limit on the device and on the server (`content/emotes.json` `limits` / `server`; the server never looser) · a mute per opponent (`EmoteMenu` on their seat) · the "Hide everyone's emotes" switch (`EMOTE_SETTINGS_ROWS` + `applyEmoteSetting`) ② (check:framework Emotes: the limits are sane; the switch is in Settings and reaches the module).
+- **The picker opens from the player's own seat** (`emoteSeatProps(seat, mine)` on each tappable seat, `<EmoteMenu>`), and the bubbles (`<EmoteBubbles avoid="<HUD>, [data-emote-seat]">`) keep the UI kit's bars — fixed size, room round the words, clear of the HUD ② (check:framework Emotes, in live play at every size: the picker opens from `data-emote-mine`; after two sent phrases the UI kit's checks pass and the bubble never changes size).
+- **Online, the room relays them:** `party/server.ts` passes `{ emotes }` (content/emotes.json) to RoomServer (Rooms 0.12.0+) and never handles `emote` itself; the screens pass `onEmote: (m) => emotes.receive(m)` and `send: (seat, id) => online.sendEmote(id)` ② (check:framework Emotes: the server check names a missing `{ emotes }` or a game's own `'emote'` handler).
+- **Kept with the saves module:** `createSave({ ...EMOTE_SAVE, key: '<game>:emotes', version: 1 })` (the switch + this match's mutes), listed in `tests/saves/saves.test.ts` with its golden copy (the installer writes it) ② (check:framework Saves, like every save). Pause closes the picker ③.
+
 ## When a new module is made
 Add its section here (what the game must provide, how it's checked) in the same commit as the module, and a
 "What a game must provide" section to the module's README.
