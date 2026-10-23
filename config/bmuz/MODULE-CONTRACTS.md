@@ -54,6 +54,7 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 ## Table / AI / Rooms (turn-based and online games)
 - Rules are the Table's pure `Rules` contract; the move record replays (snapshots + bug captures use it).
 - AI seats think on the rules clock (half pause stops a bot mid-think); personalities live in `content/ai/`.
+- AI arena (ai 0.3.0): the Personality Check plays through the framework arena — the game gives only `src/ai/arenaGame.ts` (rules, board choice, bot, meters, winners; `kit/arena.ts` ArenaGameFile) and `content/ai/arena.json` + `feel-targets.json`; `npm run ai:arena` on the PC, and the Dev Kit's Run check plays in a Web Worker (`devkit/ai/checkWorker.ts`), never on the page's main thread ③ (the installer lists the missing steps; a balance tool, not a check:framework promise).
 - Online (Rooms): the server owns the truth; Dev Kit tools that affect play are offline-only.
 - Online (Rooms 0.10.0): the server game state is plain JSON (`jsonProblem(state)` null — it's saved in storage), the game's own timers come back in `rules.onRestore`, and `content/rooms.json` says `keepMatchDays` (chosen at /define) ③ (the installer lists the missing ones).
 
