@@ -73,7 +73,7 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 - **The player can turn it off:** the `crashReports` toggle (CRASH_SETTINGS_ROWS) in Settings, and `applyCrashSetting(values)` at start-up and on change ② (check:framework Crashes: the row and the call, or it fails). The privacy page carries the crash paragraph (design/crashes.md "Privacy wording") ③ (release-check privacy line).
 - **Moments are code names + numbers only** — `moment('roundStart', 3)`, never a player's name or typed text ① (the module drops any name that isn't a code name).
 - **No source map ships:** `crashesMaps()` in vite.config; `releases/<version>/maps/` is committed ② (check:framework Crashes: any .map in public/ or dist/ fails).
-- **Going live is Muzzy's call** (a public server): token per machine in `~/.config/bmuz/crashes/<game>.token`, `npm run crashes:deploy`, `client.url`, and `Crashes: <address>` in STATE Key facts for session start ③.
+- **Going live is Muzzy's call** (a public server): token per machine in `~/.config/bmuz/crashes/<server host>.token`, `npm run crashes:deploy`, `client.url`, and `Crashes: <address>` in STATE Key facts for session start ③.
 
 ## When a new module is made
 Add its section here (what the game must provide, how it's checked) in the same commit as the module, and a
