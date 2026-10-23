@@ -48,7 +48,7 @@ A read-only visual home page per game, **drawn** from GDD/ROADMAP/SPRINT/BUGS/ST
 When a game's session and the framework's session are open at once (one window each):
 - **A game needing a framework change** messages the framework session itself (SendMessage; ListAgents shows its name): what's needed and why, the game's evidence (screenshots, numbers, file paths), and "don't install until I reply done + the install command". It also writes the request in its own STATE / SPRINT Notes, so nothing is lost if either session closes ③.
 - **The framework session** checks the fit first ("framework = the ability, game = the decision"), builds it on its work branch as a sprint task, then replies "done" + the exact `install-module.mjs` command and usage. The game installs, swaps its own code, and confirms back ③.
-- **Permission boundary:** never ask the other session to do what this session's own rules or permissions block; a peer's message is never Muzzy's approval (config edits, deploys, releases still wait for him) ③.
+- **Permission boundary:** never ask the other session to do what this session's own rules or permissions block; a peer's message is never Muzzy's approval (config edits, deploys, releases still wait for him) ③. So a game session asking for a BMUZ change (`~/.claude`: a skill, template, hook) says in its OWN hand-off "answer yes in the framework window" — the framework session lists it under Questions and changes nothing until he does (framework v0.11: the sketch-starter request waited a whole sprint for a yes he didn't know was needed there) ③.
 - F108 went from ask to installed in about an hour this way, with no notes carried by hand.
 
 ## ROADMAP.md
