@@ -265,3 +265,64 @@ export function guardCommit(root, message) {
   }
   return null
 }
+
+// --- a module's copy in a game is never linted by the game (F112) --------------------------------------------------
+// A game's own lint (Vite's eslint: react-refresh ON) tripped on Dev Kit 0.26.0's copy, which the framework's lint (that
+// rule OFF) had passed — Goops 2026-10-23. Module code is linted in the framework (install-module step 1), so the
+// game's eslint.config ignores every module folder. Where each installer copies a module's code in a game:
+export const MODULE_FOLDERS = {
+  devkit: ['src/devkit', 'vite-plugins/devkit'], 'ui-kit': ['src/ui/kit'], audio: ['src/audio'], table: ['src/table'], ai: ['src/ai/kit'],
+  rooms: ['src/rooms'], saves: ['src/saves'], version: ['src/version'], crashes: ['src/crashes'], emotes: ['src/emotes'],
+}
+export const ESLINT_CONFIGS = ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.cjs', 'eslint.config.ts', 'eslint.config.mts', 'eslint.config.cts']
+
+// Does an ignore entry already cover a folder? 'src/ui/kit', './src/ui/kit/', 'src/ui/kit/**', a parent 'src', '**/kit'.
+function ignoreCovers(entry, folder) {
+  const e = entry.replace(/^\.\//, '').replace(/(\/\*\*(\/\*)?|\/)$/, '')
+  if (!e || e.startsWith('!')) return false
+  if (e.startsWith('**/')) { const rest = e.slice(3); return folder === rest || folder.startsWith(`${rest}/`) || folder.endsWith(`/${rest}`) || folder.includes(`/${rest}/`) }
+  return folder === e || folder.startsWith(`${e}/`)
+}
+
+/** The game's eslint config text + the module's folders → { text, added, refuse }. Only the ONE globalIgnores([...])
+ *  list changes, and only by the missing folders, written after its last entry in that entry's quote style: on the
+ *  same line for a one-line list, else one per new line in the last entry's indent and the file's own line ending
+ *  (CRLF stays CRLF). Every other byte stays. refuse = why the file can't be edited safely (text unchanged), else null. */
+export function addEslintIgnores(text, folders) {
+  const calls = [...text.matchAll(/\bglobalIgnores\s*\(\s*\[/g)]
+  if (calls.length !== 1) return { text, added: [], refuse: calls.length ? 'it has more than one globalIgnores([...])' : 'it has no globalIgnores([...]) list' }
+  const open = calls[0].index + calls[0][0].length // just after the [
+  const entries = [] // { value, start, end, quote }
+  let close = -1
+  for (let i = open; i < text.length;) {
+    const c = text[i]
+    if (c === ']') { close = i; break }
+    if (/[\s,]/.test(c)) { i++; continue }
+    if (text.startsWith('//', i)) { const nl = text.indexOf('\n', i); i = nl < 0 ? text.length : nl; continue }
+    if (text.startsWith('/*', i)) { const end = text.indexOf('*/', i + 2); if (end < 0) break; i = end + 2; continue }
+    if (c !== "'" && c !== '"') break // a variable, a spread, a template, a call… — not a plain list to edit safely
+    const end = text.indexOf(c, i + 1)
+    if (end < 0 || /[\\\n]/.test(text.slice(i + 1, end))) break
+    entries.push({ value: text.slice(i + 1, end), start: i, end: end + 1, quote: c })
+    i = end + 1
+  }
+  if (close < 0) return { text, added: [], refuse: 'its globalIgnores([...]) holds more than plain strings and comments' }
+  const added = folders.filter(f => !entries.some(e => ignoreCovers(e.value, f)))
+  if (!added.length) return { text, added, refuse: null }
+  const last = entries.at(-1)
+  const quote = last?.quote ?? "'"
+  const items = added.map(f => `${quote}${f}${quote}`)
+  if (!last) return { text: text.slice(0, open) + items.join(', ') + text.slice(close), added, refuse: null } // []
+  const lineStart = text.lastIndexOf('\n', last.start) + 1
+  const indent = text.slice(lineStart, last.start)
+  const ownLines = text.slice(open, close).includes('\n') && !/\S/.test(indent)
+  if (!ownLines) return { text: text.slice(0, last.end) + items.map(s => `, ${s}`).join('') + text.slice(last.end), added, refuse: null }
+  // one entry per line: the rest of the last entry's line (a comma, a // comment) stays where it is
+  const lineEnd = Math.min(close, ...[text.indexOf('\n', last.end)].filter(n => n >= 0))
+  const rest = text.slice(last.end, lineEnd).replace(/\r$/, '')
+  if (!/^\s*,?\s*(\/\/.*)?$/.test(rest)) return { text, added: [], refuse: 'its globalIgnores([...]) has more after its last entry than this script can extend safely' }
+  const trailingComma = /^\s*,/.test(rest)
+  const eol = text.includes('\r\n') ? '\r\n' : '\n'
+  const newLines = items.map((s, n) => `${eol}${indent}${s}${trailingComma || n < items.length - 1 ? ',' : ''}`).join('')
+  return { text: text.slice(0, last.end) + (trailingComma ? '' : ',') + rest + newLines + text.slice(last.end + rest.length), added, refuse: null }
+}

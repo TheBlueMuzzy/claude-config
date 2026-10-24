@@ -95,6 +95,40 @@ function testInstallModule() {
   write(join(game, 'scripts', 'check-all.mjs'), '// an old copy\n')
   const lintGreen = install('audio', '.')
   expect('lint green → installed; an old check-all.mjs without the lock is named (F79)', lintGreen.code === 0 && /audio: lint/.test(lintGreen.out) && /no one-run-at-a-time lock/.test(lintGreen.out), lintGreen.out)
+  // F112: the game's eslint.config ignores the module's folder, and the game's OWN lint runs after the install.
+  // The game's "lint" stands in for Vite's eslint with react-refresh on: it fails while src/audio isn't ignored.
+  write(join(game, 'package.json'), JSON.stringify({ scripts: { lint: 'node lint.mjs' } }))
+  write(join(game, 'lint.mjs'), "import { readFileSync } from 'node:fs'\nif (!readFileSync('eslint.config.js', 'utf8').includes(\"'src/audio'\")) { console.log('src/audio/Panel.tsx  error  react-refresh/only-export-components'); process.exit(1) }\nconsole.log('lint clean')\n")
+  write(join(game, 'node_modules', '.keep'), '')
+  const crlf = "import { defineConfig, globalIgnores } from 'eslint/config'\r\nexport default defineConfig([\r\n  globalIgnores(['dist', 'src/ui/kit', 'sketches', '.claude']), // framework copies\r\n  { files: ['**/*.tsx'] },\r\n])\r\n"
+  write(join(game, 'eslint.config.js'), crlf)
+  const lintDry = install('audio', '.', '--dry-run')
+  expect('F112: dry run names the eslint ignore it would add, file untouched', lintDry.code === 0 && /eslint\.config\.js: would add 'src\/audio' to globalIgnores/.test(lintDry.out) && readFileSync(join(game, 'eslint.config.js'), 'utf8') === crlf, lintDry.out)
+  const lintOk = install('audio', '.')
+  const after = readFileSync(join(game, 'eslint.config.js'), 'utf8')
+  expect("F112: installed → only 'src/audio' added to globalIgnores, every other byte the same (CRLF kept)", after === crlf.replace("'.claude']", "'.claude', 'src/audio']"), JSON.stringify(after))
+  expect("F112: …then the game's own lint runs and passes, said", lintOk.code === 0 && /lint clean|the game's own lint passes/.test(lintOk.out) && /game's own lint passes/.test(lintOk.out), lintOk.out)
+  const again = install('audio', '.')
+  expect('F112: a second install adds nothing (already ignored)', again.code === 0 && readFileSync(join(game, 'eslint.config.js'), 'utf8') === after && /already ignores src\/audio/.test(again.out), again.out)
+  // a multi-line list gets a new line in the same indent; LF stays LF
+  write(join(game, 'eslint.config.js'), "export default defineConfig([\n  globalIgnores([\n    'dist',\n    '**/spike', // throwaway\n  ]),\n])\n")
+  install('audio', '.')
+  expect('F112: a one-per-line list gets its own new line, same indent, trailing comma kept', readFileSync(join(game, 'eslint.config.js'), 'utf8') === "export default defineConfig([\n  globalIgnores([\n    'dist',\n    '**/spike', // throwaway\n    'src/audio',\n  ]),\n])\n", readFileSync(join(game, 'eslint.config.js'), 'utf8'))
+  // a config it can't edit safely → refused BEFORE installing, with the exact line to add
+  rmSync(join(game, 'src', 'audio'), { recursive: true, force: true })
+  const odd = "const base = ['dist']\nexport default [globalIgnores([...base]), {}]\n"
+  write(join(game, 'eslint.config.js'), odd)
+  const refused = install('audio', '.')
+  expect("F112: a globalIgnores list with more than strings → refused before installing, names the line; file untouched", refused.code === 1 && /can't be edited safely/.test(refused.out) && /'src\/audio',/.test(refused.out) && !existsSync(join(game, 'src', 'audio')) && readFileSync(join(game, 'eslint.config.js'), 'utf8') === odd, refused.out)
+  write(join(game, 'eslint.config.js'), "export default [{ ignores: ['dist'] }]\n")
+  const noList = install('audio', '.', '--dry-run')
+  expect('F112: no globalIgnores at all → refused with the whole line to add', noList.code === 1 && /globalIgnores\(\['src\/audio'\]\), \/\/ framework module copies/.test(noList.out), noList.out)
+  // the game's own lint red (its own code) → exit 1, says where to look
+  write(join(game, 'eslint.config.js'), "export default [globalIgnores(['src/audio'])]\n")
+  write(join(game, 'lint.mjs'), "console.log('src/game.tsx  error  no-unused-vars'); process.exit(1)\n")
+  write(join(game, 'src', 'devkit', 'check-framework.mjs'), 'process.exit(0)')
+  const gameRed = install('audio', '.')
+  expect("F112: the game's own lint red → exit 1, its output shown, the module's checks still run", gameRed.code === 1 && /game's own lint fails/.test(gameRed.out) && /src\/game\.tsx/.test(gameRed.out) && /audio's code checks pass in the game/.test(gameRed.out), gameRed.out)
   rmSync(root, { recursive: true, force: true })
 }
 
