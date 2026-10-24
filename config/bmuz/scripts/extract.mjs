@@ -42,6 +42,18 @@ else if (command === 'fix') fix()
 else if (command === 'swap') swap()
 else refuse(`what should extract.mjs do? (got "${command ?? ''}")`, `one of:\n    ${USAGE}`)
 
+// --- what a game's words may be (review) ----------------------------------------------------------------------------
+// The queue is a markdown file anyone can edit, and its checks run through npm (a shell on Windows): a line break in
+// --what could write a fake "- Checks:" or "- Files:" line, and a check like `test & calc` would run calc. So text is
+// one line, a check is a plain script name the game's package.json has, and a file is a tracked file inside the game.
+// (function declarations: the command runs at the top of the file, before any const below it exists)
+function oneLine(text) { return String(text || '').replace(/\s+/g, ' ').trim() }
+function safeCheck(c) { return /^[A-Za-z0-9_][\w:.-]*$/.test(c) }
+function badChecks(checks, scripts) { return checks.filter(c => !safeCheck(c) || !Object.hasOwn(scripts, c)) }
+function safeRelPath(f) { return !!f && !/^[a-zA-Z]:|^\//.test(f) && !/[\\,`\r\n]/.test(f) && f.split('/').every(p => p && p !== '.' && p !== '..') }
+// exactly one tracked FILE at this path (a folder name matches --error-unmatch too)
+function trackedFile(root, f) { return (git(root, 'ls-files', '-z', '--', f) ?? '').split('\0').filter(Boolean).join('\n') === f }
+
 // --- the queue, saved + committed in the framework ----------------------------------------------------------------
 
 function entryOf(queue, id) {
@@ -78,7 +90,7 @@ function thisGame() {
 
 function add() {
   const { root, name } = thisGame()
-  const what = (flag('what') || '').trim()
+  const what = oneLine(flag('what'))
   const checks = (flag('checks') || '').split(',').map(c => c.trim().replace(/^npm run\s+/, '')).filter(Boolean)
   if (!rest.length) refuse('which files? none named', `node extract.mjs add src/engine/rng.ts --what="…" --checks=test`)
   if (!what) refuse('what does the piece do? --what is missing', '--what="seeded random numbers: same seed, same shift" (one line the framework session builds from)')
@@ -87,14 +99,15 @@ function add() {
   for (const f of rest) {
     const rel = relative(root, resolve(process.cwd(), f)).split('\\').join('/')
     if (!rel || rel.startsWith('..')) refuse(`${f} isn't inside the game (${root})`)
+    if (!safeRelPath(rel)) refuse(`${rel} can't go in the queue — a file name with a comma, a backtick or a line break would break its Files line`, 'rename the file first')
     if (!existsSync(join(root, rel))) refuse(`${rel} doesn't exist in the game`, 'name the files as they are now (git ls-files shows them)')
-    if (git(root, 'ls-files', '--error-unmatch', '--', rel) === null) refuse(`${rel} isn't committed in the game yet — the entry points at a commit, so the framework session reads exactly what you queued`, `commit it first, then add it`)
+    if (!trackedFile(root, rel)) refuse(`${rel} isn't committed in the game yet — the entry points at a commit, so the framework session reads exactly what you queued`, `commit it first, then add it`)
     if (changedFiles(root).some(c => c.path === rel)) refuse(`${rel} has uncommitted changes — the entry's commit wouldn't hold them`, 'commit it first (the piece should be finished), then add it')
     files.push(rel)
   }
   const scripts = readJson(join(root, 'package.json'))?.scripts ?? {}
-  const missing = checks.filter(c => !scripts[c])
-  if (missing.length) refuse(`not one of the game's npm scripts: ${missing.join(', ')} — the swap runs each check unchanged, so it has to exist`, `pick from: ${Object.keys(scripts).join(', ') || '(the game has no scripts)'}`)
+  const missing = badChecks(checks, scripts)
+  if (missing.length) refuse(`not one of the game's npm scripts: ${missing.join(', ')} — the swap runs each check unchanged, so it has to exist`, `pick from: ${Object.keys(scripts).filter(safeCheck).join(', ') || '(the game has no scripts)'}`)
   const queue = readQueue()
   for (const f of files) {
     const taken = queue.entries.find(e => isOpenEntry(e) && e.game === name && e.files.includes(f))
@@ -102,7 +115,7 @@ function add() {
   }
   const commit = git(root, 'rev-parse', '--short', 'HEAD')
   const id = nextExtractionId(queue.entries)
-  const label = (flag('name') || '').trim() || files[0].split('/').pop().replace(/\.[^.]+$/, '')
+  const label = oneLine(flag('name')) || files[0].split('/').pop().replace(/\.[^.]+$/, '')
   queue.entries.push({ id, name: label, status: 'queued', game: name, commit, files, what, checks, added: today, fixes: [], notes: [] })
   saveQueue(queue, `Extraction queue: ${id} queued — ${name.split('/').pop()} ${label}`)
   ok(`${id} queued: ${files.join(', ')} at ${commit}`)
@@ -152,7 +165,7 @@ function status() {
 
 function fix() {
   const [id, ...text] = rest
-  const line = text.join(' ').trim()
+  const line = oneLine(text.join(' '))
   const queue = readQueue()
   const entry = entryOf(queue, id)
   if (!isOpenEntry(entry)) refuse(`${entry.id} is already swapped — its files are the module's now; fix the module in the framework`)
@@ -177,6 +190,17 @@ function swap() {
   if (dirty.length) refuse(`the game has uncommitted changes (${dirty.slice(0, 5).map(c => c.path).join(', ')}${dirty.length > 5 ? ', …' : ''}) — the swap needs a clean tree so a red swap can be put aside with nothing lost`, 'commit (or /save) first, then swap')
   const branch = git(root, 'branch', '--show-current')
   if (!branch) refuse('the game is on a detached HEAD — the swap commits on a branch', 'switch to the work branch first')
+  // the queue file may have been edited by hand since `add` checked it: the checks and files are checked again here,
+  // before anything changes (a check runs through a shell on Windows; a file is deleted)
+  if (!entry.checks.length) refuse(`${entry.id} names no checks — the swap has nothing to prove it with`, `add a "- Checks: \`npm run test\`" line to ${entry.id} in ${queuePath()}`)
+  const unsafe = badChecks(entry.checks, readJson(join(root, 'package.json'))?.scripts ?? {})
+  if (unsafe.length) refuse(`${entry.id}'s checks aren't all the game's own npm scripts: ${unsafe.join(', ')} — only a plain script name from the game's package.json is run`, `fix the Checks line of ${entry.id} in ${queuePath()}`)
+  if (!/^[0-9a-f]{4,40}$/i.test(entry.commit)) refuse(`${entry.id}'s Commit "${entry.commit}" isn't a commit id`, `fix the Commit line of ${entry.id} in ${queuePath()} (git log in the game shows the one it was queued at)`)
+  if (!entry.files.length) refuse(`${entry.id} names no files`, `fix the Files line of ${entry.id} in ${queuePath()}`)
+  for (const f of entry.files) {
+    if (!safeRelPath(f)) refuse(`${entry.id} names "${f}" — not a plain path inside the game, so it isn't deleted`, `fix the Files line of ${entry.id} in ${queuePath()}`)
+    if (existsSync(join(root, f)) && !trackedFile(root, f)) refuse(`${f} isn't one file the game's git tracks (a folder, or never committed), so the swap won't delete it`, `fix the Files line of ${entry.id} in ${queuePath()}`)
+  }
   // the game's old copy: only the entry's files, and only when every change since it was queued was logged
   for (const f of entry.files) {
     if (!existsSync(join(root, f))) refuse(`${f} is gone from the game — was it moved?`, `fix the Files line of ${entry.id} in ${queuePath()}, then swap`)
@@ -188,6 +212,10 @@ function swap() {
   const has = existsSync(join(FRAMEWORK, module, 'kit', 'VERSION')) ? readFileSync(join(FRAMEWORK, module, 'kit', 'VERSION'), 'utf8').trim().split(/\s+/)[0] : null
   if (!has) refuse(`the framework at ${FRAMEWORK} has no ${module} module`, 'pull the framework (or set BMUZ_FRAMEWORK to the checkout that has it)')
   if (has !== version) say(`! ${entry.id} was released as ${module}@${version}; the framework has ${has} now — installing ${has}`)
+  // an old file inside a folder the module installs into would be deleted AFTER the install wrote the module there
+  const into = (moduleFolders(module) || []).map(d => d.replace(/\/+$/, ''))
+  const inside = entry.files.filter(f => into.some(d => f === d || f.startsWith(`${d}/`)))
+  if (inside.length) refuse(`${inside.join(', ')} sits inside ${into.join(' / ')}, the folder the ${module} module installs into — deleting the old copy would delete the module's own file`, `move the old file out first (a game commit, then extract.mjs fix ${entry.id} "moved"), or install the module into another folder`)
 
   // the imports of the old files, pointed at the module's entry (planned before anything changes)
   const rewrites = planImports(root, entry.files, meta.entry)
@@ -197,12 +225,17 @@ function swap() {
   const results = []
   const install = run(process.execPath, [INSTALL, module, root], { cwd: root })
   results.push({ name: `install-module ${module}`, ok: install.code === 0, out: install.out })
-  if (install.code === 0) {
+  let changed = install.code === 0
+  if (changed) {
     ok(`install-module ${module}`)
-    for (const { file, text } of rewrites.files) writeFileSync(join(root, file), text)
-    if (rewrites.files.length) ok(`imports pointed at the module: ${rewrites.files.map(r => r.file).join(', ')}`)
-    for (const f of entry.files) rmSync(join(root, f))
-    ok(`the game's old copy deleted: ${entry.files.join(', ')}`)
+    try { // (a write that throws mid-way still ends in the set-aside, never a half-swapped game on its own branch)
+      for (const { file, text } of rewrites.files) writeFileSync(join(root, file), text)
+      if (rewrites.files.length) ok(`imports pointed at the module: ${rewrites.files.map(r => r.file).join(', ')}`)
+      for (const f of entry.files) rmSync(join(root, f))
+      ok(`the game's old copy deleted: ${entry.files.join(', ')}`)
+    } catch (e) { changed = false; results.push({ name: 'pointing the imports + deleting the old copy', ok: false, out: String(e?.message || e) }) }
+  }
+  if (changed) {
     for (const check of entry.checks) {
       say(`… npm run ${check}`)
       const r = run('npm', ['run', check], { cwd: root })
@@ -236,13 +269,19 @@ function swap() {
 function setAside(root, branch, entry, red, why) {
   let aside = `extract/${entry.id}-swap`
   for (let n = 2; git(root, 'rev-parse', '--verify', '--quiet', `refs/heads/${aside}`) !== null; n++) aside = `extract/${entry.id}-swap-${n}`
+  const lines = red.map(r => `  ✗ ${r.name}:\n${tail(r.out, 12)}`)
+  if (why) lines.push(`  ✗ the swap commit: ${why}`)
+  // nothing changed (install-module refused before it installed — the module's own tests, the eslint config…): no
+  // branch to keep, the game simply stays where it is (review: it used to be left on an empty extract/ branch)
+  if (!changedFiles(root).length) {
+    refuse(`${entry.id} isn't swapped — it went red before anything in the game changed:\n${lines.join('\n')}\n  The game is untouched on ${branch}.`,
+      `fix what it names (in the framework, or the game's eslint config), then swap again`)
+  }
   run('git', ['switch', '-q', '-c', aside], { cwd: root })
   run('git', ['add', '-A'], { cwd: root })
   const secret = (git(root, 'diff', '--cached', '--name-only') || '').split('\n').filter(f => NEVER_COMMIT.test(f))
   for (const f of secret) run('git', ['rm', '-q', '--cached', '--', f], { cwd: root })
   const kept = run('git', ['commit', '-q', '-m', `Swap attempt ${entry.id} — red, set aside by extract.mjs`], { cwd: root })
-  const lines = red.map(r => `  ✗ ${r.name}:\n${tail(r.out, 12)}`)
-  if (why) lines.push(`  ✗ the swap commit: ${why}`)
   if (kept.code !== 0) { // (a game's own commit hook said no) — stay on the side branch, the attempt uncommitted there
     refuse(`${entry.id} isn't swapped — it went red:\n${lines.join('\n')}\n  ⚠ the attempt couldn't be committed on ${aside} either:\n${tail(kept.out, 5)}\n  The game is on ${aside} with the attempt uncommitted; ${branch} itself is untouched.`,
       `look at it with git status / git diff · then put it away: \`git stash -u\` and \`git switch ${branch}\``)

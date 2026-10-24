@@ -1,8 +1,9 @@
 // Edit and command habits that bit us, refused before they happen (F67).
 // Hooked on Edit|Write|MultiEdit|NotebookEdit and Bash|PowerShell (PreToolUse).
 //  1. Never edit a game's copy of a framework module (src/ui/kit/, src/devkit/, src/ai/kit/, src/audio/, src/rooms/,
-//     src/table/ — the folder has a VERSION file): change it in the framework, then reinstall. A copy edited in the game
-//     is lost at the next install and never reaches the other games.
+//     src/table/ — the folder has a VERSION file — and any other src/<x>/ or src/<x>/kit/ holding a VERSION, like a
+//     module swapped in from the extraction queue): change it in the framework, then reinstall. A copy edited in the
+//     game is lost at the next install and never reaches the other games.
 //  2. Read a check's OWN exit code: `npm test | tail` reports tail's exit code (0), so a failed check looks green
 //     (Goops 2026-10-17 shipped a kit change that broke the kit's own rules that way).
 //  3. Code with a backslash is never written through a heredoc or `python -c`: `'\\'` became `'\'`, `split('\n')` became
@@ -156,8 +157,22 @@ function refuseKitCopy(path) {
     if (!existsSync(join(game, folder, 'VERSION'))) continue // not an installed copy
     if (/\/framework\/[^/]+\/kit\//.test(normal)) continue // the framework's own source
     const rest = normal.slice(at + folder.length + 2)
-    deny(`Blocked: ${folder}/${rest} is this game's COPY of the framework's ${module} module (it has a VERSION file) — an edit here is lost at the next install and never reaches the other games. Change ~/Documents/dev/framework/${module}/kit/${rest} instead (run its tests + checks there), then reinstall it into the game with the module's install script (framework/${module}/scripts/install-*.mjs, --dry-run first).`)
+    denyKitCopy(folder, rest, module)
   }
+  // any other module copy (one born from the extraction queue, F114, or newer than this list): a src/<x>/ or
+  // src/<x>/kit/ folder holding a VERSION file — the same rule the Dev Kit's gameCode uses (F112)
+  if (/\/framework\/[^/]+\/kit\//.test(normal) || /\/node_modules\//.test(normal)) return
+  for (const m of normal.matchAll(/\/src\/([^/]+)\//g)) {
+    const game = normal.slice(0, m.index)
+    for (const folder of [`src/${m[1]}`, `src/${m[1]}/kit`]) {
+      if (!normal.startsWith(`${game}/${folder}/`) || !existsSync(join(game, folder, 'VERSION'))) continue
+      denyKitCopy(folder, normal.slice(game.length + folder.length + 2), m[1])
+    }
+  }
+}
+
+function denyKitCopy(folder, rest, module) {
+  deny(`Blocked: ${folder}/${rest} is this game's COPY of the framework's ${module} module (it has a VERSION file) — an edit here is lost at the next install and never reaches the other games. Change ~/Documents/dev/framework/${module}/kit/${rest} instead (run its tests + checks there), then reinstall it into the game with install-module.mjs (--dry-run first).`)
 }
 
 // Does this python / node script write a code file? The literal path in open(…, 'w') / writeFileSync('…') when there

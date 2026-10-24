@@ -1557,6 +1557,17 @@ function testFrozenFiles() {
   mkdirSync(join(game, 'src', 'audio'), { recursive: true }); writeFileSync(join(game, 'src', 'audio', 'VERSION'), '0.4.0\n')
   writeFileSync(join(fw, '.planning', 'extractions.md'), `# Extraction queue\n\n${entry('X03', 'queued', 'games/g', 'src/audio/engine.ts')}`)
   expect('a frozen file that is ALSO a module copy → still refused (rule 1 first)', edit(game, 'src/audio/engine.ts'), 'deny')
+  // rule 1 knows any module copy, not only the built-in list: src/<x>/ or src/<x>/kit/ holding a VERSION (review)
+  mkdirSync(join(game, 'src', 'random'), { recursive: true }); writeFileSync(join(game, 'src', 'random', 'VERSION'), '0.1.0\n')
+  mkdirSync(join(game, 'src', 'dice', 'kit'), { recursive: true }); writeFileSync(join(game, 'src', 'dice', 'kit', 'VERSION'), '0.1.0\n')
+  expect('a swapped-in module copy (src/random/ has a VERSION) → refused, points at framework/random/kit', edit(game, 'src/random/index.ts'), 'deny')
+  expect('…a deeper file in it too', edit(game, 'src/random/lib/seed.ts'), 'deny')
+  expect('…a src/<x>/kit/ copy (src/dice/kit/VERSION)', edit(game, 'src/dice/kit/roll.ts'), 'deny')
+  expect('…but src/dice/ outside its kit/ is the game\'s own code → allowed', edit(game, 'src/dice/DiceScreen.tsx'), 'allow')
+  expect('…a shell write into it (sed -i) → refused', runHook('guard-edits.mjs', bash(game, 'sed -i s/a/b/ src/random/index.ts')), 'deny')
+  expect('a src/<x>/ with no VERSION (the game\'s own engine/) → allowed', edit(game, 'src/engine/shift.ts'), 'allow')
+  mkdirSync(join(fw, 'random', 'kit'), { recursive: true }); writeFileSync(join(fw, 'random', 'kit', 'VERSION'), '0.1.0\n')
+  expect('the framework\'s own module source → allowed', edit(fw, 'random/kit/index.ts'), 'allow')
   process.env.BMUZ_FRAMEWORK = saved.fw ?? ''; process.env.BMUZ_DEV = saved.dev ?? ''
   if (saved.fw === undefined) delete process.env.BMUZ_FRAMEWORK
   if (saved.dev === undefined) delete process.env.BMUZ_DEV
