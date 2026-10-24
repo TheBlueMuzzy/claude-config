@@ -17,6 +17,9 @@
 //  7. (F114) A WARNING, never a refusal: a file listed in an open extraction-queue entry (the framework's
 //     .planning/extractions.md) is frozen in its game — bug fixes only, each one logged on the entry with
 //     `extract.mjs fix <id> "<what>"`, so the framework session carries it into the module.
+//  8. A `node -e "…"` / `python -c "…"` in bash with a backtick inside the double quotes: bash runs the backticked text
+//     as a command first, so the script silently loses it — and a `>` in it writes a file (framework sprint 33: a
+//     ROADMAP line lost its code and mermaid block, and empty files named "[data-slot]" and "F123[F123" got committed).
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, relative, isAbsolute } from 'node:path'
@@ -83,6 +86,11 @@ const sedOnCode = [...unquoted.matchAll(/\b(?:sed|perl)\s+(?:[^\n;&|]*?\s)?-[a-z
 const sedWithBackslash = sedOnCode && /\b(?:sed|perl)\b[^\n]*\\/.test(shell)
 if ((shellWritesCode && heredocWithBackslash) || scripts.some(scriptWritesCode) || sedWithBackslash) {
   deny('Blocked: this writes a code file through a heredoc / `python -c` / `node -e` / `sed -i`, and the text has a backslash — the shell or Python can silently change it (a doubled backslash became one, a backslash-n became a real line break, a backslash-b became an invisible character; 8 times so far). Use the Edit tool (or Write for a new file) for any text with a backslash or a quote inside quotes. A script that only needs a newline can use chr(10) / String.fromCharCode(10) instead of a backslash.')
+}
+
+// 8. bash: a double-quoted node -e / python -c script with a backtick in it (bash runs it as a command first)
+if (tool === 'Bash' && doubleQuotedScripts(command).some(s => /(^|[^\\])`/.test(s))) {
+  deny('Blocked: this `node -e "…"` / `python -c "…"` has a backtick inside double quotes — bash runs the backticked text as a command before the script sees it, so the text silently goes missing (and a `>` inside makes a file). Put the script in single quotes (`node -e \'…\'`), or Write it to a .mjs file in the scratchpad and run that.')
 }
 
 // 4. stopping a server by hand — the kill tool has to BE the command (review: `grep -rn taskkill …` and
@@ -221,6 +229,11 @@ function heredocBodies(text) {
 }
 
 // The script in `python -c "…"` / `node -e '…'`
+// (8) each `node -e "…"` / `python -c "…"` body in double quotes, up to its closing unescaped quote
+function doubleQuotedScripts(text) {
+  return [...text.matchAll(/\b(?:python3?|py|node)\s+(?:--?[\w=-]+\s+)*-(?:c|e)\s+"((?:\\[\s\S]|[^"\\])*)"/g)].map(m => m[1])
+}
+
 function inlineScripts(text) {
   // to the end of the line: an escaped quote inside the script would end a tighter match too early
   return [...text.matchAll(/\b(?:python3?|py|node)\s+(?:--?[\w=-]+\s+)*-(?:c|e)\s+(['"])([\s\S]*)$/g)].map(m => m[2])
