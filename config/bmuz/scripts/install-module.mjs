@@ -56,15 +56,15 @@ if (ignores?.refuse) {
       ? `add this line first inside the config list (defineConfig([ … ]) or the exported [ … ]), with import { globalIgnores } from 'eslint/config':\n      ${line}\n    then run this again`
       : `add these to its globalIgnores([...]) list by hand:\n      ${line}\n    then run this again`)
 }
-const ignoreNote = !eslintFile ? `eslint: no eslint.config.* in the game — nothing to ignore`
-  : ignores.added.length ? `${eslintFile}: ${flags.has('--dry-run') ? 'would add' : 'adds'} ${ignores.added.map(f => `'${f}'`).join(', ')} to globalIgnores (the module is linted in the framework)`
+const ignoreNote = (done) => !eslintFile ? `eslint: no eslint.config.* in the game — nothing to ignore`
+  : ignores.added.length ? `${eslintFile}: ${done ? 'added' : 'would add'} ${ignores.added.map(f => `'${f}'`).join(', ')} to globalIgnores (the module is linted in the framework)`
   : `${eslintFile}: already ignores ${folders.join(', ')}`
 
 // 2. dry run — 3. the real install
 const installerPath = join(moduleDir, 'scripts', installer)
 const dry = run('node', [installerPath, game, ...extra, '--dry-run'])
 if (dry.code !== 0) refuse(`the installer's dry run failed:\n${tail(dry.out)}`)
-say(`\n--- dry run ---\n${dry.out.trim()}\n${ignoreNote}\n---`)
+say(`\n--- dry run ---\n${dry.out.trim()}\n${ignoreNote(false)}\n---`)
 if (flags.has('--dry-run')) { say('Dry run only — nothing changed.'); process.exit(0) }
 const real = run('node', [installerPath, game, ...extra])
 if (real.code !== 0) refuse(`the install failed part-way:\n${tail(real.out)}`, 'git status in the game shows what it changed — `git checkout -- src/` puts the old copy back (ask Muzzy first if there is other uncommitted work)')
@@ -72,8 +72,8 @@ say(real.out.trim())
 ok(`${module} installed`)
 if (ignores?.added.length) {
   writeFileSync(join(game, eslintFile), ignores.text)
-  ok(`${ignoreNote} — commit it with the module`)
-} else say(`  ${ignoreNote}`)
+  ok(`${ignoreNote(true)} — commit it with the module`)
+} else say(`  ${ignoreNote(true)}`)
 // F85: every game waits 7 days before taking a brand-new package version — the 2025 npm worm pushed poisoned versions
 // that were caught within days. npm 11.10+ reads min-release-age from .npmrc (older npm ignores the line, no harm).
 const npmrc = join(game, '.npmrc')

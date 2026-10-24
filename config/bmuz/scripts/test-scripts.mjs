@@ -42,7 +42,7 @@ function makeRepo(root, name = 'repo') {
   return repo
 }
 
-function testInstallModule() {
+async function testInstallModule() {
   console.log('install-module — one safe way to install a module')
   const root = mkdtempSync(join(tmpdir(), 'bmuz-install-'))
   const fw = join(root, 'framework')
@@ -130,6 +130,19 @@ function testInstallModule() {
   const gameRed = install('audio', '.')
   expect("F112: the game's own lint red → exit 1, its output shown, the module's checks still run", gameRed.code === 1 && /game's own lint fails/.test(gameRed.out) && /src\/game\.tsx/.test(gameRed.out) && /audio's code checks pass in the game/.test(gameRed.out), gameRed.out)
   rmSync(root, { recursive: true, force: true })
+  // F112 review fixes — addEslintIgnores itself: a globalIgnores([ in a comment or a string is never the real list,
+  // and an empty list's comment stays
+  const { addEslintIgnores } = await import(pathToFileURL(join(SCRIPTS, 'lib.mjs')).href)
+  const add = (t) => addEslintIgnores(t, ['src/audio'])
+  const onlyInComment = "// globalIgnores(['dist'])\nconst ig = ['dist']\nexport default [globalIgnores(ig)]\n"
+  const r1 = add(onlyInComment)
+  expect('F112 review: a commented-out globalIgnores([...]) is never edited (the real one is a variable → refused)', r1.text === onlyInComment && /no globalIgnores/.test(r1.refuse ?? ''), JSON.stringify(r1))
+  const r2 = add("// old: globalIgnores(['x']),\n/* see globalIgnores([...]) */\nconst s = 'globalIgnores(['\nexport default [globalIgnores(['dist'])]\n")
+  expect('F112 review: a mention in a comment / block comment / string is not a second list — the real one gets the folder', r2.refuse === null && r2.text.endsWith("[globalIgnores(['dist', 'src/audio'])]\n") && r2.text.startsWith("// old: globalIgnores(['x']),\n"), JSON.stringify(r2))
+  const r3 = add("export default [globalIgnores([\n  // nothing yet\n])]\n")
+  expect("F112 review: an empty list keeps the comment inside it", r3.text === "export default [globalIgnores(['src/audio'\n  // nothing yet\n])]\n", JSON.stringify(r3))
+  const r4 = add("export default [\r\n  globalIgnores([\r\n    'dist', // the build [old] it's\r\n  ]),\r\n]\r\n")
+  expect('F112 review: CRLF list with brackets + a quote in a comment → new CRLF line, comment kept', r4.text === "export default [\r\n  globalIgnores([\r\n    'dist', // the build [old] it's\r\n    'src/audio',\r\n  ]),\r\n]\r\n", JSON.stringify(r4))
 }
 
 // Today as the plan files write it (local date — release.mjs accepts local or UTC)

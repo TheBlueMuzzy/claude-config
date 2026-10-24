@@ -284,12 +284,34 @@ function ignoreCovers(entry, folder) {
   return folder === e || folder.startsWith(`${e}/`)
 }
 
+// The text with every comment and the inside of every string blanked to spaces (same length, line breaks kept), so a
+// globalIgnores([ named in a comment, a commented-out old list or a string is never taken for the real one (review fix).
+function codeOnly(text) {
+  const blank = (s) => s.replace(/[^\r\n]/g, ' ')
+  let out = ''
+  for (let i = 0; i < text.length;) {
+    const c = text[i]
+    let end = -1
+    if (text.startsWith('//', i)) { end = text.indexOf('\n', i); if (end < 0) end = text.length }
+    else if (text.startsWith('/*', i)) { end = text.indexOf('*/', i + 2); end = end < 0 ? text.length : end + 2 }
+    if (end >= 0) { out += blank(text.slice(i, end)); i = end; continue }
+    if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1
+      while (j < text.length && text[j] !== c) j += text[j] === '\\' ? 2 : 1
+      j = Math.min(j, text.length) // j = the closing quote (or the end of an unclosed string)
+      out += c + blank(text.slice(i + 1, j)) + text.slice(j, j + 1); i = j + 1; continue
+    }
+    out += c; i++
+  }
+  return out
+}
+
 /** The game's eslint config text + the module's folders → { text, added, refuse }. Only the ONE globalIgnores([...])
  *  list changes, and only by the missing folders, written after its last entry in that entry's quote style: on the
  *  same line for a one-line list, else one per new line in the last entry's indent and the file's own line ending
  *  (CRLF stays CRLF). Every other byte stays. refuse = why the file can't be edited safely (text unchanged), else null. */
 export function addEslintIgnores(text, folders) {
-  const calls = [...text.matchAll(/\bglobalIgnores\s*\(\s*\[/g)]
+  const calls = [...codeOnly(text).matchAll(/\bglobalIgnores\s*\(\s*\[/g)]
   if (calls.length !== 1) return { text, added: [], refuse: calls.length ? 'it has more than one globalIgnores([...])' : 'it has no globalIgnores([...]) list' }
   const open = calls[0].index + calls[0][0].length // just after the [
   const entries = [] // { value, start, end, quote }
@@ -312,7 +334,7 @@ export function addEslintIgnores(text, folders) {
   const last = entries.at(-1)
   const quote = last?.quote ?? "'"
   const items = added.map(f => `${quote}${f}${quote}`)
-  if (!last) return { text: text.slice(0, open) + items.join(', ') + text.slice(close), added, refuse: null } // []
+  if (!last) return { text: text.slice(0, open) + items.join(', ') + text.slice(open), added, refuse: null } // [] (a comment inside stays)
   const lineStart = text.lastIndexOf('\n', last.start) + 1
   const indent = text.slice(lineStart, last.start)
   const ownLines = text.slice(open, close).includes('\n') && !/\S/.test(indent)
