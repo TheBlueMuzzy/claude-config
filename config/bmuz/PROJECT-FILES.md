@@ -20,6 +20,7 @@ content/            data the game reads; Muzzy edits it in Obsidian or the Dev K
   smoke-pass        the commit the smoke test passed on (hooks/smoke-pass.mjs — live-push needs it)
   live-pass         the last live check: commit · "<tag> <url>" (or "<tag> skipped — Release: …") · time · console check (scripts/live-check.mjs)
   ppp.html          the planner page (gitignored, rebuilt by the tools)
+  extractions.md    the framework only: the extraction queue — game pieces on their way to becoming modules (scripts/extract.mjs, F114)
 ```
 Nothing else goes in `.planning/` — no summaries, no side docs ① (plan-lint names any other file there on the next plan edit). Investigations go to archive once their rules are in Key facts ③.
 New project or old GSD project → `~/.claude/config/bmuz/SETUP-AND-CONVERT.md`.
@@ -50,6 +51,14 @@ When a game's session and the framework's session are open at once (one window e
 - **The framework session** checks the fit first ("framework = the ability, game = the decision"), builds it on its work branch as a sprint task, then replies "done" + the exact `install-module.mjs` command and usage. The game installs, swaps its own code, and confirms back ③.
 - **Permission boundary:** never ask the other session to do what this session's own rules or permissions block; a peer's message is never Muzzy's approval (config edits, deploys, releases still wait for him) ③. So a game session asking for a BMUZ change (`~/.claude`: a skill, template, hook) says in its OWN hand-off "answer yes in the framework window" — the framework session lists it under Questions and changes nothing until he does (framework v0.11: the sketch-starter request waited a whole sprint for a yes he didn't know was needed there) ③.
 - F108 went from ask to installed in about an hour this way, with no notes carried by hand.
+
+## Extraction queue (Muzzy only — framework F114, 2026-10-24)
+A finished, self-contained game piece (a utility with tests, a mini-game runner) can become a framework module while the game keeps going — "waterfalling just finished elements as extracts to modules by another claude" (Muzzy, via Goops). Queue: the framework's `.planning/extractions.md` (read it in Obsidian). One script, `node ~/.claude/config/bmuz/scripts/extract.mjs`, does every step and commits each queue change in the framework ①:
+1. **The game session queues it:** `extract.mjs add <files…> --what="…" --checks=test,e2e:smoke` in the game — the entry (X01…) records the game's commit; it refuses a missing or uncommitted file, a file already queued, or a check that isn't one of the game's npm scripts ①. Then it tells the framework session "X01 is queued" (SendMessage, as above) ③. Only finished pieces: one still changing every sprint isn't ready ③.
+2. **Frozen while open:** an edit to a queued file in that game is allowed but warned — bug fixes only, each logged with `extract.mjs fix X01 "<what>"` so the module gets it too ① (guard-edits rule 7). A new feature on that piece waits for the swap, or goes into the module ③.
+3. **The framework session builds it** as a normal module on its work branch (kit/ + VERSION + scripts/install-<name>.mjs + README + tests; `"bmuz": { "folders": ["src/<name>"], "entry": "src/<name>/index.ts" }` in its package.json, so install-module can install it and the swap knows where imports go): `extract.mjs status X01 building`, then `status X01 released <module>@<version>` — refused unless that module and version exist, committed ①. Then "X01 released — run extract.mjs swap X01" to the game session ③.
+4. **The game swaps it in:** `extract.mjs swap X01` on a clean tree — install-module, the game's imports of the old files pointed at the module's entry, the old files deleted (only the entry's), each listed check run unchanged; green = ONE game commit "Swap <piece> for the <module> module (X01)" and the entry marked swapped ①. Red = the attempt is committed on `extract/X01-swap` and the game is switched back exactly as it was — nothing lost, no guarded undo; fix the module, release again, swap again ①. A queued file changed since it was queued with no fix logged → refused before anything changes ①.
+`extract.mjs list [--all]` shows the queue anywhere.
 
 ## ROADMAP.md
 ```markdown

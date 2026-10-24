@@ -15,6 +15,7 @@ Read `~/.claude/config/bmuz/PROJECT-FILES.md` if you haven't this session ③ (r
 - Open `Ask Muzzy:` questions on the next task? Ask now (2–3 options + your pick), write answers into Notes ① listed at every session start (session-start.sh) · ③ asking well.
 - **Branch — one work branch per delivery, not per sprint:** on the default branch (main/master) → create `dev/<milestone-slug>` and switch (if the project auto-deploys from main, say once: "The live site now only updates when you `/deliver`."). Already on a `dev/…` or other work branch → stay on it, across as many sprints as it takes until `/deliver` ② (guard-git refuses `F08:` code commits on main).
 - **UI task?** Framework pieces behind the newest are named at session start ①; install/update any module with `node ~/.claude/config/bmuz/scripts/install-module.mjs <module> .` ① — it refuses a module whose own checks are red, shows the dry run, installs, then runs the game's checks for it.
+- **A finished piece that other games could use?** (Muzzy only) Queue it for the framework instead of waiting: `node ~/.claude/config/bmuz/scripts/extract.mjs add <files…> --what="…" --checks=<the game's checks>` — its files then take bug fixes only (warned, each logged with `extract.mjs fix`), and `extract.mjs swap <id>` brings the module back in one commit ① (PROJECT-FILES "Extraction queue").
 - STATE (only if it changed): Stage = develop, Doing = "F08 — building" ③ (every sprint feature is 🔨 at once, so nothing can tell which one is in hand; the `F08: done` gate checks STATE).
 - One-line kickoff: "Picking up F08 — hover lifts the card. 3 tasks left in this sprint."
 
@@ -89,7 +90,7 @@ For each unticked 🤖 task, in order (skip 🙋 tasks — remind Muzzy of them 
 - Screenshots: also look for things **clipped inside boxes** (scroll areas, panels) — sideways-overflow checks don't catch those ② (ui-kit uiProblems in check:framework) · ③ your own look.
 
 ## 4. Hand to Muzzy (after each feature, or when he needs to look)
-- **The hand-off card, every time** ② (`~/.claude/config/bmuz/templates/handoff.md` — Done · You'll see · Try it · Proof · Questions · Next `/command` — what it covers; handoff-check sends any other ending back after a work turn). The bullets below fill its sections.
+- **The hand-off card, every time** ② (`~/.claude/config/bmuz/templates/handoff.md` — Done · You'll see · Try it · Proof · Your to-dos · Questions · Next `/command` — what it covers; handoff-check sends any other ending back after a work turn). The bullets below fill its sections.
 - Describe what changed from the player's side (3–6 bullets) and what the screenshots showed (he can't see Playwright's images — describe them). Say exactly what to try ② (**You'll see** / **Proof** required).
 - Feature has a `why:` line → end with its one feel question: "Did <moment> feel like <target, in players' words>?" Answer → SPRINT Notes ② (handoff-check sends back a card for a built feature with `why:` and no "Did … feel …?").
 - List his 🙋 tasks and any new `Ask Muzzy:` questions ② (**Questions** required).

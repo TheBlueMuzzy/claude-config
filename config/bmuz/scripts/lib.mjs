@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import { git, codeFingerprint, holdCheckLock } from '../hooks/lib.mjs'
 export { git, NEVER_COMMIT } from '../hooks/lib.mjs'
 
@@ -274,6 +274,11 @@ export const MODULE_FOLDERS = {
   devkit: ['src/devkit', 'vite-plugins/devkit'], 'ui-kit': ['src/ui/kit'], audio: ['src/audio'], table: ['src/table'], ai: ['src/ai/kit'],
   rooms: ['src/rooms'], saves: ['src/saves'], version: ['src/version'], crashes: ['src/crashes'], emotes: ['src/emotes'],
 }
+// A module born from the extraction queue (F114) isn't in that list: it names its folders in its own package.json,
+// "bmuz": { "folders": ["src/rng"], "check": "rng" } (check = its check:framework id, when it has promise checks).
+export function moduleFolders(module) {
+  return MODULE_FOLDERS[module] ?? readJson(join(FRAMEWORK, module, 'package.json'))?.bmuz?.folders ?? null
+}
 export const ESLINT_CONFIGS = ['eslint.config.js', 'eslint.config.mjs', 'eslint.config.cjs', 'eslint.config.ts', 'eslint.config.mts', 'eslint.config.cts']
 
 // Does an ignore entry already cover a folder? 'src/ui/kit', './src/ui/kit/', 'src/ui/kit/**', a parent 'src', '**/kit'.
@@ -347,4 +352,95 @@ export function addEslintIgnores(text, folders) {
   const eol = text.includes('\r\n') ? '\r\n' : '\n'
   const newLines = items.map((s, n) => `${eol}${indent}${s}${trailingComma || n < items.length - 1 ? ',' : ''}`).join('')
   return { text: text.slice(0, last.end) + (trailingComma ? '' : ',') + rest + newLines + text.slice(last.end + rest.length), added, refuse: null }
+}
+
+// --- the extraction queue (F114, Muzzy only) ------------------------------------------------------------------------
+// A game session hands a finished piece to the framework session: one entry per piece in the framework's
+// .planning/extractions.md (Muzzy reads it in Obsidian). extract.mjs writes it; guard-edits reads it (frozen files).
+// An entry:
+//   ## X01 · seeded random numbers
+//   - Status: queued | building | released rng@0.1.0 | swapped in 1a2b3c4
+//   - Game: games/goops                       (the game's folder under ~/Documents/dev — same on both machines)
+//   - Commit: a481eb1                         (the game's commit the files were queued at)
+//   - Files: `src/engine/rng.ts`, …
+//   - What it does: …
+//   - Checks: `npm run test`, `npm run build` (the game's own scripts that prove it, run unchanged at the swap)
+//   - Added: 2026-10-24
+//   - Fixes while frozen: none | then one "  - <date> — <what>" line each
+// Any other line inside an entry (Muzzy's notes) is kept where the entry ends.
+export const DEV = process.env.BMUZ_DEV || join(homedir(), 'Documents', 'dev')
+export const queuePath = () => join(FRAMEWORK, '.planning', 'extractions.md')
+const QUEUE_HEAD = [
+  '# Extraction queue',
+  '',
+  'Finished game pieces waiting to become framework modules (F114 — Muzzy only). One entry per piece.',
+  'Written by `node ~/.claude/config/bmuz/scripts/extract.mjs` (add · list · status · fix · swap) — the words of an entry can be edited by hand.',
+  'Status: queued → building → released <module>@<version> → swapped. While an entry is open, its files in the game get bug fixes only (each one logged under "Fixes while frozen").',
+]
+const QUEUE_FIELDS = [['status', 'Status'], ['game', 'Game'], ['commit', 'Commit'], ['files', 'Files'], ['what', 'What it does'], ['checks', 'Checks'], ['added', 'Added']]
+const listOf = (value) => value.split(',').map(s => s.replace(/`/g, '').replace(/^\s*npm run\s+/, '').trim()).filter(Boolean)
+
+/** The queue file's text → { head: [lines before the first entry], entries: [{ id, name, status, game, commit, files[],
+ *  what, checks[], added, fixes[], notes[] }], eol }. */
+export function parseQueue(text) {
+  const eol = (text || '').includes('\r\n') ? '\r\n' : '\n'
+  const lines = (text || '').replace(/\r\n/g, '\n').split('\n')
+  const head = []
+  const entries = []
+  let entry = null
+  let inFixes = false
+  for (const line of lines) {
+    const title = line.match(/^## (X\d+)\s*·?\s*(.*)$/)
+    if (title) {
+      entry = { id: title[1], name: title[2].trim(), status: '', game: '', commit: '', files: [], what: '', checks: [], added: '', fixes: [], notes: [] }
+      entries.push(entry); inFixes = false; continue
+    }
+    if (!entry) { head.push(line); continue }
+    const fix = inFixes && line.match(/^\s+- (.+)$/)
+    if (fix) { entry.fixes.push(fix[1].trim()); continue }
+    inFixes = false
+    if (/^- Fixes while frozen:/.test(line)) { inFixes = true; continue }
+    const field = QUEUE_FIELDS.find(([, label]) => line.startsWith(`- ${label}:`))
+    if (!field) { entry.notes.push(line); continue }
+    const value = line.slice(field[1].length + 3).trim()
+    entry[field[0]] = field[0] === 'files' || field[0] === 'checks' ? listOf(value) : value
+  }
+  while (head.length && head.at(-1) === '') head.pop()
+  for (const e of entries) while (e.notes.length && e.notes.at(-1).trim() === '') e.notes.pop()
+  return { head, entries, eol }
+}
+
+/** The queue back to text — the head and Muzzy's own lines kept, the file's line ending kept. */
+export function writeQueue({ head, entries, eol = '\n' }) {
+  const out = [...(head.length ? head : QUEUE_HEAD), '']
+  for (const e of entries) {
+    out.push(`## ${e.id} · ${e.name}`,
+      `- Status: ${e.status}`, `- Game: ${e.game}`, `- Commit: ${e.commit}`,
+      `- Files: ${e.files.map(f => `\`${f}\``).join(', ')}`,
+      `- What it does: ${e.what}`,
+      `- Checks: ${e.checks.map(c => `\`npm run ${c}\``).join(', ')}`,
+      `- Added: ${e.added}`,
+      `- Fixes while frozen:${e.fixes.length ? '' : ' none'}`, ...e.fixes.map(f => `  - ${f}`),
+      ...e.notes, '')
+  }
+  return out.join(eol)
+}
+
+export const readQueue = () => parseQueue(existsSync(queuePath()) ? readFileSync(queuePath(), 'utf8') : '')
+export const statusWord = (entry) => (entry.status.split(/\s+/)[0] || '').toLowerCase()
+export const isOpenEntry = (entry) => statusWord(entry) !== 'swapped'
+export const nextExtractionId = (entries) => `X${String(Math.max(0, ...entries.map(e => Number(e.id.slice(1)))) + 1).padStart(2, '0')}`
+
+// The game folder as the queue names it: its path under ~/Documents/dev with forward slashes (null when outside it).
+export function gameName(dir) {
+  const rel = relative(DEV, resolve(dir)).split('\\').join('/')
+  return !rel || rel.startsWith('..') || /^[a-zA-Z]:/.test(rel) ? null : rel
+}
+
+// The open entry (not swapped) a game file belongs to, or null. Windows paths match whatever their case.
+export function frozenEntry(entries, filePath) {
+  const name = gameName(filePath)
+  if (!name) return null
+  const same = process.platform === 'win32' ? (a, b) => a.toLowerCase() === b.toLowerCase() : (a, b) => a === b
+  return entries.find(e => isOpenEntry(e) && e.game && e.files.some(f => same(`${e.game}/${f}`, name))) || null
 }

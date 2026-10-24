@@ -13,10 +13,14 @@
 //     home folder (1 GB piled up in ~/spike and ~/ppp-proof, 2026-10-19) — cleanup.sh clears .scratch, nothing clears ~.
 //  6. (F80) Python writing a code file opens it with newline='' (no translation): on Windows text mode turns every LF
 //     into CRLF (Glyphtender F71).
+//  7. (F114) A WARNING, never a refusal: a file listed in an open extraction-queue entry (the framework's
+//     .planning/extractions.md) is frozen in its game — bug fixes only, each one logged on the entry with
+//     `extract.mjs fix <id> "<what>"`, so the framework session carries it into the module.
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, relative, isAbsolute } from 'node:path'
 import { readInput, deny, toDir, dropHeredocs, commands } from './lib.mjs'
+import { readQueue, frozenEntry } from '../scripts/lib.mjs'
 
 const MODULE_COPIES = [ // folder in a game → framework module
   ['src/ui/kit', 'ui-kit'], ['src/devkit', 'devkit'], ['src/ai/kit', 'ai'],
@@ -25,6 +29,7 @@ const MODULE_COPIES = [ // folder in a game → framework module
 const CODE_FILE = /\.(m?[jt]sx?|c[jt]s|css|py|ps1|sh)\b/
 
 const input = readInput()
+const warnings = [] // (F114) frozen files: said, never refused
 const tool = input.tool_name
 const cwd = input.cwd || process.cwd()
 
@@ -32,11 +37,12 @@ if (['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(tool)) {
   const file = input.tool_input?.file_path || input.tool_input?.notebook_path
   if (file) refuseKitCopy(toDir(file, cwd))
   if (file && tool === 'Write') refuseHomeClutter(toDir(file, cwd), 'a new file')
-  process.exit(0)
+  if (file) warnFrozen(toDir(file, cwd))
+  finish()
 }
 
 const command = input.tool_input?.command
-if (!command || !['Bash', 'PowerShell'].includes(tool)) process.exit(0)
+if (!command || !['Bash', 'PowerShell'].includes(tool)) finish()
 
 // The command itself (heredoc text left out — usually a commit message) and the scripts it runs:
 // heredocs fed to python/node, and `python -c` / `node -e` strings.
@@ -45,6 +51,8 @@ const scripts = [...(/\b(python3?|py|node)\b[^\n]*<</.test(command) ? heredocBod
 
 // 1. writes into a kit copy from the shell (sed -i, >, tee, Set-Content, open(…, 'w'), writeFileSync)
 for (const target of [shell, ...scripts].flatMap(writeTargets)) refuseKitCopy(toDir(target, cwd))
+// 7. (F114) the same writes into a frozen file only warn (said at the end, once every rule has let the command through)
+for (const target of [shell, ...scripts].flatMap(writeTargets)) warnFrozen(toDir(target, cwd))
 
 // 2. a check piped into something that hides its exit code
 // the command BEFORE the pipe must itself be a check (`grep -rn vitest src | head` is just a search)
@@ -107,7 +115,26 @@ const pythonScripts = /\b(python3?|py)\b/.test(command) ? scripts : []
 if (pythonScripts.some(s => writesCodeFile(s) && /(open\([^)]*,\s*(mode\s*=\s*)?r?['"](w|a|w\+|wt|at)['"]|\.write_text\()/.test(s) && !/newline\s*=/.test(s))) {
   deny("Blocked: this Python writes a code file in text mode without `newline=` — on Windows every line ending becomes CRLF (Glyphtender F71). Open it with `open(p, 'w', newline='')` (no translation, and no backslash for the heredoc rule to trip on), or use the Edit / Write tool.")
 }
-process.exit(0)
+finish()
+
+// Allowed — with the frozen-file warnings (F114), if any, shown to Claude (and Muzzy) next to the call. Never a refusal.
+function finish() {
+  if (warnings.length) {
+    const text = warnings.join('\n')
+    process.stdout.write(JSON.stringify({ systemMessage: text, hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } }))
+  }
+  process.exit(0)
+}
+
+// A file in an open extraction-queue entry for its game → one warning per entry. No queue, or one it can't read → nothing.
+function warnFrozen(path) {
+  let entry = null
+  try { entry = frozenEntry(readQueue().entries, path) } catch { return }
+  if (!entry || warnings.some(w => w.includes(`as ${entry.id} `))) return
+  const normal = path.split('\\').join('/').toLowerCase()
+  const file = entry.files.find(f => normal.endsWith(`/${f.toLowerCase()}`)) || path
+  warnings.push(`⚠ ${file} is being extracted as ${entry.id} (${entry.name} · ${entry.status}) — bug fixes only; log each one: node ~/.claude/config/bmuz/scripts/extract.mjs fix ${entry.id} "<what>". A new feature here waits for the swap (or goes into the framework's module).`)
+}
 
 // A new folder or loose file straight in the home folder (not a dot-folder like ~/.claude) → refused, pointing to
 // ~/Documents/dev/.scratch/. Folders that already exist (Documents, Desktop, AppData…) are fine.

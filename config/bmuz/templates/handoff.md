@@ -11,10 +11,13 @@ here and the check follows (it reads every `**Label:**` in the card).
 **You'll see:** what changed from your side — and what stays the same
 **Try it:** PC link · phone link · live link · planner (PPP) link — or "nothing to try: <why>"
 **Proof:** the checks that ran (with results) + what the screenshots showed
-**Questions:** what Claude needs from Muzzy — or "none"
+**Your to-dos:** things only Muzzy can do (say yes in another window, try it on the phone, play a round) — or "none"
+**Questions:** only decisions Muzzy answers, each one a question ending in "?" (options, Claude's pick first) — or "none"
 **Next:** `/command` — what it will cover
 ```
-Plain words, short lines, jargon explained the first time. Links in full (http…) so they're clickable. A wrapped label
+Questions holds questions only (Muzzy, 2026-10-23: "this didn't seem like a question. it felt like information. this
+section is called Questions: i'm confused by that") — information goes in Done / You'll see, actions in Your to-dos; the
+check sends back a Questions item with no "?". Plain words, short lines, jargon explained the first time. Links in full (http…) so they're clickable. A wrapped label
 may hold bullets under it.
 
 ## Progress line (work still running — helpers, long checks)

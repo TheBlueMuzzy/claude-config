@@ -13,7 +13,7 @@ import { git, readInput, tellClaude } from './lib.mjs'
 const PLAN_FILES = ['ROADMAP.md', 'SPRINT.md', 'BUGS.md', 'STATE.md']
 const LISTING = '.planning/' // texts[LISTING] = the folder's entries (the last commit's, for "new since HEAD")
 // What may sit in .planning/ (PROJECT-FILES "Layout"): the plan files, the optional folders, and what the tools write
-const ALLOWED = new Set([...PLAN_FILES, 'GDD.md', 'TDD.md', 'design', 'research', 'bugs', 'archive', 'ppp.html', 'smoke-pass', 'live-pass', 'STATE.md.bak'])
+const ALLOWED = new Set([...PLAN_FILES, 'GDD.md', 'TDD.md', 'design', 'research', 'bugs', 'archive', 'ppp.html', 'smoke-pass', 'live-pass', 'STATE.md.bak', 'extractions.md']) // extractions.md: the framework's extraction queue (F114)
 const BUILD_PPP = join(homedir(), '.claude', 'config', 'bmuz', 'templates', 'ppp', 'build-ppp.mjs')
 
 if (process.argv[2]) {

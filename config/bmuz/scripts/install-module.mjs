@@ -1,6 +1,7 @@
 // Install or update one framework module in a game — the one safe way (F69).
 //   node ~/.claude/config/bmuz/scripts/install-module.mjs <module> [game-folder] [--dry-run] [extra installer args]
 //   modules: devkit · ui-kit · audio · table · ai · rooms · saves · version · crashes · emotes     e.g.  install-module.mjs ui-kit . cozy
+//   (+ any module born from the extraction queue, F114: kit/VERSION + "bmuz": { "folders" } in its package.json)
 // Steps, stopping at the first problem:
 //   1. the module's OWN tests + type check (+ ui-kit's check-ui) pass in the framework — a red module never ships
 //      (ui-kit 0.4.4 once shipped with its own check-ui failing)
@@ -14,13 +15,17 @@
 // The installer prints the hand-wiring steps left; this script repeats where to look.
 import { join } from 'node:path'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { FRAMEWORK, run, say, ok, refuse, tail, readJson, args, projectDir, exists, MODULE_FOLDERS, ESLINT_CONFIGS, addEslintIgnores } from './lib.mjs'
+import { FRAMEWORK, run, say, ok, refuse, tail, readJson, args, projectDir, exists, moduleFolders, ESLINT_CONFIGS, addEslintIgnores } from './lib.mjs'
 
 const CHECK_ID = { devkit: 'devkit', 'ui-kit': 'ui', audio: 'audio', table: 'table', ai: 'ai', rooms: 'rooms', saves: 'saves', version: 'version', crashes: 'crashes', emotes: 'emotes' }
 const { words, flags } = args()
 const [module, gameArg, ...words2] = words
 const extra = [...words2, ...[...flags].filter(f => f !== '--dry-run')] // the installer's own options (a style, --force…) go through
-if (!module || !CHECK_ID[module]) refuse(`which module? (got "${module ?? ''}")`, `node install-module.mjs <${Object.keys(CHECK_ID).join('|')}> <game-folder>`)
+// a module born from the extraction queue (F114) counts too: its own folder in the framework, a kit/VERSION, and its
+// game folders named in its package.json ("bmuz": { "folders": [...] } — see moduleFolders)
+const isNewModule = (name) => /^[a-z0-9][a-z0-9-]*$/.test(name) && exists(FRAMEWORK, name, 'kit', 'VERSION') && !!moduleFolders(name)
+if (!module || !(CHECK_ID[module] || isNewModule(module))) refuse(`which module? (got "${module ?? ''}")`, `node install-module.mjs <${Object.keys(CHECK_ID).join('|')}> <game-folder>  (a new module needs kit/VERSION + "bmuz": { "folders": [...] } in its package.json)`)
+const checkId = CHECK_ID[module] ?? readJson(join(FRAMEWORK, module, 'package.json'))?.bmuz?.check ?? null
 const game = projectDir(gameArg)
 if (!exists(game, 'package.json')) refuse(`${game} has no package.json — is that the game folder?`)
 const moduleDir = join(FRAMEWORK, module)
@@ -42,7 +47,7 @@ for (const name of ['test', 'typecheck', 'check-ui', 'check-devkit', 'lint'].fil
 
 // The game's eslint.config ignores the module's folders (F112) — planned here, so a file it can't edit safely is
 // refused before anything changes. The module's code was linted in step 1 by the framework's own rules.
-const folders = MODULE_FOLDERS[module]
+const folders = moduleFolders(module)
 const eslintFile = ESLINT_CONFIGS.find(f => exists(game, f))
 const eslintText = eslintFile ? readFileSync(join(game, eslintFile), 'utf8') : ''
 const ignores = eslintFile ? addEslintIgnores(eslintText, folders) : null
@@ -98,10 +103,12 @@ else {
 }
 // 5. the module's code checks in the game
 const runner = ['src/devkit/check-framework.mjs'].find(p => exists(game, p))
-if (!runner) {
+if (!checkId) {
+  say(`(${module} has no framework promise checks — "bmuz": { "check": … } in its package.json names them once it does)`)
+} else if (!runner) {
   say(`(no src/devkit/check-framework.mjs in the game yet — install the Dev Kit 0.19+ to get the framework checks)`)
 } else {
-  const check = run('node', [runner, '--static', '--only', CHECK_ID[module]], { cwd: game })
+  const check = run('node', [runner, '--static', '--only', checkId], { cwd: game })
   if (check.code !== 0) refuse(`installed, but the game doesn't keep ${module}'s promises yet:\n${tail(check.out, 25)}`, 'wire what the failures name (MODULE-CONTRACTS.md), then run `npm run check:framework`')
   ok(`${module}'s code checks pass in the game`)
 }

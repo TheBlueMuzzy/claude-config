@@ -4,6 +4,7 @@
 //   - a real <title> (the planner's tab name) and <meta name="description"> (its blurb) — not the starter's placeholders
 //   - the "Copy values for Claude" button (how his tuned values come back)
 //   - presets (+ Preset / Default) and a help line per knob (KNOB_HELP or .help lines)
+//   - sliders come with a typeable number box (Muzzy types the value he wants, 2026-10-24); a sketch without sliders isn't asked
 // Also a command: `node sketch-lint.mjs <sketch.html>` prints the problems (exit 1 if any).
 // Whether every knob visibly moves something needs a browser — that stays Claude's own check (/sketch step 4).
 import { existsSync, readFileSync } from 'node:fs'
@@ -36,5 +37,6 @@ export function sketchProblems(html) {
   if (!/Copy values for Claude/.test(html)) out.push('the "Copy values for Claude" button — how Muzzy\'s tuned values come back')
   if (!/\+ Preset|id=["']presets["']/.test(html)) out.push('the presets row (Default, + Preset, up to 3) — Muzzy saves and compares his settings with it')
   if (!/KNOB_HELP|class=["']help["']|\.help\b/.test(html)) out.push('a help line per knob (KNOB_HELP) — what it does in this sketch and when you\'d notice it')
+  if (/type=["']range["']/.test(html) && !/<input\b[^>]*\btype=["']number["']/.test(html)) out.push('a typeable number box beside each slider (the starter\'s <input class="num" type="number"> + showKnob) — Muzzy types the value he wants, even past the slider\'s ends')
   return out
 }

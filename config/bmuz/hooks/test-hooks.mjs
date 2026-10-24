@@ -576,6 +576,7 @@ function testHandoffCheck() {
     "**You'll see:** every hand-off looks like this; nothing else changes",
     '**Try it:** nothing to try: it shows up at the next hand-off',
     '**Proof:** test-hooks 9/9',
+    '**Your to-dos:** none',
     '**Questions:** none',
     '**Next:** `/develop` — continues F67, the lesson audit',
   ].join('\n')
@@ -589,7 +590,15 @@ function testHandoffCheck() {
   const noLinks = stop([...work, say(card.replace('nothing to try: it shows up at the next hand-off', 'open the game'))])
   expect('Try it without links or "nothing to try" → sent back', noLinks, 'block')
   expect('…and the message names what is missing', { result: /Try it/.test(noLinks.message) ? 'ok' : 'no', message: noLinks.message }, 'ok')
-  expect('a commit counts as work', stop([prompt('go'), tool('Bash', { command: 'git add -A && git commit -m x' }), result, say('committed')]), 'block')
+  // Questions holds only questions (Muzzy, 2026-10-23)
+  const asking = (q) => stop([...work, say(card.replace('**Questions:** none', `**Questions:**\n${q}`))])
+  expect('Questions: real questions (numbered, with options under one) → allowed', asking('1. **Ship it?** My pick: yes.\n2. Bubble colour — which?\n   - a) blue\n   - b) red'), 'allow')
+  const info = asking('1. Ship it? My pick: yes.\n2. 3 yeses are waiting in the framework window.')
+  expect('Questions: an item that is information, not a question → sent back', info, 'block')
+  expect('…names the item and where it goes', { result: /3 yeses/.test(info.message) && /Your to-dos/.test(info.message) ? 'ok' : 'no', message: info.message }, 'ok')
+  expect('Questions: "none" → allowed', asking('none'), 'allow')
+  expect('a card with no Your to-dos → sent back', stop([...work, say(card.replace('**Your to-dos:** none\n', ''))]), 'block')
+  expect('a commit counts as work',stop([prompt('go'), tool('Bash', { command: 'git add -A && git commit -m x' }), result, say('committed')]), 'block')
   expect('work in an EARLIER turn only → no card needed now', stop([...work, say(card), prompt('thanks, what next?'), say('F67.')]), 'allow')
   // F80: sent back until it's fixed (it used to give up after once), but never forever
   const loop = { session_id: 'loop', stop_hook_active: true }
@@ -1154,6 +1163,11 @@ function testSketchLint() {
   expect('…names both', { result: /S1: Sketch name/.test(placeholder.message) && /placeholder sentence/.test(placeholder.message) ? 'ok' : 'no', message: placeholder.message }, 'ok')
   const noCopy = write('nocopy.html', good.split('Copy values for Claude').join('Copy'))
   expect('"Copy values for Claude" button gone → told', noCopy, 'block')
+  const oldKnobs = write('oldknobs.html', good.replace(/<input class="num" type="number"[^>]*>/, '<b id="v_${k}">${GOO[k]}</b>'))
+  expect('sliders with a plain value label, no number box → told', oldKnobs, 'block')
+  expect('…names the number box', { result: /typeable number box/.test(oldKnobs.message) ? 'ok' : 'no', message: oldKnobs.message }, 'ok')
+  const noSliders = write('nosliders.html', good.split('type="range"').join('type="checkbox"').replace(/<input class="num" type="number"[^>]*>/, ''))
+  expect('no sliders → not asked for a number box', { result: /number box/.test(noSliders.message || '') ? 'no' : 'ok', message: noSliders.message }, 'ok')
   expect('no presets, no help lines → told', write('bare.html', '<title>S3: x</title><meta name="description" content="y"><button>Copy values for Claude</button>'), 'block')
   expect('a sketch outside .planning/research/sketches → ignored', runHook('sketch-lint.mjs', { tool_name: 'Write', tool_input: { file_path: join(root, 'page.html') } }), 'allow')
   rmSync(root, { recursive: true, force: true })
@@ -1509,8 +1523,48 @@ function testCrashNews() {
   rmSync(root, { recursive: true, force: true })
 }
 
+function testFrozenFiles() {
+  console.log('guard-edits — a file being extracted warns, never blocks (F114)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-frozen-'))
+  const dev = join(root, 'dev')
+  const fw = join(dev, 'framework')
+  const game = join(dev, 'games', 'g')
+  const other = join(dev, 'games', 'h')
+  mkdirSync(join(fw, '.planning'), { recursive: true })
+  for (const dir of [game, other]) mkdirSync(join(dir, 'src', 'engine'), { recursive: true })
+  const entry = (id, status, game, file) => `## ${id} · rng\n- Status: ${status}\n- Game: ${game}\n- Commit: abc1234\n- Files: \`${file}\`\n- What it does: seeded random\n- Checks: \`npm run test\`\n- Added: 2026-10-24\n- Fixes while frozen: none\n`
+  writeFileSync(join(fw, '.planning', 'extractions.md'), `# Extraction queue\n\n${entry('X01', 'building', 'games/g', 'src/engine/rng.ts')}\n${entry('X02', 'swapped in 1234abc', 'games/g', 'src/engine/old.ts')}`)
+  const saved = { fw: process.env.BMUZ_FRAMEWORK, dev: process.env.BMUZ_DEV }
+  process.env.BMUZ_FRAMEWORK = fw; process.env.BMUZ_DEV = dev
+  const warns = (got, id) => ({ result: got.result === 'allow' && got.message.includes(`being extracted as ${id}`) && got.message.includes(`extract.mjs fix ${id}`) && /additionalContext/.test(got.message) ? 'warned' : got.result, message: got.message })
+  const edit = (dir, file, tool = 'Edit') => runHook('guard-edits.mjs', { cwd: dir, tool_name: tool, tool_input: { file_path: join(dir, file) } })
+  expect('Edit to a file in an open entry (X01 building) → allowed, with the "bug fixes only, log it" warning', warns(edit(game, 'src/engine/rng.ts'), 'X01'), 'warned')
+  expect('…Write too', warns(edit(game, 'src/engine/rng.ts', 'Write'), 'X01'), 'warned')
+  expect('…a shell write into it (sed -i) too', warns(runHook('guard-edits.mjs', bash(game, 'sed -i s/a/b/ src/engine/rng.ts')), 'X01'), 'warned')
+  expect('…a relative path from inside the game\'s src/', warns(runHook('guard-edits.mjs', { cwd: join(game, 'src'), tool_name: 'Edit', tool_input: { file_path: 'engine/rng.ts' } }), 'X01'), 'warned')
+  expect('another file in the same game → allowed quietly', edit(game, 'src/engine/shift.ts'), 'allow')
+  const quiet = edit(game, 'src/engine/shift.ts')
+  expect('…no warning text at all', { result: quiet.message === '' ? 'quiet' : 'said', message: quiet.message }, 'quiet')
+  const otherGame = edit(other, 'src/engine/rng.ts')
+  expect('the same path in ANOTHER game → no warning', { result: otherGame.message.includes('being extracted') ? 'warned' : otherGame.result, message: otherGame.message }, 'allow')
+  const swapped = edit(game, 'src/engine/old.ts')
+  expect('a swapped entry\'s file → no warning (it\'s finished)', { result: swapped.message.includes('being extracted') ? 'warned' : swapped.result, message: swapped.message }, 'allow')
+  writeFileSync(join(fw, '.planning', 'extractions.md'), 'not a queue at all \u0000')
+  expect('an unreadable / odd queue → allowed quietly, never a crash', edit(game, 'src/engine/rng.ts'), 'allow')
+  rmSync(join(fw, '.planning', 'extractions.md'))
+  expect('no queue file → allowed quietly', edit(game, 'src/engine/rng.ts'), 'allow')
+  // a refusal still wins over the warning (kit copy rule)
+  mkdirSync(join(game, 'src', 'audio'), { recursive: true }); writeFileSync(join(game, 'src', 'audio', 'VERSION'), '0.4.0\n')
+  writeFileSync(join(fw, '.planning', 'extractions.md'), `# Extraction queue\n\n${entry('X03', 'queued', 'games/g', 'src/audio/engine.ts')}`)
+  expect('a frozen file that is ALSO a module copy → still refused (rule 1 first)', edit(game, 'src/audio/engine.ts'), 'deny')
+  process.env.BMUZ_FRAMEWORK = saved.fw ?? ''; process.env.BMUZ_DEV = saved.dev ?? ''
+  if (saved.fw === undefined) delete process.env.BMUZ_FRAMEWORK
+  if (saved.dev === undefined) delete process.env.BMUZ_DEV
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
+const suites = { 'guard-edits-frozen': testFrozenFiles, 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)

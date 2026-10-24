@@ -1219,8 +1219,133 @@ async function testDepsCheck() {
   rmSync(root, { recursive: true, force: true })
 }
 
+async function testExtract() {
+  console.log('extract — the extraction queue: a game hands a piece over, the framework builds it, the game swaps it in (F114)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-extract-'))
+  const dev = join(root, 'dev')
+  const fw = makeRepo(dev, 'framework')
+  const game = makeRepo(join(dev, 'games'), 'g')
+  const env = { BMUZ_FRAMEWORK: fw, BMUZ_DEV: dev }
+  const x = (cwd, ...a) => script('extract.mjs', a, { cwd, env })
+  const queue = () => readFileSync(join(fw, '.planning', 'extractions.md'), 'utf8')
+  // the game: src/main.mjs uses src/engine/rng.mjs; its "test" check proves the answer is 42
+  write(join(game, 'package.json'), JSON.stringify({ type: 'module', scripts: { test: 'node checks/test.mjs', build: 'node -e ""' } }))
+  write(join(game, 'src', 'engine', 'rng.mjs'), 'export const answer = () => 42\n')
+  write(join(game, 'src', 'other.mjs'), 'export const other = 1\n')
+  write(join(game, 'src', 'main.mjs'), "import { answer } from './engine/rng.mjs'\nexport const main = () => answer()\n")
+  write(join(game, 'checks', 'test.mjs'), "import { main } from '../src/main.mjs'\nif (main() !== 42) { console.log('main() is', main()); process.exit(1) }\nconsole.log('42 ok')\n")
+  sh(game, 'add', '.'); sh(game, 'commit', '-q', '-m', 'game')
+  const head = sh(game, 'rev-parse', '--short', 'HEAD')
+
+  // add — refusals first, nothing written
+  const none = x(game, 'add', '--what=x', '--checks=test')
+  expect('add: no files → refused', none.code === 1 && /which files/.test(none.out), none.out)
+  const missing = x(game, 'add', 'src/nope.mjs', '--what=x', '--checks=test')
+  expect('add: a missing file → refused', missing.code === 1 && /doesn't exist/.test(missing.out), missing.out)
+  write(join(game, 'src', 'new.mjs'), 'x\n')
+  const untracked = x(game, 'add', 'src/new.mjs', '--what=x', '--checks=test')
+  expect('add: a file never committed → refused, says commit it first', untracked.code === 1 && /isn't committed/.test(untracked.out), untracked.out)
+  rmSync(join(game, 'src', 'new.mjs'))
+  write(join(game, 'src', 'other.mjs'), 'export const other = 2\n')
+  const dirty = x(game, 'add', 'src/other.mjs', '--what=x', '--checks=test')
+  expect('add: a file with uncommitted changes → refused', dirty.code === 1 && /uncommitted changes/.test(dirty.out), dirty.out)
+  write(join(game, 'src', 'other.mjs'), 'export const other = 1\n')
+  const noCheck = x(game, 'add', 'src/engine/rng.mjs', '--what=x', '--checks=test,e2e:nope')
+  expect('add: a check that isn\'t a game script → refused, lists the scripts', noCheck.code === 1 && /e2e:nope/.test(noCheck.out) && /pick from: test, build/.test(noCheck.out), noCheck.out)
+  const noWhat = x(game, 'add', 'src/engine/rng.mjs', '--checks=test')
+  expect('add: no --what → refused', noWhat.code === 1 && /--what is missing/.test(noWhat.out), noWhat.out)
+  const outside = makeRepo(root, 'elsewhere')
+  const out = x(outside, 'add', 'a.txt', '--what=x', '--checks=test')
+  expect('add: a game outside ~/Documents/dev → refused', out.code === 1 && /isn't under ~\/Documents\/dev/.test(out.out), out.out)
+  expect('…and nothing was written to the queue', !existsSync(join(fw, '.planning', 'extractions.md')))
+
+  // add — the real one
+  const added = x(join(game, 'src'), 'add', 'engine/rng.mjs', '--what=seeded random numbers', '--checks=npm run test', '--name=rng')
+  expect('add: green → X01 queued at the game\'s commit, said with the fix command', added.code === 0 && /X01 queued: src\/engine\/rng\.mjs at/.test(added.out) && /extract\.mjs fix X01/.test(added.out), added.out)
+  expect('…the entry: game, commit, files, what, checks (npm run stripped), fixes none', /## X01 · rng/.test(queue()) && /- Game: games\/g\n/.test(queue()) && queue().includes(`- Commit: ${head}`) && /- Files: `src\/engine\/rng\.mjs`/.test(queue()) && /- Checks: `npm run test`\n/.test(queue()) && /- Fixes while frozen: none/.test(queue()), queue())
+  expect('…committed in the framework, just the queue', /Extraction queue: X01 queued — g rng/.test(sh(fw, 'log', '-1', '--format=%s')) && sh(fw, 'show', '--name-only', '--format=', 'HEAD') === '.planning/extractions.md', sh(fw, 'log', '-1', '--stat'))
+  const twice = x(game, 'add', 'src/engine/rng.mjs', '--what=x', '--checks=test')
+  expect('add: a file already in an open entry → refused', twice.code === 1 && /already in X01/.test(twice.out), twice.out)
+  const listed = x(fw, 'list')
+  expect('list: shows the open entry', listed.code === 0 && /X01 · queued · games\/g @ \w+ · rng/.test(listed.out) && /checks: npm run test/.test(listed.out), listed.out)
+
+  // status (the framework session)
+  const early = x(fw, 'status', 'X01', 'released', 'rng@0.1.0')
+  expect('status released: no such module in the framework yet → refused', early.code === 1 && /no rng\/kit\/VERSION/.test(early.out), early.out)
+  const building = x(fw, 'status', 'x01', 'building')
+  expect('status building → said and committed', building.code === 0 && /- Status: building/.test(queue()) && /X01 building/.test(sh(fw, 'log', '-1', '--format=%s')), building.out)
+  const bad = x(fw, 'status', 'X01', 'done')
+  expect('status: an unknown word → refused', bad.code === 1 && /which status/.test(bad.out), bad.out)
+  // the module, as the framework session builds it (first with a bug: 41)
+  const rng = join(fw, 'rng')
+  write(join(rng, 'kit', 'VERSION'), '0.1.0\n')
+  write(join(rng, 'kit', 'index.mjs'), 'export const answer = () => 41\n')
+  write(join(rng, 'package.json'), JSON.stringify({ scripts: {}, bmuz: { folders: ['src/rng'], entry: 'src/rng/index.mjs' } }))
+  write(join(rng, 'scripts', 'install-rng.mjs'), [
+    "import { mkdirSync, copyFileSync } from 'node:fs'",
+    "import { join } from 'node:path'",
+    "const [game, ...rest] = process.argv.slice(2)",
+    "if (rest.includes('--dry-run')) { console.log('would copy kit/ → src/rng/'); process.exit(0) }",
+    "mkdirSync(join(game, 'src', 'rng'), { recursive: true })",
+    "for (const f of ['VERSION', 'index.mjs']) copyFileSync(join(import.meta.dirname, '..', 'kit', f), join(game, 'src', 'rng', f))",
+  ].join('\n'))
+  const uncommitted = x(fw, 'status', 'X01', 'released', 'rng@0.1.0')
+  expect('status released: the module has uncommitted changes → refused', uncommitted.code === 1 && /uncommitted changes in the framework/.test(uncommitted.out), uncommitted.out)
+  sh(fw, 'add', '.'); sh(fw, 'commit', '-q', '-m', 'rng module')
+  const wrongVersion = x(fw, 'status', 'X01', 'released', 'rng@0.2.0')
+  expect('status released: a version the module isn\'t → refused, says the real one', wrongVersion.code === 1 && /says 0\.1\.0, not 0\.2\.0/.test(wrongVersion.out), wrongVersion.out)
+
+  // fix (while frozen) + Muzzy's own note kept on rewrite
+  const notSwapYet = x(game, 'swap', 'X01')
+  expect('swap: not released yet → refused', notSwapYet.code === 1 && /not released yet/.test(notSwapYet.out), notSwapYet.out)
+  writeFileSync(join(fw, '.planning', 'extractions.md'), queue().replace('- Fixes while frozen: none', '- Fixes while frozen: none\nMuzzy: keep the name rng'))
+  const fixed = x(game, 'fix', 'X01', 'the seed wraps at 2^32')
+  expect('fix: logged on the entry with the date, committed', fixed.code === 0 && /- Fixes while frozen:\n {2}- \d{4}-\d\d-\d\d — the seed wraps at 2\^32/.test(queue()) && /fix while frozen/.test(sh(fw, 'log', '-1', '--format=%s')), queue())
+  expect('…Muzzy\'s own line in the entry is kept', /Muzzy: keep the name rng/.test(queue()), queue())
+  const released = x(fw, 'status', 'X01', 'released', 'rng@0.1.0')
+  expect('status released → said, with the swap command for the game', released.code === 0 && /- Status: released rng@0\.1\.0/.test(queue()) && /extract\.mjs swap X01/.test(released.out), released.out)
+
+  // swap — refusals
+  write(join(game, 'scratch.txt'), 'wip\n')
+  const unclean = x(game, 'swap', 'X01')
+  expect('swap: uncommitted work in the game → refused (a clean tree first)', unclean.code === 1 && /needs a clean tree/.test(unclean.out), unclean.out)
+  rmSync(join(game, 'scratch.txt'))
+  const wrongGame = x(outside, 'swap', 'X01')
+  expect('swap: run outside the game → refused', wrongGame.code === 1, wrongGame.out)
+  // swap — red: the module answers 41, the game's own check fails → set aside, the game exactly as it was
+  const before = sh(game, 'rev-parse', 'HEAD')
+  const red = x(game, 'swap', 'X01')
+  expect('swap red: refused, names the failing check', red.code === 1 && /isn't swapped — it went red/.test(red.out) && /npm run test/.test(red.out) && /main\(\) is 41/.test(red.out), red.out)
+  expect('…the game is back on main, same commit, clean, old file still there', sh(game, 'branch', '--show-current') === 'main' && sh(game, 'rev-parse', 'HEAD') === before && sh(game, 'status', '--porcelain') === '' && existsSync(join(game, 'src', 'engine', 'rng.mjs')) && !existsSync(join(game, 'src', 'rng')), sh(game, 'status', '--porcelain'))
+  expect('…the attempt is kept on extract/X01-swap (nothing lost), the drop command needs Muzzy', sh(game, 'branch', '--list', 'extract/X01-swap') !== '' && /git branch -D extract\/X01-swap \(Muzzy's OK/.test(red.out) && /- Status: released rng@0\.1\.0/.test(queue()), red.out)
+  // the framework session fixes the module; the swap goes green
+  write(join(rng, 'kit', 'index.mjs'), 'export const answer = () => 42\n'); sh(fw, 'commit', '-qam', 'rng: 42')
+  const green = x(game, 'swap', 'X01')
+  expect('swap green: one game commit "Swap rng for the rng module (X01)"', green.code === 0 && sh(game, 'log', '-1', '--format=%s') === 'Swap rng for the rng module (X01)' && sh(game, 'rev-list', '--count', `${before}..HEAD`) === '1', green.out)
+  expect('…old copy gone, the module in, the import pointed at it, the check unchanged and green', !existsSync(join(game, 'src', 'engine', 'rng.mjs')) && existsSync(join(game, 'src', 'rng', 'index.mjs')) && readFileSync(join(game, 'src', 'main.mjs'), 'utf8').includes("from './rng/index.mjs'") && /✓ npm run test/.test(green.out) && readFileSync(join(game, 'package.json'), 'utf8').includes('"test":"node checks/test.mjs"'), green.out)
+  expect('…the tree is clean, the queue says swapped in <that commit>', sh(game, 'status', '--porcelain') === '' && queue().includes(`- Status: swapped in ${sh(game, 'rev-parse', '--short', 'HEAD')}`), queue())
+  const hidden = x(fw, 'list'), every = x(fw, 'list', '--all')
+  expect('list: a swapped entry is hidden; --all shows it', /is empty/.test(hidden.out) && /X01 · swapped in/.test(every.out), hidden.out + every.out)
+  const lateFix = x(game, 'fix', 'X01', 'too late')
+  expect('fix: a swapped entry → refused (fix the module in the framework)', lateFix.code === 1 && /already swapped/.test(lateFix.out), lateFix.out)
+
+  // swap: a queued file changed since, with no fix logged → refused before anything changes
+  const q2 = x(game, 'add', 'src/other.mjs', '--what=other', '--checks=test')
+  expect('add: a second entry gets X02', q2.code === 0 && /X02 queued/.test(q2.out), q2.out)
+  x(fw, 'status', 'X02', 'released', 'rng@0.1.0')
+  write(join(game, 'src', 'other.mjs'), 'export const other = 3\n'); sh(game, 'commit', '-qam', 'other changed')
+  const unlogged = x(game, 'swap', 'X02')
+  expect('swap: a file changed since it was queued, no fix logged → refused, nothing touched', unlogged.code === 1 && /changed since .* no fix was logged/.test(unlogged.out) && existsSync(join(game, 'src', 'other.mjs')) && sh(game, 'status', '--porcelain') === '', unlogged.out)
+
+  // the reader: a CRLF file stays CRLF
+  const { parseQueue, writeQueue } = await import(pathToFileURL(join(SCRIPTS, 'lib.mjs')).href)
+  const crlf = queue().replace(/\n/g, '\r\n')
+  expect('queue reader: a CRLF file (Obsidian on Windows) comes back CRLF, unchanged', writeQueue(parseQueue(crlf)) === crlf)
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck }
+const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)

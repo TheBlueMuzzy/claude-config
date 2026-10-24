@@ -16,9 +16,10 @@ Steps are marked by how they happen (F80): ① a script or hook does it · ② C
 ## Steps
 1. **The question, in one line**, plus Muzzy's words on what he wants (quote them). Ask for his **two endpoints** if the target is fuzzy ("A or B?"); it turns guesses into a comparison.
 2. **One sketch or a lab?** Several rival approaches → a lab: write one shared brief first (`.planning/research/<topic>/LAB-BRIEF.md`: same board, controls, knob names, checks) so each sketch differs only in what's being tested; build them in parallel with helpers; name them `lab-L<n>-<slug>.html`.
-3. **Start from** `~/.claude/config/bmuz/templates/sketch/sketch-starter.html` → `.planning/research/sketches/<name>.html`. Keep its sketch kit as is ② (sketch-lint tells Claude after every write when the title / description are still the starter's, or "Copy values for Claude", the presets or the knob help lines are gone):
+3. **Start from** `~/.claude/config/bmuz/templates/sketch/sketch-starter.html` → `.planning/research/sketches/<name>.html`. Keep its sketch kit as is ② (sketch-lint tells Claude after every write when the title / description are still the starter's, or "Copy values for Claude", the presets, the knob help lines or the knobs' number boxes are gone):
    - `<title>` (tab name) + `<meta name="description">` (one sentence: what it tries, what to look for)
    - all values in one object at the top; 5–8 knobs; **one help line per knob** saying what it does *in this sketch* and when you'd notice it
+   - each knob's value is a **typeable number box** kept in step with its slider (`showKnob`): typing updates live; a value past the slider's ends is kept, pins the slider at its end and turns the box amber; Enter / leaving the box applies, Escape restores
    - knobs **dock beside the view at full size** (Muzzy tunes on the PC; bottom sheet on a phone), open by default on wide screens
    - **3 presets** (+ Preset, tap to load, ×), **Default**, and **Copy values for Claude**
    - fps counter, fixed timestep, phone portrait first, 16px gutters, safe areas
