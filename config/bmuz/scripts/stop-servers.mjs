@@ -6,6 +6,7 @@
 //   --dry-run                                                       only list what would stop
 // Never stops Claude Code itself, a shell, or anything this script runs inside.
 import { run, say, ok, refuse, args } from './lib.mjs'
+import { listeners, processes } from '../templates/ports.mjs' // the one who-holds-this-port lookup (check-all's port pre-flight uses it too, F118)
 
 const { words, flags } = args()
 const target = words[0]
@@ -16,7 +17,8 @@ const PROTECTED = /claude(?![\\/]worktrees[\\/])|\\Code\\|code\.exe|bash\.exe|po
 // a bare runtime name would match every node process (MCP servers, other sessions' tools) — name the server instead
 if (/^(node|npm|npx|cmd|cmd\.exe|node\.exe)$/i.test(target)) refuse(`"${target}" would match far more than a dev server`, 'give the port (stop-servers.mjs 5173) or the server\'s name (wrangler, vite)')
 
-const all = processes()
+let all
+try { all = processes() } catch (error) { refuse(error.message) }
 const byPid = new Map(all.map(p => [p.pid, p]))
 const mine = new Set() // this script and everything it runs inside
 for (let p = byPid.get(process.pid); p && !mine.has(p.pid); p = byPid.get(p.ppid)) mine.add(p.pid)
@@ -53,33 +55,3 @@ for (const root of roots) {
 }
 if (/^\d+$/.test(target) && listeners(Number(target)).length) refuse(`port ${target} is still in use after stopping ${roots.size} tree(s)`, 'run this again in a few seconds; if it persists, look at Task Manager for the process')
 ok(`stopped ${roots.size} server tree(s)${/^\d+$/.test(target) ? ` — port ${target} is free` : ''}`)
-
-// Every process: { pid, ppid, cmd }.
-function processes() {
-  if (process.platform !== 'win32') {
-    const out = run('ps', ['-eo', 'pid=,ppid=,args=']).out
-    return out.split('\n').map(l => l.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean).map(m => ({ pid: +m[1], ppid: +m[2], cmd: m[3] }))
-  }
-  // stdout only, and no .ToString() on a missing date: a process that ends while the list is built has none, and the
-  // error PowerShell printed for it was glued onto the JSON (flaky "couldn't list the running processes" under load)
-  // Still failed now and then (2026-10-19, not reproduced in 8 runs after) → up to 3 tries, and the spot where it
-  // broke is printed so the next failure says why
-  let list = null, out = '', why = ''
-  for (let tries = 0; tries < 3 && !list; tries++) {
-    out = run('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{n='Started';e={if ($_.CreationDate) { $_.CreationDate.ToString('o') }}} | ConvertTo-Json -Compress"]).stdout
-    try { list = JSON.parse(out) } catch (error) { why = error.message }
-  }
-  if (!list) {
-    const at = Number(/position (\d+)/.exec(why)?.[1] ?? 0)
-    refuse(`couldn't list the running processes (3 tries): ${why}\n  near: ${JSON.stringify(out.slice(Math.max(0, at - 120), at + 60))}`)
-  }
-  return [].concat(list).map(p => ({ pid: p.ProcessId, ppid: p.ParentProcessId, cmd: p.CommandLine || '', started: p.Started ? Date.parse(p.Started) : 0 }))
-}
-
-// The processes listening on a port.
-function listeners(port) {
-  if (process.platform !== 'win32') return run('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN']).out.split('\n').filter(Boolean).map(Number)
-  // all of TCP — IPv4 AND IPv6: Vite listens on [::1]:5173 only (`-p TCP` missed it — found in a real try)
-  const out = run('netstat', ['-ano']).out
-  return [...new Set(out.split('\n').map(l => l.trim().split(/\s+/)).filter(c => c[0] === 'TCP' && c[3] === 'LISTENING' && c[1]?.endsWith(`:${port}`)).map(c => Number(c[4])))]
-}

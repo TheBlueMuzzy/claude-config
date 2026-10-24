@@ -54,7 +54,7 @@ plain words. The skills call them (①); you never need to type them. Folder: `~
 | `musts-check.mjs <stage>` ① | Lists the `must:<stage>` features still open before a release | — (exit 1 = some open) |
 | `stop-servers.mjs <port\|name>` ① | Ends a local server's whole process tree (on Windows, killing only the port lets wrangler restart it) | — (never touches Claude, a shell or an editor) |
 | `cleanup.sh [project]` (bash) ① | Finished helper workspaces, old check output, temp files — and Claude's scratch place `~/Documents/dev/.scratch/<project>-<what>/` (throwaway game copies, proof shots): entries untouched for 24 h go (F78). Never a tracked file | — (keeps and names anything that still holds work) |
-| `templates/check-all.mjs` (in each game) ① | A full check run takes a lock | another full check run is still going |
+| `templates/check-all.mjs` (in each game) ① | A full check run takes a lock; then the port pre-flight (F118): every port the run's e2e scripts use (numbers in the E2E args, each script's `const PORT = …` and `// ports: …` lines) must be free. Needs `scripts/ports.mjs` (from `templates/ports.mjs` — the same who-holds-this-port lookup stop-servers.mjs uses). checkup §7 and install-module.mjs name a game's older copy | another full check run is still going · a port is held → names the port, the script, the holder's command + folder and `stop-servers.mjs <port>`, before anything starts |
 | `checkup.sh --done` (bash, F80) ① | Closes a /checkup: writes today's date to `last-checkup`, then `config-sync.sh push` (the laptop gets it) | today's report isn't saved in `reviews/checkups/<date>.md` |
 
 **Script commits get the commit hooks too (F80):** save.mjs and release.mjs ask guard-git + commit-typecheck about their

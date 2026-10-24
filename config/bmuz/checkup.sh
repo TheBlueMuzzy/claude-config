@@ -84,6 +84,8 @@ for g in "$HOME"/Documents/dev/games/*/; do
   pieces=""; ls "$g"/src/*/VERSION "$g"/src/*/kit/VERSION >/dev/null 2>&1 && pieces=1
   if [ -f "$g/scripts/check-all.mjs" ] && ! grep -q "check-lock" "$g/scripts/check-all.mjs"; then
     miss="$miss · check-all.mjs has no one-run-at-a-time lock (copy it from config/bmuz/templates/check-all.mjs)"; fi
+  if [ -f "$g/scripts/check-all.mjs" ] && ! grep -q "heldPorts" "$g/scripts/check-all.mjs"; then
+    miss="$miss · check-all.mjs has no port pre-flight (F118: copy its 'Port pre-flight' block + the import from config/bmuz/templates/check-all.mjs, and templates/ports.mjs to scripts/ports.mjs)"; fi
   if grep -q '"check:fast"' "$g/package.json" && [ -d "$g/.git" ] && git -C "$g" remote get-url origin >/dev/null 2>&1 && [ ! -f "$g/.github/workflows/checks.yml" ]; then
     miss="$miss · no GitHub checks (copy config/bmuz/templates/checks.yml to .github/workflows/)"; fi
   if [ -n "$pieces" ] && ! grep -q '"check:framework"' "$g/package.json"; then

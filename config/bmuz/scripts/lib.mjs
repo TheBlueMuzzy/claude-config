@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { git, codeFingerprint, holdCheckLock } from '../hooks/lib.mjs'
 export { git, NEVER_COMMIT } from '../hooks/lib.mjs'
 
@@ -15,9 +15,19 @@ export const FRAMEWORK = process.env.BMUZ_FRAMEWORK || join(homedir(), 'Document
 // Run a command; returns { code, out, stdout } — out = stdout + stderr together (for messages), stdout alone for
 // output that gets parsed (a stderr warning glued onto JSON broke stop-servers' process list under load). Never throws.
 export function run(command, args, { cwd = process.cwd(), timeout = 600_000 } = {}) {
-  const shell = process.platform === 'win32' && /^(npm|npx)$/.test(command) // npm is npm.cmd on Windows
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8', timeout, shell, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
+  const [file, list] = withoutShell(command, args)
+  const result = spawnSync(file, list, { cwd, encoding: 'utf8', timeout, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
   return { code: result.status ?? 1, out: `${result.stdout || ''}${result.stderr || ''}${result.error ? String(result.error.message) : ''}`, stdout: result.stdout || '' }
+}
+
+// npm / npx are .cmd files on Windows, which only start through a shell — and a shell reads the arguments as code
+// (F120: Node's DEP0190 warning in install-module / extract runs). So they run as this Node + npm's own npm-cli.js /
+// npx-cli.js (next to the npm that started this, or beside node.exe): the arguments stay a list, no shell at all.
+export function withoutShell(command, args) {
+  if (process.platform !== 'win32' || !/^(npm|npx)$/.test(command)) return [command, args]
+  const npm = [process.env.npm_execpath, join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')]
+    .find(p => /npm-cli\.js$/.test(p || '') && existsSync(p))
+  return npm ? [process.execPath, [join(dirname(npm), `${command}-cli.js`), ...args]] : [command, args] // no npm found → spawn says so
 }
 
 export const say = (text) => console.log(text)

@@ -95,6 +95,7 @@ async function testInstallModule() {
   write(join(game, 'scripts', 'check-all.mjs'), '// an old copy\n')
   const lintGreen = install('audio', '.')
   expect('lint green → installed; an old check-all.mjs without the lock is named (F79)', lintGreen.code === 0 && /audio: lint/.test(lintGreen.out) && /no one-run-at-a-time lock/.test(lintGreen.out), lintGreen.out)
+  expect('…and without the port pre-flight (F118)', /no port pre-flight/.test(lintGreen.out), lintGreen.out)
   // F112: the game's eslint.config ignores the module's folder, and the game's OWN lint runs after the install.
   // The game's "lint" stands in for Vite's eslint with react-refresh on: it fails while src/audio isn't ignored.
   write(join(game, 'package.json'), JSON.stringify({ scripts: { lint: 'node lint.mjs' } }))
@@ -564,6 +565,85 @@ async function testStopServers() {
   expect('…a lock left by a run that died is ignored (the run starts, then frees the lock)', /Fast checks/.test(stale.stdout) && !existsSync(join(game, 'e2e-shots', '.check-lock')), stale.stdout)
   try { process.kill(sup.pid) } catch {}
   rmSync(root, { recursive: true, force: true })
+}
+
+async function testPortPreflight() {
+  console.log('port pre-flight — a busy port fails check:full at once, naming who holds it (F118)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-ports-'))
+  const game = join(root, 'game')
+  const base = 6000 + Math.floor(Math.random() * 900)
+  const [inArgs, constant, declared] = [base, base + 1, base + 2]
+  // the game's copy: the template with its own FAST + E2E lists, ports.mjs beside it (as a game update copies them)
+  const template = readFileSync(join(SCRIPTS, '..', 'templates', 'check-all.mjs'), 'utf8')
+  write(join(game, 'scripts', 'check-all.mjs'), template
+    .replace(/const FAST = \[[\s\S]*?\n\]\n/, "const FAST = [['quick', 'node e2e/ok.mjs']]\n")
+    .replace(/const E2E = \[[\s\S]*?\n\]\n/, `const E2E = [['shots', 'e2e/shots.mjs', 'e2e-shots ${inArgs} 4']]\n`))
+  write(join(game, 'scripts', 'ports.mjs'), readFileSync(join(SCRIPTS, '..', 'templates', 'ports.mjs'), 'utf8'))
+  write(join(game, 'e2e', 'ok.mjs'), '')
+  write(join(game, 'e2e', 'shots.mjs'), `// Shots at 3 sizes.\n// ports: ${declared}\nconst PORT = ${constant}, OUT = 'e2e-shots'\nconst ARGS_PORT = Number(process.argv[3] ?? 6999)\n`)
+  // a stand-in for a forgotten dev server (another folder), listening on the ports it's given — IPv6 localhost, like Vite
+  const other = join(root, 'other-project')
+  write(join(other, 'hold.mjs'), "import http from 'node:http'; for (const p of process.argv.slice(2)) http.createServer((q, s) => s.end('ok')).listen(Number(p), '::1')")
+  const { spawn } = await import('node:child_process')
+  const hold = async (ports) => {
+    const child = spawn(process.execPath, [join(other, 'hold.mjs'), ...ports.map(String)], { cwd: other, stdio: 'ignore' })
+    const up = async (p) => { try { await fetch(`http://[::1]:${p}`); return true } catch { return false } }
+    for (let i = 0; i < 40 && !(await Promise.all(ports.map(up))).every(Boolean); i++) await new Promise(r => setTimeout(r, 150))
+    return child
+  }
+  const full = () => {
+    const started = Date.now()
+    const r = spawnSync('node', ['scripts/check-all.mjs', 'full'], { cwd: game, encoding: 'utf8', timeout: 120_000 })
+    return { code: r.status, out: `${r.stdout || ''}${r.stderr || ''}`, seconds: (Date.now() - started) / 1000 }
+  }
+
+  let server = await hold([inArgs, declared])
+  const busy = full()
+  expect('a port from the E2E args and a "// ports:" one held → refused before any check starts', busy.code === 1 && /NOT STARTED — 2 ports/.test(busy.out) && !/Fast checks/.test(busy.out), busy.out)
+  expect('…each named with the script that uses it, the holder\'s command, its folder and the line that frees it',
+    new RegExp(`Port ${inArgs} \\(shots\\) is held by \`.*hold\\.mjs ${inArgs} ${declared}\` in ${other.replace(/\\/g, '\\\\')} — free it: node ~/.claude/config/bmuz/scripts/stop-servers\\.mjs ${inArgs}`).test(busy.out)
+      && busy.out.includes(`Port ${declared} (shots)`), busy.out)
+  expect(`…in seconds (${busy.seconds.toFixed(1)} s)`, busy.seconds < 10, busy.seconds)
+  expect('…and the lock is freed', !existsSync(join(game, 'e2e-shots', '.check-lock')))
+  server.kill()
+  server = await hold([constant])
+  const constantBusy = full()
+  expect('a script\'s `const PORT = …` held → named (a port read from the args isn\'t guessed: 6999 never counts)', constantBusy.code === 1 && constantBusy.out.includes(`Port ${constant} (shots)`) && !/6999/.test(constantBusy.out), constantBusy.out)
+  server.kill()
+  await new Promise(r => setTimeout(r, 300))
+  const free = full()
+  expect('every port free → the run goes on as before (fast, then the e2e script) and passes', free.code === 0 && /Fast checks/.test(free.out) && /PASS\s+shots/.test(free.out) && !/held by/.test(free.out), free.out)
+  const area = spawnSync('node', ['scripts/check-all.mjs', 'fast'], { cwd: game, encoding: 'utf8' })
+  expect('check:fast never looks at ports', area.status === 0 && !/Port /.test(area.stdout), area.stdout)
+
+  // the lookup itself, shared with stop-servers.mjs
+  const { shortCommand, heldPorts } = await import(pathToFileURL(join(SCRIPTS, '..', 'templates', 'ports.mjs')).href)
+  expect('a tool in node_modules is shown by its name: `vite --port 5291 --strictPort`', shortCommand('"C:\\Program Files\\nodejs\\node.exe" C:\\dev\\ui-kit\\node_modules\\vite\\bin\\vite.js --port 5291 --strictPort') === 'vite --port 5291 --strictPort')
+  expect('…npm too: `npm run dev`', shortCommand('"C:\\Program Files\\nodejs\\node.exe" "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run dev') === 'npm run dev')
+  expect('free ports → [] (no process list asked for)', heldPorts([inArgs, constant, declared]).length === 0)
+  rmSync(root, { recursive: true, force: true })
+}
+
+async function testNoShell() {
+  console.log('run() — npm / npx get their arguments as a list, never through a shell (F120)')
+  const { run, withoutShell } = await import(pathToFileURL(join(SCRIPTS, 'lib.mjs')).href)
+  const game = mkdtempSync(join(tmpdir(), 'bmuz-noshell-'))
+  const ODD = ['$(echo pwned).test.ts', 'a;echo pwned.test.ts', 'b&echo.>marker.txt', 'c|echo.>marker2.txt', 'd %PATH% "q".test.ts']
+  write(join(game, 'package.json'), '{ "name": "g", "version": "1.0.0" }')
+  write(join(game, 'tool', 'package.json'), '{ "name": "show-args", "version": "1.0.0", "bin": { "show-args": "show.mjs" } }')
+  write(join(game, 'tool', 'show.mjs'), '#!/usr/bin/env node\nconsole.log(JSON.stringify(process.argv.slice(2)))\n')
+  const install = run('npm', ['install', '--offline', '--no-audit', '--no-fund', './tool'], { cwd: game })
+  expect('npm runs (a .cmd on Windows) — a local folder installs', install.code === 0, install.out)
+  const shown = run('npx', ['--offline', 'show-args', ...ODD], { cwd: game })
+  let got = null; try { got = JSON.parse(shown.stdout.trim().split('\n').pop()) } catch { /* shown below */ }
+  expect('npx hands odd file names to the tool unchanged ($( ), ;, &, |, %PATH%, quotes)', JSON.stringify(got) === JSON.stringify(ODD), shown.out)
+  expect('…and nothing a shell would have run wrote a file', !existsSync(join(game, 'marker.txt')) && !existsSync(join(game, 'marker2.txt')))
+  // Node prints that warning in the process that asks for the shell — so ask from a child and read ITS output
+  write(join(game, 'ask.mjs'), `import { run } from ${JSON.stringify(pathToFileURL(join(SCRIPTS, 'lib.mjs')).href)}\nconsole.log(run('npm', ['--version']).code)\n`)
+  const asked = spawnSync(process.execPath, [join(game, 'ask.mjs')], { encoding: 'utf8' })
+  expect('no DEP0190 warning (Node warns when a shell gets an argument list)', asked.stdout.trim() === '0' && !/DEP0190/.test(asked.stderr), asked.stdout + asked.stderr)
+  if (process.platform === 'win32') expect('on Windows: this Node + npm\'s own npx-cli.js', withoutShell('npx', ['x'])[0] === process.execPath && /npx-cli\.js$/.test(withoutShell('npx', ['x'])[1][0]))
+  rmSync(game, { recursive: true, force: true })
 }
 
 async function testPppFramework() {
@@ -1381,7 +1461,7 @@ async function testExtract() {
 }
 
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
+const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)
