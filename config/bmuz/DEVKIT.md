@@ -38,6 +38,7 @@ Unity games use Unity's own editor instead.
 | **Animation** | curve editor (ease in/out, bezier, stepped/hold) · timing & spacing · anticipation · overshoot/bounce · follow-through & overlap (child offsets) · squash & stretch · arcs · loop & scrub · named presets in `content/anim/` |
 | **Inspector** | click anything in the game → see and edit its values |
 | **Color** | palette swatches, pickers, colorblind preview, saved themes — ✅ framework module `devkit/` (from Roll Better F59): the 15 game-ui kit colours, live, Save/Copy for Claude, colour-blind preview (saved themes not yet). A game's own colours = a game tab (`ColourRow` is reusable) |
+| **Fonts** | ✅ framework module `devkit/` (0.17.0; 0.27.0 installed fonts): pick Title / Heading / Body / Numbers by trying every font side by side at its real size, live in the game, licence chips 🟢🟡🔴; Save → `content/ui/style.json` tweaks. Library (`npm run dev` only): the designer's font folder (`devkit.local.json` `fontLibrary`) + **every font installed on this PC** (no browser permission; `"installedFonts": false` turns it off) — Try = preview, Add to game = copied into `public/fonts/` + fonts.json + credits.json (an installed font is always 🔴 until its licence is checked) ① (the Fonts tab does it; a catalog row, not a rule) |
 | **Audio** | click an object/event → assign a sound (upload or pick), volume, pitch variance, delay, preview |
 | **Layout** | move/resize UI, phone/tablet/landscape frames, safe-area overlay |
 
