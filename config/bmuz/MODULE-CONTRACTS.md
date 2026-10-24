@@ -48,7 +48,7 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
   patterns (what in the game's code passes the row on) + a `hint`; its installer copies it beside the module's VERSION,
   and the UI kit's Settings check reads every installed one — so a new module's row needs no UI kit change ② (check:framework
   UI kit: a module row nothing passes on fails naming the module; a broken file fails in plain words; older crashes /
-  emotes / ai copies without one pass via a one-release fallback, out in UI kit 0.32.0).
+  emotes / ai copies without one pass via a one-release fallback, out in UI kit 0.33.0).
 - Game fonts in `content/ui/fonts.json` + `public/fonts/` with their licences (font roles: title / heading / body / numbers).
 - Page-wide game CSS wrapped in `@layer game-base`; the kit's checker (`check-ui`) runs in `check:fast`.
 

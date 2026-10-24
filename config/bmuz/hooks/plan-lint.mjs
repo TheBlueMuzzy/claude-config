@@ -2,13 +2,15 @@
 // After Claude edits .planning/ROADMAP.md, SPRINT.md, BUGS.md or STATE.md: check the rules from PROJECT-FILES.md,
 // tell Claude about any problem in the file it just edited, and rebuild the planner page (.planning/ppp.html).
 // Reads the files with the same reader as the planner page (templates/ppp/plan-reader.mjs), so both agree.
-// Also a command: `node plan-lint.mjs <projectDir>` prints every problem (exit 1 if any).
+// After an edit of STATE.md, a Log over 10 entries is trimmed here: the oldest move to archive/log.md (F117).
+// Also a command: `node plan-lint.mjs <projectDir>` prints every problem (exit 1 if any) — it only reports, never
+// rewrites a file (a check that edits would change the files it's checking).
 import { execFileSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { readRoadmap, readSprint, readBugs, isOpenBug } from '../templates/ppp/plan-reader.mjs'
-import { git, readInput, tellClaude } from './lib.mjs'
+import { git, readInput, tellClaude, trimLog, LOG_KEEP } from './lib.mjs'
 
 const PLAN_FILES = ['ROADMAP.md', 'SPRINT.md', 'BUGS.md', 'STATE.md']
 const LISTING = '.planning/' // texts[LISTING] = the folder's entries (the last commit's, for "new since HEAD")
@@ -31,6 +33,26 @@ const full = resolve(file)
 if (basename(dirname(full)) !== '.planning' || !PLAN_FILES.includes(basename(full))) process.exit(0)
 const project = dirname(dirname(full))
 
+// F117: STATE's Log past 10 → the oldest go to the top of archive/log.md (moved by hand 6+ times in sprints 28–30).
+// The edit has already landed (PostToolUse), so rewriting STATE here doesn't fight it; a hook's own file writes don't
+// start hooks, so nothing loops. Claude's next Edit of STATE is told to read it again — the note says why.
+let trimNote = ''
+if (basename(full) === 'STATE.md') {
+  try {
+    const archive = join(project, '.planning', 'archive', 'log.md')
+    const archiveText = existsSync(archive) ? readFileSync(archive, 'utf8') : null
+    const trim = trimLog(readFileSync(full, 'utf8'), archiveText)
+    if (trim.moved) {
+      mkdirSync(dirname(archive), { recursive: true })
+      if (trim.archive !== archiveText) writeFileSync(archive, trim.archive) // the archive first: a line is never lost
+      writeFileSync(full, trim.state)
+      trimNote = `Moved ${trim.moved} old Log line(s) to archive/log.md (STATE keeps ${LOG_KEEP}) — STATE.md changed, read it again before the next edit.`
+    }
+  } catch (error) {
+    trimNote = `(the Log wasn't trimmed: ${String(error.message).split('\n')[0]})`
+  }
+}
+
 // Only problems that are new since the last commit: old ones (history, another session's files) don't nag every edit.
 const before = {}
 for (const name of PLAN_FILES) before[name] = git(project, 'show', `HEAD:.planning/${name}`)
@@ -41,8 +63,9 @@ const mine = lintProject(project).filter(p => (p.file === basename(full) || p.fi
 const pppNote = rebuildPlanner(project)
 if (mine.length) {
   const lines = mine.map(p => `- ${p.file}${p.line ? `:${p.line}` : ''}  ${p.message}`)
-  tellClaude(`plan-lint found problems in .planning/${basename(full)} (rules: ~/.claude/config/bmuz/PROJECT-FILES.md) — fix them now:\n${lines.join('\n')}${pppNote}`)
+  tellClaude(`plan-lint found problems in .planning/${basename(full)} (rules: ~/.claude/config/bmuz/PROJECT-FILES.md) — fix them now:\n${lines.join('\n')}${pppNote}${trimNote ? `\n${trimNote}` : ''}`)
 }
+if (trimNote) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: trimNote } }))
 process.exit(0)
 
 // Every problem in a project's plan files: { file, line, message }.
@@ -285,7 +308,7 @@ function lintState(text, add) {
   if (facts && facts.body.length > 50) add(F, facts.start + 1, `Key facts is ${facts.body.length} lines — ~40 max, prune stale ones`)
   const log = section(/^## Log/)
   const entries = log ? log.body.filter(l => /^- /.test(l)).length : 0
-  if (entries > 10) add(F, log.start + 1, `Log has ${entries} entries — keep 10, older → archive/log.md`)
+  if (entries > LOG_KEEP) add(F, log.start + 1, `Log has ${entries} entries — keep ${LOG_KEEP}, older → archive/log.md (the hook moves them on the next STATE edit; save.mjs does too)`)
 }
 
 // Rebuild .planning/ppp.html when the project has a planner page (it's gitignored). Returns a note for Claude.

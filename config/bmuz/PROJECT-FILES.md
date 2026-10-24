@@ -189,5 +189,5 @@ Release: <platform> | none (library) | not set up (declined <date>) | <platform>
 Last full check: <commit> — <date> <result>   ·   Reviewed through: <commit>   ·   Security reviewed: <commit>
 <Don't re-break includes test-infrastructure facts when they bite (ports, e2e run order).>
 ## Log
-<newest first, one line per /save; keep 10, older → archive/log.md>
+<newest first, one line per /save; keep 10, older → top of archive/log.md — moved by themselves ① (plan-lint hook after a STATE edit, save.mjs; F117)>
 ```

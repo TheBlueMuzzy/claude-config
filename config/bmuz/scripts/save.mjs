@@ -20,9 +20,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { git, run, say, ok, refuse, tail, readJson, writeJson, args, projectDir, changedFiles, NEVER_COMMIT, cleanup, fastChecks, greenRecord, guardCommit } from './lib.mjs'
-import { codeFingerprint } from '../hooks/lib.mjs'
+import { codeFingerprint, trimLog } from '../hooks/lib.mjs'
 
-const LOG_KEEP = 10
 // Lines every BMUZ project's .gitignore needs (F78): helper worktrees and the rebuilt planner page are never committed
 const IGNORE_LINES = ['.claude/worktrees/', '.planning/ppp.html']
 
@@ -103,31 +102,18 @@ if (version?.version) {
   label = `v${version.version}.${version.build}`
 }
 
-// 3. STATE Log: keep the newest 10
+// 3. STATE Log: keep the newest 10 (the same trim the plan-lint hook does after a STATE edit — F117)
 let moved = 0
 if (existsSync(stateFile)) {
-  const lines = readFileSync(stateFile, 'utf8').split('\n')
-  const start = lines.findIndex(l => /^## Log\b/.test(l))
-  if (start >= 0) {
-    let end = lines.findIndex((l, n) => n > start && /^## /.test(l)); if (end < 0) end = lines.length
-    // an entry is its "- " line plus any indented lines it wraps onto
-    const entries = []
-    for (let n = start + 1; n < end; n++) {
-      if (/^- /.test(lines[n])) entries.push({ rows: [n] })
-      else if (/^\s+\S/.test(lines[n]) && entries.length) entries.at(-1).rows.push(n)
-    }
-    const old = entries.slice(LOG_KEEP)
-    if (old.length) {
-      const archive = join(root, '.planning', 'archive', 'log.md')
-      mkdirSync(join(root, '.planning', 'archive'), { recursive: true })
-      keep(archive); keep(stateFile)
-      const before = existsSync(archive) ? readFileSync(archive, 'utf8') : '# Log archive (newest first)\n'
-      const [title, ...rest] = before.split('\n')
-      writeFileSync(archive, [title, ...old.flatMap(e => e.rows.map(n => lines[n])), ...rest].join('\n'))
-      const drop = new Set(old.flatMap(e => e.rows))
-      writeFileSync(stateFile, lines.filter((_, n) => !drop.has(n)).join('\n'))
-      moved = old.length
-    }
+  const archive = join(root, '.planning', 'archive', 'log.md')
+  const archiveText = existsSync(archive) ? readFileSync(archive, 'utf8') : null
+  const trim = trimLog(readFileSync(stateFile, 'utf8'), archiveText)
+  if (trim.moved) {
+    mkdirSync(join(root, '.planning', 'archive'), { recursive: true })
+    keep(archive); keep(stateFile)
+    if (trim.archive !== archiveText) writeFileSync(archive, trim.archive)
+    writeFileSync(stateFile, trim.state)
+    moved = trim.moved
   }
 }
 

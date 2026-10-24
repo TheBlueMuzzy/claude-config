@@ -280,6 +280,50 @@ export function toDir(target, from) {
   return isAbsolute(t) ? t : resolve(from || '.', t)
 }
 
+// --- STATE Log ---------------------------------------------------------------
+
+// STATE's Log keeps the newest 10 entries; older ones go to the top of .planning/archive/log.md, newest first (F117 —
+// shared by the plan-lint hook and save.mjs). Takes both files' text (archive null = no file yet) and returns
+// { moved, state, archive }: moved = entries taken out of STATE (0 = nothing to do, texts unchanged).
+// Only the moved rows leave STATE — every other byte stays, CRLF too. The archive keeps its own line endings
+// (a new one gets STATE's) and its header line, and an entry it already has isn't added twice.
+export const LOG_KEEP = 10
+export const LOG_ARCHIVE_HEADER = '# Log archive (newest first)'
+export function trimLog(stateText, archiveText) {
+  const lines = stateText.split('\n') // each line keeps its own "\r"
+  const start = lines.findIndex(l => /^## Log\b/.test(l))
+  if (start < 0) return { moved: 0, state: stateText, archive: archiveText }
+  let end = lines.findIndex((l, n) => n > start && /^## /.test(l)); if (end < 0) end = lines.length
+  // an entry is its "- " line plus any indented lines it wraps onto
+  const entries = []
+  for (let n = start + 1; n < end; n++) {
+    if (/^- /.test(lines[n])) entries.push({ rows: [n] })
+    else if (/^\s+\S/.test(lines[n]) && entries.length) entries.at(-1).rows.push(n)
+  }
+  const old = entries.slice(LOG_KEEP)
+  if (!old.length) return { moved: 0, state: stateText, archive: archiveText }
+  const cr = (text) => (/\r\n/.test(text) ? '\r' : '')
+  const base = archiveText?.trim() ? archiveText : `${LOG_ARCHIVE_HEADER}${cr(stateText)}\n`
+  const bare = (line) => line.replace(/\r$/, '')
+  const archiveLines = base.split('\n')
+  const have = new Set(archiveLines.map(bare))
+  const adding = old.filter(e => !have.has(bare(lines[e.rows[0]]))).flatMap(e => e.rows.map(n => bare(lines[n]) + cr(base)))
+  const drop = new Set(old.flatMap(e => e.rows))
+  // new lines go just above the archive's newest entry (its first "- " line), so whatever sits above that — a header,
+  // an intro line, or nothing (an archive made by hand with no header) — stays on top; no entries yet → at the end
+  let at = archiveLines.findIndex(l => /^- /.test(l))
+  if (at < 0) {
+    at = archiveLines.at(-1) === '' ? archiveLines.length - 1 : archiveLines.length
+    if (at === archiveLines.length) { archiveLines[at - 1] += cr(base); archiveLines.push('') } // no final line break → add one
+  }
+  archiveLines.splice(at, 0, ...adding)
+  return {
+    moved: old.length,
+    state: lines.filter((_, n) => !drop.has(n)).join('\n'),
+    archive: adding.length ? archiveLines.join('\n') : archiveText,
+  }
+}
+
 // --- git ---------------------------------------------------------------------
 
 // Run git in a folder; returns its output, or null if it failed.
