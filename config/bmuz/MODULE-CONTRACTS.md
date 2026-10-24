@@ -73,6 +73,7 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 ## Version (every web game — `framework/version`)
 - **One source:** `version.json` (`/save` bumps the build) read only by `versionPlugin()` in vite.config — it bakes in `import.meta.env.APP_VERSION` and puts `<meta name="app-version">` in the page ② (check:framework Version: the plugin in vite.config, a readable version.json, and any other file importing version.json is named and fails).
 - **One format, the same places:** `versionLabel` ("vX.Y.Z.B") on the main-menu footer (`<MainMenu version>`), the bottom of every Settings tab (`<Settings version>`, UI kit 0.24.0) and the Dev Kit adapter's `version` (snapshots + bug files) ② (check:framework Version: each one names the line that passes something else, or nothing).
+- **A screen the game draws itself** (Goops' console menu): `data-version-spot="main-menu"` / `"settings"` on the element showing `{versionLabel}`, in a file that imports it from `../version` — counts in place of the kit's `<MainMenu version>` / `<Settings version>` (version 0.1.1) ② (check:framework Version: a mark in a comment or a file that only imports the label fails).
 - **No test on a stale build:** an e2e script calls `checkVersion(page)` after `page.goto` — a stale build or a cached service worker stops it with a plain message ② (check:framework Version: an e2e file calls it; the browser check compares the page's meta tag with version.json).
 
 ## Crashes (any game players play away from Muzzy — `framework/crashes`)
