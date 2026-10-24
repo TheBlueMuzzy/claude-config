@@ -85,7 +85,9 @@ for g in "$HOME"/Documents/dev/games/*/; do
   if [ -f "$g/scripts/check-all.mjs" ] && ! grep -q "check-lock" "$g/scripts/check-all.mjs"; then
     miss="$miss · check-all.mjs has no one-run-at-a-time lock (copy it from config/bmuz/templates/check-all.mjs)"; fi
   if [ -f "$g/scripts/check-all.mjs" ] && ! grep -q "heldPorts" "$g/scripts/check-all.mjs"; then
-    miss="$miss · check-all.mjs has no port pre-flight (F118: copy its 'Port pre-flight' block + the import from config/bmuz/templates/check-all.mjs, and templates/ports.mjs to scripts/ports.mjs)"; fi
+    miss="$miss · check-all.mjs has no port pre-flight (F118: copy its 'Port pre-flight' block + the import from config/bmuz/templates/check-all.mjs, and templates/ports.mjs to scripts/ports.mjs)"
+  elif [ -f "$g/scripts/check-all.mjs" ] && [ ! -f "$g/scripts/ports.mjs" ]; then
+    miss="$miss · scripts/ports.mjs is missing — check:full stops without it (copy config/bmuz/templates/ports.mjs there)"; fi
   if grep -q '"check:fast"' "$g/package.json" && [ -d "$g/.git" ] && git -C "$g" remote get-url origin >/dev/null 2>&1 && [ ! -f "$g/.github/workflows/checks.yml" ]; then
     miss="$miss · no GitHub checks (copy config/bmuz/templates/checks.yml to .github/workflows/)"; fi
   if [ -n "$pieces" ] && ! grep -q '"check:framework"' "$g/package.json"; then

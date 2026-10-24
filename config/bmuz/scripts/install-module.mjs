@@ -119,6 +119,8 @@ if (exists(game, 'scripts/check-all.mjs') && !readFileSync(join(game, 'scripts',
 // …and one without the port pre-flight (F118): a busy port fails one script late, as a vague timeout
 if (exists(game, 'scripts/check-all.mjs') && !readFileSync(join(game, 'scripts', 'check-all.mjs'), 'utf8').includes('heldPorts')) {
   say(`! scripts/check-all.mjs has no port pre-flight — copy its "Port pre-flight" block + import from ~/.claude/config/bmuz/templates/check-all.mjs, and templates/ports.mjs to scripts/ports.mjs (a busy port then fails the run at once, naming who holds it)`)
+} else if (exists(game, 'scripts/check-all.mjs') && !exists(game, 'scripts/ports.mjs')) { // (review, F118: copied without its lookup)
+  say(`! scripts/ports.mjs is missing — check:full stops at once without it: copy ~/.claude/config/bmuz/templates/ports.mjs to scripts/ports.mjs`)
 }
 say(`\nNext: do the wiring steps the installer printed above, then prove the module's main promise in the game (develop skill: "Installing a module = proving its main promise").`)
 if (lintRed) process.exit(1)

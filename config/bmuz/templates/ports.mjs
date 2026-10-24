@@ -6,8 +6,10 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync, readlinkSync } from 'node:fs'
 
-const sh = (command, args) => {
-  const r = spawnSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
+// Every call has a time limit: a stuck lookup (WMI busy or broken on Windows) must not hang check:full — it ends, and
+// the run still says "port N is in use", without the name (review, F118)
+const sh = (command, args, timeout = 15_000) => {
+  const r = spawnSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024, timeout })
   return { code: r.status ?? 1, stdout: r.stdout || '' }
 }
 
@@ -25,6 +27,7 @@ export function listeningPorts() {
   if (ss.code === 0) { // LISTEN 0 511 *:5291 *:* users:(("node",pid=1234,fd=20))
     for (const line of ss.stdout.split('\n').filter(Boolean)) {
       const c = line.trim().split(/\s+/)
+      if (!c[3]) continue // not a socket row
       add(Number(c[3].split(':').pop()), Number(/pid=(\d+)/.exec(line)?.[1] ?? 0))
     }
     return found
@@ -41,7 +44,8 @@ export function listeningPorts() {
 export const listeners = (port) => listeningPorts().get(port) ?? []
 
 // Every process: [{ pid, ppid, cmd, started }]. Throws with the reason when the list can't be read.
-export function processes() {
+// tries: stop-servers needs the list (3 tries); the pre-flight only wants a name for its message (1 try, then without it).
+export function processes({ tries: most = 3 } = {}) {
   if (process.platform !== 'win32') {
     const out = sh('ps', ['-eo', 'pid=,ppid=,args=']).stdout
     return out.split('\n').map(l => l.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean).map(m => ({ pid: +m[1], ppid: +m[2], cmd: m[3], started: 0 }))
@@ -51,13 +55,13 @@ export function processes() {
   // Still failed now and then (2026-10-19, not reproduced in 8 runs after) → up to 3 tries, and the spot where it
   // broke is said so the next failure says why
   let list = null, out = '', why = ''
-  for (let tries = 0; tries < 3 && !list; tries++) {
-    out = sh('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{n='Started';e={if ($_.CreationDate) { $_.CreationDate.ToString('o') }}} | ConvertTo-Json -Compress"]).stdout
+  for (let tries = 0; tries < most && !list; tries++) {
+    out = sh('powershell', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{n='Started';e={if ($_.CreationDate) { $_.CreationDate.ToString('o') }}} | ConvertTo-Json -Compress"], 20_000).stdout
     try { list = JSON.parse(out) } catch (error) { why = error.message }
   }
   if (!list) {
     const at = Number(/position (\d+)/.exec(why)?.[1] ?? 0)
-    throw new Error(`couldn't list the running processes (3 tries): ${why}\n  near: ${JSON.stringify(out.slice(Math.max(0, at - 120), at + 60))}`)
+    throw new Error(`couldn't list the running processes (${most} tr${most > 1 ? 'ies' : 'y'}): ${why}\n  near: ${JSON.stringify(out.slice(Math.max(0, at - 120), at + 60))}`)
   }
   return [].concat(list).map(p => ({ pid: p.ProcessId, ppid: p.ParentProcessId, cmd: p.CommandLine || '', started: p.Started ? Date.parse(p.Started) : 0 }))
 }
@@ -94,7 +98,7 @@ export function heldPorts(ports) {
   const taken = [...new Set(ports)].filter(port => listening.has(port))
   if (!taken.length) return []
   let byPid = new Map()
-  try { byPid = new Map(processes().map(p => [p.pid, p])) } catch { /* still say the port, without the process */ }
+  try { byPid = new Map(processes({ tries: 1 }).map(p => [p.pid, p])) } catch { /* still say the port, without the process */ }
   return taken.map(port => {
     const pid = listening.get(port)[0] ?? 0
     const p = byPid.get(pid)

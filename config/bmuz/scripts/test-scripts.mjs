@@ -1,7 +1,7 @@
 // Proves every BMUZ script does its job — or refuses before changing anything (F69).
 // Run: node ~/.claude/config/bmuz/scripts/test-scripts.mjs [suite]   (throwaway folders + repos in the temp folder)
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, utimesSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -580,7 +580,7 @@ async function testPortPreflight() {
     .replace(/const E2E = \[[\s\S]*?\n\]\n/, `const E2E = [['shots', 'e2e/shots.mjs', 'e2e-shots ${inArgs} 4']]\n`))
   write(join(game, 'scripts', 'ports.mjs'), readFileSync(join(SCRIPTS, '..', 'templates', 'ports.mjs'), 'utf8'))
   write(join(game, 'e2e', 'ok.mjs'), '')
-  write(join(game, 'e2e', 'shots.mjs'), `// Shots at 3 sizes.\n// ports: ${declared}\nconst PORT = ${constant}, OUT = 'e2e-shots'\nconst ARGS_PORT = Number(process.argv[3] ?? 6999)\n`)
+  write(join(game, 'e2e', 'shots.mjs'), `// Shots at 3 sizes.\n// ports: ${declared}\nconst PORT = ${constant}, OUT = 'e2e-shots'\nconst ARGS_PORT = Number(process.argv[3] ?? 6999)\nexport const DEFAULT_PORT = ${base + 3}\n`)
   // a stand-in for a forgotten dev server (another folder), listening on the ports it's given — IPv6 localhost, like Vite
   const other = join(root, 'other-project')
   write(join(other, 'hold.mjs'), "import http from 'node:http'; for (const p of process.argv.slice(2)) http.createServer((q, s) => s.end('ok')).listen(Number(p), '::1')")
@@ -606,10 +606,30 @@ async function testPortPreflight() {
   expect(`…in seconds (${busy.seconds.toFixed(1)} s)`, busy.seconds < 10, busy.seconds)
   expect('…and the lock is freed', !existsSync(join(game, 'e2e-shots', '.check-lock')))
   server.kill()
-  server = await hold([constant])
+  server = await hold([constant, base + 3])
   const constantBusy = full()
   expect('a script\'s `const PORT = …` held → named (a port read from the args isn\'t guessed: 6999 never counts)', constantBusy.code === 1 && constantBusy.out.includes(`Port ${constant} (shots)`) && !/6999/.test(constantBusy.out), constantBusy.out)
+  expect('…a DEFAULT_PORT (the fallback the args replace, e.g. check-framework\'s 5197) never counts', /NOT STARTED — 1 port /.test(constantBusy.out) && !constantBusy.out.includes(`Port ${base + 3}`), constantBusy.out)
+  // the lookup can't name the holder (process list broken or stuck) → still refused, by port and process number
+  if (process.platform === 'win32') {
+    const bin = join(root, 'bin')
+    mkdirSync(bin, { recursive: true })
+    copyFileSync(process.execPath, join(bin, 'powershell.exe')) // found first: "node -NoProfile …" fails at once, like a broken WMI
+    const path = `${bin};${join(process.env.SystemRoot || 'C:\\Windows', 'System32')}` // netstat still the real one
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toUpperCase() !== 'PATH'))
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', `import { heldPorts } from ${JSON.stringify(pathToFileURL(join(SCRIPTS, '..', 'templates', 'ports.mjs')).href)}; console.log(JSON.stringify(heldPorts([${constant}])))`], { encoding: 'utf8', env: { ...env, PATH: path } })
+    let got = []; try { got = JSON.parse(r.stdout) } catch { /* shown below */ }
+    expect('…and when the process list can\'t be read, the port is still named as held (`process <id>`, no crash)', got.length === 1 && got[0].port === constant && /^process \d+$/.test(got[0].cmd), r.stdout + r.stderr)
+  }
   server.kill()
+  // a check-all copied without its ports.mjs: check:fast still works, check:full stops at once saying what to copy
+  const lookup = join(game, 'scripts', 'ports.mjs')
+  const kept = readFileSync(lookup, 'utf8')
+  rmSync(lookup)
+  const noLookupFast = spawnSync('node', ['scripts/check-all.mjs', 'fast'], { cwd: game, encoding: 'utf8' })
+  const noLookupFull = full()
+  expect('no scripts/ports.mjs → check:fast still passes, check:full refuses naming the file to copy (lock freed)', noLookupFast.status === 0 && noLookupFull.code === 1 && /scripts\/ports\.mjs is missing/.test(noLookupFull.out) && !existsSync(join(game, 'e2e-shots', '.check-lock')), noLookupFast.stdout + noLookupFast.stderr + noLookupFull.out)
+  write(lookup, kept)
   await new Promise(r => setTimeout(r, 300))
   const free = full()
   expect('every port free → the run goes on as before (fast, then the e2e script) and passes', free.code === 0 && /Fast checks/.test(free.out) && /PASS\s+shots/.test(free.out) && !/held by/.test(free.out), free.out)

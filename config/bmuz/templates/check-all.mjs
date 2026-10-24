@@ -11,15 +11,15 @@
 // server holds fails the run at once, naming who holds it and the line that frees it (a busy port used to fail one
 // script deep in the run as a vague timeout). The ports a run uses:
 //   - every number from 1024 up in an E2E line's args ('e2e-shots 5404 1995' → 5404 and 1995)
-//   - in each e2e script: any `const …PORT = 5291` (a number, not one read from the args), and a `// ports: 5462 5463`
-//     line for any other port it opens (a second server, a fixed wrangler port)
-// Needs scripts/ports.mjs next to this file (copy templates/ports.mjs — the same who-holds-this-port lookup as stop-servers).
+//   - in each e2e script: any `const …PORT = 5291` (a number, not one read from the args — and not a DEFAULT_PORT, the
+//     fallback the args replace), and a `// ports: 5462 5463` line for any other port it opens (a second server, a fixed wrangler port)
+// Needs scripts/ports.mjs next to this file (copy templates/ports.mjs — the same who-holds-this-port lookup as stop-servers);
+// only a full run loads it, so check:fast never depends on it.
 // Writes e2e-shots/checks.html: every check, pass/fail, how long, and its full log — the page Claude links for Muzzy
 // (dev server: /e2e-shots/checks.html), next to golden.html and report.html. Exit code 0 = everything passed.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
-import { heldPorts } from './ports.mjs'
 
 // [name, command] — fast checks don't use ports, so they all run at once
 const FAST = [
@@ -74,12 +74,17 @@ if (tier === 'full') {
   for (const [name, script, a] of e2e) {
     const text = existsSync(script) ? readFileSync(script, 'utf8') : ''
     const declared = [...text.matchAll(/^\s*\/\/\s*ports:(.*)$/gim)].map((m) => m[1]).join(' ')
-    const constants = [...text.matchAll(/\b(?:[A-Z0-9]+_)*PORT(?:_[A-Z0-9]+)*\s*=\s*(\d+)\b/g)].map((m) => m[1]).join(' ')
+    const constants = [...text.matchAll(/\b(?![A-Z0-9_]*DEFAULT)(?:[A-Z0-9]+_)*PORT(?:_[A-Z0-9]+)*\s*=\s*(\d+)\b/g)].map((m) => m[1]).join(' ')
     for (const port of `${a} ${declared} ${constants}`.match(/\b\d+\b/g) ?? []) {
       if (Number(port) < 1024 || Number(port) > 65535) continue
       users.set(Number(port), [...new Set([...(users.get(Number(port)) ?? []), name])])
     }
   }
+  if (!existsSync(new URL('./ports.mjs', import.meta.url))) {
+    console.log('NOT STARTED — scripts/ports.mjs is missing (the port pre-flight needs it): copy ~/.claude/config/bmuz/templates/ports.mjs to scripts/ports.mjs')
+    process.exit(1)
+  }
+  const { heldPorts } = await import('./ports.mjs')
   const held = heldPorts([...users.keys()])
   for (const { port, cmd, folder } of held) {
     console.log(`Port ${port} (${users.get(port).join(', ')}) is held by \`${cmd}\`${folder ? ` in ${folder}` : ''} — free it: node ~/.claude/config/bmuz/scripts/stop-servers.mjs ${port}`)
