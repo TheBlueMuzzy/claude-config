@@ -103,6 +103,7 @@ Screens go through one stack (Esc / Back close the top one; the kit's own Confir
 <ToastStack />
 // anywhere: screens.push('settings') · screens.pop() · askConfirm({ title, danger, onConfirm }) · toast('Saved')
 ```
+What's new after an update (kit 0.35.0+): the lines live in `content/text/whats-new.json` (`{ "notesUrl"?, "versions": { "0.4.0": [3–5 lines] } }`, an entry only for versions worth announcing); the MAIN MENU calls `useEffect(() => { showWhatsNew({ version: appVersion, ...whatsNew, words: text.whatsNew }) }, [])` — never mid-game, never on a first install.
 Words from `content/text/en.json` (only the words passed change; the rest stay English):
 ```tsx
 const PauseScreen = () => <Pause words={text.pause} onQuit={quit} onSettings={() => screens.push('settings')} />
