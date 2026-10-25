@@ -1,6 +1,6 @@
 ---
 name: game-ui
-description: Build any game's UI from Muzzy's Game UI kit — one structure, five styles (Clean, Cozy, Cartoon, Pixel, Neon) picked per game in content/ui/style.json. Gets the kit from dev/framework, gets a style picked, installs or updates the kit in the game, builds screens only from catalog parts, checks the rules and screenshots phone + desktop. Use whenever a game needs a screen, menu, main menu, settings, pause, HUD, dialog, popup, toast, results, scoreboard, game over, lobby, loading screen, button or panel, or when game UI looks off, is inconsistent, is hard to read, or breaks on a phone. Web games (React) for now. Not for store or landing pages (frontend-design does those).
+description: Build any game's UI from Muzzy's Game UI kit — one structure, seven styles (Clean, Cozy, Cartoon, Pixel, Neon, Dark console, Fantasy) picked per game in content/ui/style.json. Gets the kit from dev/framework, gets a style picked, installs or updates the kit in the game, builds screens only from catalog parts, checks the rules and screenshots phone + desktop. Use whenever a game needs a screen, menu, main menu, settings, pause, HUD, dialog, popup, toast, results, scoreboard, game over, lobby, loading screen, button or panel, or when game UI looks off, is inconsistent, is hard to read, or breaks on a phone. Web games (React) for now. Not for store or landing pages (frontend-design does those).
 ---
 
 # game-ui — every game's UI, from the kit

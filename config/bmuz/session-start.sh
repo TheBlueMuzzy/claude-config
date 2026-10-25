@@ -41,7 +41,7 @@ cd "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null || exit 0
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   # Started in a folder that holds projects (e.g. dev/games) — reviews, RESUME HERE and sync only work inside one
   REPOS=$(for d in */; do [ -d "$d.git" ] && [ -f "$d.planning/STATE.md" ] && printf '%s ' "${d%/}"; done)
-  [ -n "$REPOS" ] && echo "Not inside a project — tell Muzzy in one line: start Claude in the project folder (e.g. \`cd <project>\` then \`claude\`) so RESUME HERE, sync and /security-review work. Projects here: $REPOS"
+  [ -n "$REPOS" ] && echo "Not inside a project — cd into the right one yourself (Muzzy, 2026-10-25: never ask him to restart Claude in the folder) and read its .planning/STATE.md RESUME HERE before working. Projects here: $REPOS"
   exit 0
 fi
 
