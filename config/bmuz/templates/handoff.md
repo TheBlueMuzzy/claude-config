@@ -17,7 +17,9 @@ here and the check follows (it reads every `**Label:**` in the card).
 ```
 Questions holds questions only (Muzzy, 2026-10-23: "this didn't seem like a question. it felt like information. this
 section is called Questions: i'm confused by that") — information goes in Done / You'll see, actions in Your to-dos; the
-check sends back a Questions item with no "?". Plain words, short lines, jargon explained the first time. Links in full (http…) so they're clickable. A wrapped label
+check sends back a Questions item with no "?". A question about something on screen names it as a player would (the
+pop-ups, not "toasts"/"feedback") and gives its screenshot path or a link that opens it (framework sprint 39: Muzzy
+looked for "notifications" in the gallery, found nothing — "still no visual here") ③. Plain words, short lines, jargon explained the first time. Links in full (http…) so they're clickable. A wrapped label
 may hold bullets under it.
 
 ## Progress line (work still running — helpers, long checks)
