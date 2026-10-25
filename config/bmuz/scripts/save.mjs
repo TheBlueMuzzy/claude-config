@@ -13,13 +13,14 @@
 //   4. commit everything — after asking the same commit hooks a typed `git commit` gets (secrets, F08 code on main,
 //      `F08: done` without STATE / review / full check, type errors) (F80) — push the branch (upstream the first time)
 //   5. checks GitHub really has this commit — only then says "safe to switch machines"
+//   5b. warns when the branch's last finished GitHub Checks run is red (never refuses)
 //   6. rebuilds the planner page (STATE has a `Planner (PPP):` link) — the Stop hook then asks Claude to republish (F80)
 //   7. syncs the shared setup (~/.claude ↔ ~/.claude-config, PC ↔ laptop): this machine's changes pushed, the other
 //      machine's incoming changes named (applying them is Claude's job — they may clash) (F80)
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { git, run, say, ok, refuse, tail, readJson, writeJson, args, projectDir, changedFiles, NEVER_COMMIT, cleanup, fastChecks, greenRecord, guardCommit } from './lib.mjs'
+import { git, gh, hasChecksWorkflow, run, say, ok, refuse, tail, readJson, writeJson, args, projectDir, changedFiles, NEVER_COMMIT, cleanup, fastChecks, greenRecord, guardCommit } from './lib.mjs'
 import { codeFingerprint, trimLog } from '../hooks/lib.mjs'
 
 // Lines every BMUZ project's .gitignore needs (F78): helper worktrees and the rebuilt planner page are never committed
@@ -144,6 +145,19 @@ run('git', ['fetch', '-q', 'origin', branch], { cwd: root })
 if (git(root, 'rev-parse', 'HEAD') !== git(root, 'rev-parse', `origin/${branch}`)) refuse('pushed, but GitHub\'s copy isn\'t at this commit — NOT safe to switch machines', '`git status` / `git log origin/' + branch + '` show the difference')
 afterSave()
 ok(`Saved + pushed (${where}) — safe to switch machines.`)
+lastChecksWarning()
+
+// 5b. The branch's last FINISHED GitHub Checks run (this push's own run has only just started). Red is said at every
+// save until it's fixed — framework v0.21: the branch went red at 8 AM on a font difference and nobody saw it until
+// /deliver refused, 8 hours and 6 saves later. Never a refusal: the save already happened.
+function lastChecksWarning() {
+  if (!hasChecksWorkflow(root)) return
+  const asked = gh(['run', 'list', '--workflow', 'Checks', '--branch', branch, '--status', 'completed', '--limit', '5', '--json', 'conclusion,url,headSha'], { cwd: root })
+  let runs = null
+  try { runs = JSON.parse(asked.out) } catch { return } // gh missing / not logged in: /deliver says so
+  const last = Array.isArray(runs) && runs.find(r => !['cancelled', 'skipped'].includes(r.conclusion)) // (a newer push cancels the older run)
+  if (last && last.conclusion !== 'success') say(`⚠ GitHub's last finished Checks run on ${branch} is red (${last.conclusion}, ${String(last.headSha).slice(0, 7)}): ${last.url}\n  → open it and fix it now, while the change is fresh — /deliver refuses a red branch`)
+}
 
 // 6 + 7: the planner page and the shared setup. Neither can undo the save; trouble is said, never a refusal.
 function afterSave() {
