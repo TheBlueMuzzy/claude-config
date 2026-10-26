@@ -1505,8 +1505,23 @@ async function testExtract() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// Run from inside a copy of the framework (a helper's worktree), the scripts use THAT copy's modules (sprint 43, F154:
+// install-module read the main checkout and said "already up to date")
+function testFrameworkAround() {
+  console.log('framework — a script run inside a framework copy uses that copy')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-fw-'))
+  for (const m of ['ui-kit', 'devkit']) { mkdirSync(join(root, 'copy', m, 'kit'), { recursive: true }); writeFileSync(join(root, 'copy', m, 'kit', 'VERSION'), '0.1.0\n') }
+  mkdirSync(join(root, 'copy', 'starters', 'game'), { recursive: true }); mkdirSync(join(root, 'elsewhere'))
+  const env = { ...process.env }; delete env.BMUZ_FRAMEWORK
+  const lib = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'lib.mjs')).href
+  const ask = (cwd) => execFileSync(process.execPath, ['--input-type=module', '-e', `const m = await import(${JSON.stringify(lib)}); console.log(m.FRAMEWORK)`], { cwd, env, encoding: 'utf8' }).trim()
+  expect('inside the copy (its starter) → the copy', ask(join(root, 'copy', 'starters', 'game')) === join(root, 'copy'))
+  expect('anywhere else → the usual ~/Documents/dev/framework', ask(join(root, 'elsewhere')).endsWith(join('Documents', 'dev', 'framework')))
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
+const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)

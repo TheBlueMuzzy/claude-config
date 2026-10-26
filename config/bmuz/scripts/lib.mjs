@@ -9,8 +9,18 @@ export { git, NEVER_COMMIT } from '../hooks/lib.mjs'
 
 const HOOKS = join(import.meta.dirname, '..', 'hooks')
 
-// The framework checkout (tests point this at a fake one).
-export const FRAMEWORK = process.env.BMUZ_FRAMEWORK || join(homedir(), 'Documents', 'dev', 'framework')
+// The framework checkout (tests point this at a fake one). Run from INSIDE a copy of the framework (a helper's git
+// worktree, .claude/worktrees/agent-…), that copy is the framework: installing a module into its starter must take the
+// copy's own modules — it used to read the main checkout and said "already up to date" (framework sprint 43, F154).
+export const FRAMEWORK = process.env.BMUZ_FRAMEWORK || frameworkAround(process.cwd()) || join(homedir(), 'Documents', 'dev', 'framework')
+
+/** The nearest folder at or above `dir` that is a framework checkout (has ui-kit + devkit modules), or null. */
+function frameworkAround(dir) {
+  for (let at = resolve(dir); ; at = dirname(at)) {
+    if (existsSync(join(at, 'ui-kit', 'kit', 'VERSION')) && existsSync(join(at, 'devkit', 'kit', 'VERSION'))) return at
+    if (dirname(at) === at) return null
+  }
+}
 
 // Run a command; returns { code, out, stdout } — out = stdout + stderr together (for messages), stdout alone for
 // output that gets parsed (a stderr warning glued onto JSON broke stop-servers' process list under load). Never throws.
