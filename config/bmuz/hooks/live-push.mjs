@@ -63,7 +63,9 @@ export function liveBranches(root) {
   const live = new Set()
   if (!existsSync(folder)) return live
   for (const file of readdirSync(folder).filter(f => /\.ya?ml$/.test(f))) {
-    const text = readFileSync(join(folder, file), 'utf8')
+    // comments don't deploy anything: a checks workflow whose comment said "online through wrangler dev" made every push
+    // to every branch look like it puts the site live (framework sprint 42)
+    const text = readFileSync(join(folder, file), 'utf8').split('\n').filter(l => !/^\s*#/.test(l)).map(l => l.replace(/\s+#.*$/, '')).join('\n')
     if (!/deploy-pages|gh-pages|wrangler|deploy/i.test(text)) continue
     // `on: push` / `on: [push, …]` → every branch deploys
     if (/^on:\s*(push|\[[^\]]*\bpush\b[^\]]*\])\s*$/m.test(text)) { live.add('*'); continue }

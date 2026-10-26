@@ -396,6 +396,8 @@ function testLivePush() {
   const { root, repo } = makeRepo()
   const p = cmd => runHook('live-push.mjs', bash(repo, cmd))
   expect('no deploy workflow → push main allowed', p('git push origin main'), 'allow')
+  commitFile(repo, '.github/workflows/checks.yml', 'name: Checks\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      # plays the starter online through wrangler dev (a comment)\n      - run: npm test # no deploy here\n', 'checks')
+  expect('a checks workflow whose COMMENTS say "wrangler" / "deploy" is not a deploy → push allowed (framework sprint 42)', p('git push origin main'), 'allow')
   commitFile(repo, '.github/workflows/deploy.yml', DEPLOY_WORKFLOW, 'deploy')
   commitFile(repo, 'package.json', JSON.stringify({ scripts: { smoke: 'node -e "process.exit(0)"', deploy: 'echo' } }), 'pkg')
   expect('no smoke pass → push main blocked', p('git push origin main'), 'deny')
