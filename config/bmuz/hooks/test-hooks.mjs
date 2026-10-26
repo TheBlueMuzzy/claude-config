@@ -611,6 +611,8 @@ function testHandoffCheck() {
   expect('Questions: an item that is information, not a question → sent back', info, 'block')
   expect('…names the item and where it goes', { result: /3 yeses/.test(info.message) && /Your to-dos/.test(info.message) ? 'ok' : 'no', message: info.message }, 'ok')
   expect('Questions: "none" → allowed', asking('none'), 'allow')
+  expect('Questions: unnumbered bullets → sent back (Muzzy 2026-10-26: "always number your questions")', asking('- Ship it?\n- Which colour?'), 'block')
+  expect('Questions: one question, unnumbered → sent back too', asking('Ship it?'), 'block')
   expect('a card with no Your to-dos → sent back', stop([...work, say(card.replace('**Your to-dos:** none\n', ''))]), 'block')
   expect('a commit counts as work',stop([prompt('go'), tool('Bash', { command: 'git add -A && git commit -m x' }), result, say('committed')]), 'block')
   expect('work in an EARLIER turn only → no card needed now', stop([...work, say(card), prompt('thanks, what next?'), say('F67.')]), 'allow')
@@ -650,7 +652,7 @@ function testHandoffCheck() {
   const noFeel = stop([...inGame, say(fanCard)])
   expect('F80: F08 built + a why: line, card without the feel question → sent back', noFeel, 'block')
   expect('…quotes the why', { result: /Did <moment> feel like/.test(noFeel.message) && /Mastery/.test(noFeel.message) ? 'ok' : 'no', message: noFeel.message }, 'ok')
-  expect('…with "Did … feel …?" → allowed', stop([...inGame, say(fanCard.replace('**Questions:** none', '**Questions:** Did fanning 7 cards feel like holding a real hand?'))]), 'allow')
+  expect('…with "Did … feel …?" → allowed', stop([...inGame, say(fanCard.replace('**Questions:** none', '**Questions:** 1. Did fanning 7 cards feel like holding a real hand?'))]), 'allow')
   expect('…a card about another feature (F08 not named) → allowed', stop([...inGame, say(card)]), 'allow')
   rmSync(gameRoot, { recursive: true, force: true })
   // the sprint report header

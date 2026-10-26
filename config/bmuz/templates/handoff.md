@@ -12,7 +12,7 @@ here and the check follows (it reads every `**Label:**` in the card).
 **Try it:** PC link · phone link · live link · planner (PPP) link — or "nothing to try: <why>"
 **Proof:** the checks that ran (with results) + what the screenshots showed
 **Your to-dos:** things only Muzzy can do (say yes in another window, try it on the phone, play a round) — or "none"
-**Questions:** only decisions Muzzy answers, each one a question ending in "?" (options, Claude's pick first) — or "none"
+**Questions:** only decisions Muzzy answers, numbered 1. 2. 3. so he can answer by number, each one a question ending in "?" (options indented under it, Claude's pick first) — or "none"
 **Next:** `/command` — what it will cover
 ```
 Questions holds questions only (Muzzy, 2026-10-23: "this didn't seem like a question. it felt like information. this

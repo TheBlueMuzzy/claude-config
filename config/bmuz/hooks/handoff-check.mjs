@@ -86,6 +86,15 @@ function* cardProblems(text) {
   if (tryIt !== null && !/https?:\/\/|nothing to try/i.test(tryIt)) yield 'links (http…) under **Try it:** — or "nothing to try: <why>"'
   const notAsked = notQuestions(section(text, 'Questions'))
   if (notAsked.length) yield `**Questions:** holds only questions ending in "?" (or "none") — move ${notAsked.map(l => `"${l.slice(0, 50)}"`).join(', ')} to **Done:** / **You'll see:** (information) or **Your to-dos:** (something Muzzy does)`
+  if (unnumbered(section(text, 'Questions'))) yield '**Questions:** numbered 1. 2. 3. (Muzzy, 2026-10-26: "always number your questions so I can reference them with numbers") — options under each stay indented'
+}
+
+// Questions that aren't numbered "1." / "2)" — Muzzy answers by number
+function unnumbered(questions) {
+  if (questions === null) return false
+  const lines = questions.split('\n').filter(l => l.trim() && !/^\s{2,}|^\t/.test(l))
+  if (lines.length === 1 && /^\s*([-*•]\s*)?none\b/i.test(lines[0].replace(/[*_`]/g, ''))) return false
+  return lines.some(l => !/^\s*\d+[.)]\s/.test(l))
 }
 
 // The Questions items that aren't questions (Muzzy, 2026-10-23: "it felt like information… i'm confused by that").
