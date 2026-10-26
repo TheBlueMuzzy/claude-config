@@ -675,6 +675,8 @@ function testHandoffCheck() {
   expect('names: a range "F151–F65" → sent back', ask('F151–F65 are left.'), 'block')
   expect('names: in `inline code` (a commit prefix) → allowed', ask('Commits start `F151: done`.'), 'allow')
   expect('names: an id the roadmap lacks ("press F12") → allowed', ask('Press F12 to open the console.'), 'allow')
+  expect('names: a name starting with a digit ("F65 — 3D test game") → allowed (found in use: "F57 — 3D picker")', ask('F65 — 3D test game is next.'), 'allow')
+  expect('names: a quoted example of the bare form ("never a bare "F151"") → allowed', ask('Say the name, never a bare "F151".'), 'allow')
   const said = ask('Next is F65.').message
   expect('names: the message suggests the roadmap name (old "Name: description" line)', { result: /F65 — Framework test game"/.test(said) ? 'allow' : 'block' }, 'allow')
   rmSync(projRoot, { recursive: true, force: true })

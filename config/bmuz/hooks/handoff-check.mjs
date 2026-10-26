@@ -64,7 +64,10 @@ function bareFeatureIds(text, names) {
   for (const m of plain.matchAll(/\bF\d+[a-z]?\b/g)) {
     if (!names.has(m[0])) continue
     const after = plain.slice(m.index + m[0].length, m.index + m[0].length + 40)
-    if (/^(\s*(❓|🧱|🎮|✨|🔧|🐞)️?)?\s+[—–-]\s+\p{L}/u.test(after) || /^\s*(❓|🧱|🎮|✨|🔧|🐞)️?\s+\p{L}/u.test(after)) continue
+    // (a name may start with a digit: "F57 — 3D picker")
+    if (/^(\s*(❓|🧱|🎮|✨|🔧|🐞)️?)?\s+[—–-]\s+[\p{L}\p{N}]/u.test(after) || /^\s*(❓|🧱|🎮|✨|🔧|🐞)️?\s+[\p{L}\p{N}]/u.test(after)) continue
+    // (a quoted example of the bare form — "never a bare "F151"" — is talking about the rule, like "your game")
+    if (/["“]$/.test(plain.slice(0, m.index)) && /^["”]/.test(after)) continue
     bare.set(m[0], names.get(m[0]))
   }
   return [...bare]
