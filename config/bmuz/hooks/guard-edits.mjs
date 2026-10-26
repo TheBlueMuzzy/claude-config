@@ -20,11 +20,14 @@
 //  8. A `node -e "…"` / `python -c "…"` in bash with a backtick inside the double quotes: bash runs the backticked text
 //     as a command first, so the script silently loses it — and a `>` in it writes a file (framework sprint 33: a
 //     ROADMAP line lost its code and mermaid block, and empty files named "[data-slot]" and "F123[F123" got committed).
+//  9. npm ci / npm install in a folder whose node_modules a running process uses (a dev server): on Windows the install
+//     can't replace the files it holds and leaves the folder with no packages (framework sprint 41, twice in a night).
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, relative, isAbsolute } from 'node:path'
 import { readInput, deny, toDir, dropHeredocs, commands } from './lib.mjs'
 import { readQueue, frozenEntry } from '../scripts/lib.mjs'
+import { processes, shortCommand } from '../templates/ports.mjs'
 
 const MODULE_COPIES = [ // folder in a game → framework module
   ['src/ui/kit', 'ui-kit'], ['src/devkit', 'devkit'], ['src/ai/kit', 'ai'],
@@ -91,6 +94,25 @@ if ((shellWritesCode && heredocWithBackslash) || scripts.some(scriptWritesCode) 
 // 8. bash: a double-quoted node -e / python -c script with a backtick in it (bash runs it as a command first)
 if (tool === 'Bash' && doubleQuotedScripts(command).some(s => /(^|[^\\])`/.test(s))) {
   deny('Blocked: this `node -e "…"` / `python -c "…"` has a backtick inside double quotes — bash runs the backticked text as a command before the script sees it, so the text silently goes missing (and a `>` inside makes a file). Put the script in single quotes (`node -e \'…\'`), or Write it to a .mjs file in the scratchpad and run that.')
+}
+
+// 9. npm ci / npm install in a folder whose packages a running server is using (a Vite dev server holds its build
+//    tool's .node file open): on Windows the install can't replace them, stops half-way and leaves the folder with NO
+//    packages — every check there then fails ("vitest is not recognized"). Framework sprint 41: twice in one night,
+//    against the gallery on 5180 (and TaskStop on `cd … && npx vite` left vite itself running).
+const installs = commands(command, cwd).filter(({ words }) => {
+  const [first = '', second = ''] = words.map(w => w.toLowerCase())
+  return first === 'npm' && /^(ci|install|i|clean-install|install-clean)$/.test(second) && !words.some(w => /^(-g|--global)$/.test(w))
+})
+if (installs.length) {
+  const norm = (p) => toDir(p, cwd).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+  let running = []
+  try { running = processes({ tries: 1 }) } catch { running = [] } // can't list them → don't block the install
+  for (const { dir } of installs) {
+    const packages = `${norm(dir)}/node_modules/`
+    const user = running.find(p => p.pid !== process.pid && p.cmd.replace(/\\/g, '/').toLowerCase().includes(packages))
+    if (user) deny(`Blocked: a running process uses this folder's packages (${user.pid}: ${shortCommand(user.cmd)}) — on Windows \`npm ${installs[0].words[1]}\` can't replace files it holds, stops half-way and leaves NO packages there (every check then fails). Stop it first with \`node ~/.claude/config/bmuz/scripts/stop-servers.mjs <its port or name>\` (TaskStop can leave a server started through npx running), install, then start it again.`)
+  }
 }
 
 // 4. stopping a server by hand — the kill tool has to BE the command (review: `grep -rn taskkill …` and
