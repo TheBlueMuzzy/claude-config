@@ -68,10 +68,10 @@ Release target: alpha — musts 7/9 done
 ## v0.3 — Card play feels good  ← current  (→ alpha)
 Goal: <what a player can do when this is done>
 - ✅ F07 🧱 Card hand system — must:alpha
-- 🔨 F08 🎮 Splayed cards — must:alpha · needs: F07 · sprint 4
+- 🔨 F08 🎮 Splayed cards — the hand fans out so every card shows — must:alpha · needs: F07 · sprint 4
   what: <optional one-line goal>
   why: fan layout → players scan the whole hand → Mastery   ← optional MDA trace (🎮 ✨ ❓)
-- ⏳ F10 🎮 Discard pile — must:alpha · needs: F09, F07
+- ⏳ F10 🎮 Discard pile — played cards land face up beside the deck — must:alpha · needs: F09, F07
 ```mermaid
 flowchart LR
   F07[✅ F07 Card hand] --> F08[🔨 F08 Splayed]
@@ -82,6 +82,7 @@ flowchart LR
 ## Ideas
 - 2026-10-05 — <raw idea; anyone appends; /roadmap turns good ones into features>
 ```
+**A feature line = `F## <type> <Name> — <short description> — <scope> · needs: …`** (Muzzy, 2026-10-26). The Name is 2–6 clear words that make sense on their own ("Turn-based starter", not "Starters part 1"); the description says what it does. **Wherever a feature comes up — chat, cards, reports, sprint plans — it's "F151 — Turn-based starter", never a bare "F151"**, ranges too (name each one) ② (plan-lint refuses a new open feature without "Name — description"; handoff-check sends back any message with a bare F## of the project's roadmap). Finished (✅) lines keep their old shape.
 IDs are permanent. Each milestone ends with a small Mermaid graph (solid = needs, dotted = `~`) kept in sync. Milestone names needn't match version.json.
 A milestone heading may end with `· target: <YYYY-MM-DD>` (the day it should be done: `## v0.3 — Card play feels good  ← current  (→ alpha) · target: 2026-11-02`); session start counts down to it from 14 days out and says when it's overdue, with the musts done ① (producer-notes.mjs).
 

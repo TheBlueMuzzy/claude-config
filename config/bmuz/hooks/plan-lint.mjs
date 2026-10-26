@@ -103,6 +103,16 @@ function lintRoadmap({ milestones, parking, allItems }, add) {
     if (byId[item.id]) add(F, item.lineNo, `${item.id} is used twice (also line ${byId[item.id].lineNo}) — IDs are permanent and unique`)
     else byId[item.id] = item
   }
+  for (const item of allItems) {
+    // "F## <type> Name — short description" (Muzzy, 2026-10-26: "if you bring up F##, it should instead be F## - High
+    // Level Name"): the name is what goes with the number everywhere (handoff-check holds Claude to it), so every open
+    // feature has one. Finished lines keep their old shape.
+    if (!item.id || item.state.key === 'done') continue
+    const [name, ...description] = (item.title || '').split(' — ')
+    const words = name.trim().split(/\s+/).length
+    if (!description.join('').trim()) add(F, item.lineNo, `${item.id}: write it "${item.id} <type> <Name> — <short description>" — a clear 2–6 word name, then " — ", then what it does (the name goes with ${item.id} everywhere)`)
+    else if (words > 8 || /: /.test(name)) add(F, item.lineNo, `${item.id}: the name "${name.trim().slice(0, 50)}" is too long — keep it 2–6 words and move the rest after " — "`)
+  }
   for (const item of everything) {
     // scope + needs must come after the line's LAST " — ", or the planner page (and this check) can't see them
     if (!item.needs.length && /\bneeds:\s*~?F\d/.test(item.raw)) add(F, item.lineNo, `${item.id || item.title}: "needs:" isn't read — a " — " later in the line hides it; keep "— must · needs: …" last (use ":" inside notes)`)

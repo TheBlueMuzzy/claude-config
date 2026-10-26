@@ -34,8 +34,41 @@ if (worked && !isProgressLine(message)) {
 const top = input.cwd && git(input.cwd, 'rev-parse', '--show-toplevel')
 const inProject = top && existsSync(join(top, '.planning'))
 if (inProject && /(^|[^"'“‘`\w])your game\b(?!["'”’`])/i.test(message)) problems.push('Never say "your game" (Muzzy, 2026-10-07: "this entire thing is \'my game\'") — say the game\'s name, "the game", or "the game you played on <date>". Rewrite that line.')
+if (inProject) {
+  const bare = bareFeatureIds(message, featureNames(top))
+  if (bare.length) problems.push(`A feature number always comes with its name (Muzzy, 2026-10-26: "if you bring up F##, it should instead be F## - High Level Name") — rewrite ${bare.map(([id, name]) => `${id} → "${id} — ${name}"`).join(', ')}. Every mention, ranges too ("F148–F150" → name each one).`)
+}
 stopVerdict('handoff-check', input, problems.length && problems.join('\n\n'))
 process.exit(0)
+
+// The project's features: id → its high-level name (the ROADMAP title up to " — ", or ":" on older lines)
+function featureNames(dir) {
+  const path = join(dir, '.planning', 'ROADMAP.md')
+  if (!existsSync(path)) return new Map()
+  const { byId } = readRoadmap(readFileSync(path, 'utf8'))
+  const names = new Map()
+  for (const [id, item] of Object.entries(byId)) {
+    const words = (item.title ?? '').split(' — ')[0].split(': ')[0].trim().split(/\s+/)
+    names.set(id, words.length > 8 ? words.slice(0, 8).join(' ') + '…' : words.join(' '))
+  }
+  return names
+}
+
+// Feature numbers said without their name. Named = "F151 — Turn-based starter" (any dash) or "F151 🧱 Turn-based
+// starter" (its type mark, the roadmap's own way). Only the project's real ids count ("press F12" is a key), and
+// `inline code` is skipped (a commit prefix like `F08: done`).
+function bareFeatureIds(text, names) {
+  if (!names.size) return []
+  const plain = text.replace(/`[^`\n]*`/g, '')
+  const bare = new Map()
+  for (const m of plain.matchAll(/\bF\d+[a-z]?\b/g)) {
+    if (!names.has(m[0])) continue
+    const after = plain.slice(m.index + m[0].length, m.index + m[0].length + 40)
+    if (/^(\s*(❓|🧱|🎮|✨|🔧|🐞)️?)?\s+[—–-]\s+\p{L}/u.test(after) || /^\s*(❓|🧱|🎮|✨|🔧|🐞)️?\s+\p{L}/u.test(after)) continue
+    bare.set(m[0], names.get(m[0]))
+  }
+  return [...bare]
+}
 
 // What the card is missing, judged against the template's labels.
 function* cardProblems(text) {
