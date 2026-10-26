@@ -806,6 +806,8 @@ function testPlanLint() {
   expect('names: "Name: description" (the old shape) → told', says(edit('ROADMAP.md', add('- ⏳ F07 🎮 Discard pile: where cards go — must · needs: F01 · waits: art')), /F07: write it/), 'ok')
   expect('names: "Name — description" → quiet', edit('ROADMAP.md', add('- ⏳ F07 🎮 Discard pile — where cards go — must · needs: F01 · waits: art')), 'allow')
   expect('names: a finished line keeps its old shape → quiet', edit('ROADMAP.md', add('- ✅ F07 🎮 Discard pile — must')), 'allow')
+  // a released milestone holds only finished work (framework 2026-10-26: 8 parked features hid in released milestones)
+  expect('an open feature inside a released milestone → told "move it to Later"', says(edit('ROADMAP.md', roadmap.replace('← current', '✅ released 2026-10-20 (v0.1.0)').replace('- 🟢 F03 ✨ Wiggle — could', '- 💤 F03 ✨ Wiggle — cards wiggle when picked — could')), /F03 — Wiggle is still .* inside a released milestone \(v0\.1 — First\)/), 'ok')
   edit('ROADMAP.md', roadmap)
   const badPath = edit('SPRINT.md', sprint + '- [ ] 🤖 4. Deep — src/nowhere/deep/x.ts\n')
   expect('F80: a task naming a file whose folder does not exist → told ("tasks name real files")', badPath, 'block')

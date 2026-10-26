@@ -96,7 +96,7 @@ export function checksVerdict(root, { commit, branch } = {}) {
   if (!hasChecksWorkflow(root, commit)) {
     return { verdict: 'warn', text: 'this repo has no GitHub Checks workflow, so nothing re-checked it on GitHub', fix: 'copy ~/.claude/config/bmuz/templates/checks.yml to .github/workflows/checks.yml, commit, push' }
   }
-  const query = ['run', 'list', '--workflow', 'Checks', '--limit', '1', '--json', 'status,conclusion,url,headSha', '--commit', commit, ...(branch ? ['--branch', branch] : [])]
+  const query = ['run', 'list', '--workflow', 'Checks', '--limit', '1', '--json', 'status,conclusion,url,headSha,databaseId', '--commit', commit, ...(branch ? ['--branch', branch] : [])]
   const asked = gh(query, { cwd: root })
   let runs = null
   try { runs = JSON.parse(asked.out) } catch { /* not JSON = gh failed */ }
@@ -106,7 +106,7 @@ export function checksVerdict(root, { commit, branch } = {}) {
   const latest = runs[0]
   if (!latest) return { verdict: 'red', text: `GitHub hasn't checked ${short}${branch ? ` (the tip of ${branch})` : ''} yet`, fix: 'push the branch and wait for the Checks run to finish (`gh run watch`)' }
   if (latest.status !== 'completed') return { verdict: 'red', text: `GitHub is still checking ${short} — wait for it to finish: ${latest.url}`, url: latest.url, fix: '`gh run watch`, then try again' }
-  if (latest.conclusion !== 'success') return { verdict: 'red', text: `GitHub's Checks run for ${short} is red (${latest.conclusion}) — something is broken: ${latest.url}`, url: latest.url, fix: 'open the run, fix it on the work branch, push, and wait for green' }
+  if (latest.conclusion !== 'success') return { verdict: 'red', text: `GitHub's Checks run for ${short} is red (${latest.conclusion}) — something is broken: ${latest.url}`, url: latest.url, id: latest.databaseId, fix: 'open the run, fix it on the work branch, push, and wait for green' }
   return { verdict: 'green', text: `GitHub's Checks run for ${short} is green: ${latest.url}`, url: latest.url }
 }
 
@@ -133,7 +133,28 @@ export function waitForChecks(root, where) {
     sleep(Number(process.env.BMUZ_POLL_MS || 15_000))
     v = checksVerdict(root, where)
   }
+  // A run that failed ONLY while downloading a test browser (GitHub's package mirror stalls now and then — three
+  // times on 2026-10-26, each re-run passed in minutes) is re-run once by itself and waited for again
+  if (v.verdict === 'red' && v.id && !where.reran && onlyDownloadsFailed(root, v.id)) {
+    say(`↻ GitHub's run failed only while downloading a test browser (its mirror stalls now and then) — re-running the failed jobs once: ${v.url}`)
+    gh(['run', 'rerun', String(v.id), '--failed'], { cwd: root })
+    sleep(Number(process.env.BMUZ_POLL_MS || 15_000))
+    return waitForChecks(root, { ...where, reran: true })
+  }
   return v
+}
+
+// Did every failed job fail at a browser-download step ("Browsers for tests that need them", "Chromium for …")?
+function onlyDownloadsFailed(root, id) {
+  const asked = gh(['run', 'view', String(id), '--json', 'jobs'], { cwd: root })
+  let jobs = null
+  try { jobs = JSON.parse(asked.out).jobs } catch { return false }
+  const failed = (jobs || []).filter(job => job.conclusion && !['success', 'skipped'].includes(job.conclusion))
+  if (!failed.length) return false
+  return failed.every(job => {
+    const steps = (job.steps || []).filter(step => step.conclusion && !['success', 'skipped'].includes(step.conclusion))
+    return steps.length > 0 && steps.every(step => /^(Browsers? for tests|Chromium for)/i.test(step.name))
+  })
 }
 
 // --- dates, STATE lines, commits (F80: what /deliver used to remember, read by the scripts) --------------------

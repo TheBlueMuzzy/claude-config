@@ -103,6 +103,14 @@ function lintRoadmap({ milestones, parking, allItems }, add) {
     if (byId[item.id]) add(F, item.lineNo, `${item.id} is used twice (also line ${byId[item.id].lineNo}) — IDs are permanent and unique`)
     else byId[item.id] = item
   }
+  // A released milestone holds only finished work: anything still open in it hides from /roadmap's "what's left"
+  // (framework 2026-10-26: 8 parked features sat in released v0.8 / v0.10 and the roadmap view said "that's all").
+  for (const milestone of milestones.filter(m => m.released)) {
+    for (const item of milestone.items.filter(i => i.id && i.state.key !== 'done')) {
+      const name = (item.title || '').split(' — ')[0].split(': ')[0]
+      add(F, item.lineNo, `${item.id} — ${name} is still ${item.state.label} inside a released milestone (${milestone.name.split(/\s+✅/)[0].trim()}) — move it to Later (or the milestone that will build it), so it shows as open`)
+    }
+  }
   for (const item of allItems) {
     // "F## <type> Name — short description" (Muzzy, 2026-10-26: "if you bring up F##, it should instead be F## - High
     // Level Name"): the name is what goes with the number everywhere (handoff-check holds Claude to it), so every open
