@@ -4,7 +4,7 @@
 // Windows: netstat -ano (IPv4 AND IPv6 — Vite listens on [::1] only) + the process list from PowerShell (CIM).
 // Linux (GitHub's runner): ss, or lsof when there's no ss; the command line and folder come from /proc.
 import { spawnSync } from 'node:child_process'
-import { readFileSync, readlinkSync } from 'node:fs'
+import { readlinkSync } from 'node:fs'
 
 // Every call has a time limit: a stuck lookup (WMI busy or broken on Windows) must not hang check:full — it ends, and
 // the run still says "port N is in use", without the name (review, F118)

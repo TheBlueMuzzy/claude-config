@@ -61,7 +61,7 @@ if (tier === 'full') {
     process.exit(1)
   }
   writeFileSync(LOCK, `${process.pid} ${new Date().toLocaleTimeString()}`)
-  process.on('exit', () => { try { rmSync(LOCK) } catch {} })
+  process.on('exit', () => { try { rmSync(LOCK) } catch { /* already gone */ } })
   process.on('SIGINT', () => process.exit(130)) // Ctrl+C still frees the lock
 }
 function isRunning(pid) {
