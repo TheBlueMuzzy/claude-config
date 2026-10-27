@@ -92,6 +92,7 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 
 ## Lint (every web game — `framework/lint`)
 - **The game's own lint holds the coding rules:** `eslint.config.js` imports `./src/lint/rules.mjs` and switches on `bmuz/no-state-in-frame` (no React state set every frame in `useFrame`) and `bmuz/no-tuning-numbers` (a named setting or a fixed timer belongs in `content/`; a real constant says `// tuning-ok: <why>`), and package.json has a `lint` script the quick check runs ② (check:framework Lint: the import, both rules on, the script).
+- **Words a player reads live in `content/text/en.json`** (lint 0.2.0, F91): a game that has en.json also gets `bmuz/no-player-text` (JSX text, player props, sentences in plain strings; `// text-ok: <why>` for the rest) ② (check:framework Lint wants it on whenever en.json exists). Before translating, the game fits the long fake language (`?pseudo`, UI kit 0.36.0) ② (check:framework UI kit warns: "words still fit when they're ~40% longer").
 - **Errors once clean:** the installer adds them as errors in a clean game and as warnings (with the list) in one that has finds; the game moves each setting to `content/` and switches them to `'error'` ② (check:framework Lint warns while they're warnings).
 
 ## When a new module is made
