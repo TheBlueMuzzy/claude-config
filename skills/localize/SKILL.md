@@ -17,6 +17,11 @@ edit simple JSON files in `content/text/` — no code knowledge needed.
 ## Prerequisites
 Check if text has been externalized (look for `content/text/en.json`).
 If not, suggest running `/externalize-text` first.
+In a web game on the Game Framework, two checks first (F91):
+- `npm run lint` clean of `bmuz/no-player-text` (every word in en.json, not in code).
+- The game in the long fake language: add `?pseudo` to the dev address (UI kit 0.36.0+). Every word is accented and
+  ~40% longer, so anything that won't fit a translation shows. `npm run check:framework` warns about each one
+  ("words still fit when they're ~40% longer"). Fix those screens before paying for translations.
 
 ## Process
 

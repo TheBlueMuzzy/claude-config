@@ -14,6 +14,12 @@ Finds every piece of text that a player sees in your game — button labels,
 tooltips, tutorial messages, flavor text, error messages, menu items — and
 moves them into `content/text/en.json`. You edit the JSON, not the code.
 
+**Find them with the framework's lint, not by eye (F91):** a web game with the lint module
+(`install-module.mjs lint .`, lint 0.2.0+) has `bmuz/no-player-text` on once `content/text/en.json` exists — `npm run lint`
+names every JSX word, player prop (title, label, aria-label, placeholder, alt…) and sentence in a plain string (an error
+message handed to a toast). Start from its list; a string that isn't for players says why: `// text-ok: <why>`.
+When it's clean, switch the rule to `'error'` in eslint.config.js so new words can't slip back in.
+
 ## Process
 
 ### Step 1: Scan for Player-Facing Strings

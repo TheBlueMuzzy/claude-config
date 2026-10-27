@@ -115,6 +115,15 @@ async function testInstallModule() {
   write(join(game, 'eslint.config.js'), "export default defineConfig([\n  globalIgnores([\n    'dist',\n    '**/spike', // throwaway\n  ]),\n])\n")
   install('audio', '.')
   expect('F112: a one-per-line list gets its own new line, same indent, trailing comma kept', readFileSync(join(game, 'eslint.config.js'), 'utf8') === "export default defineConfig([\n  globalIgnores([\n    'dist',\n    '**/spike', // throwaway\n    'src/audio',\n  ]),\n])\n", readFileSync(join(game, 'eslint.config.js'), 'utf8'))
+  // F90: an installer that edits eslint.config itself (lint adds its rules there) keeps its edit — install-module used
+  // to write the ignores into the copy it read BEFORE the install, wiping the installer's lines
+  const audioInstaller = readFileSync(join(audio, 'scripts', 'install-audio.mjs'), 'utf8')
+  write(join(audio, 'scripts', 'install-audio.mjs'), audioInstaller + "\nimport { appendFileSync } from 'node:fs'\nappendFileSync(join(game, 'eslint.config.js'), '// the installer was here\\n')\n")
+  write(join(game, 'eslint.config.js'), "export default defineConfig([\n  globalIgnores(['dist']),\n])\n")
+  const editing = install('audio', '.')
+  const edited = readFileSync(join(game, 'eslint.config.js'), 'utf8')
+  expect("F90: an installer's own eslint.config edit survives the ignores install-module adds after it", editing.code === 0 && edited.includes('// the installer was here') && edited.includes("'src/audio'"), edited)
+  write(join(audio, 'scripts', 'install-audio.mjs'), audioInstaller)
   // a config it can't edit safely → refused BEFORE installing, with the exact line to add
   rmSync(join(game, 'src', 'audio'), { recursive: true, force: true })
   const odd = "const base = ['dist']\nexport default [globalIgnores([...base]), {}]\n"

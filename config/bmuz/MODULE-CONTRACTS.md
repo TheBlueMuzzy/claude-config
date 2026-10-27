@@ -90,6 +90,10 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
 - **Online, the room relays them:** `party/server.ts` passes `{ emotes }` (content/emotes.json) to RoomServer (Rooms 0.12.0+) and never handles `emote` itself; the screens pass `onEmote: (m) => emotes.receive(m)` and `send: (seat, id) => online.sendEmote(id)` ② (check:framework Emotes: the server check names a missing `{ emotes }` or a game's own `'emote'` handler).
 - **Kept with the saves module:** `createSave({ ...EMOTE_SAVE, key: '<game>:emotes', version: 1 })` (the switch + this match's mutes), listed in `tests/saves/saves.test.ts` with its golden copy (the installer writes it) ② (check:framework Saves, like every save). Pause closes the picker ③.
 
+## Lint (every web game — `framework/lint`)
+- **The game's own lint holds the coding rules:** `eslint.config.js` imports `./src/lint/rules.mjs` and switches on `bmuz/no-state-in-frame` (no React state set every frame in `useFrame`) and `bmuz/no-tuning-numbers` (a named setting or a fixed timer belongs in `content/`; a real constant says `// tuning-ok: <why>`), and package.json has a `lint` script the quick check runs ② (check:framework Lint: the import, both rules on, the script).
+- **Errors once clean:** the installer adds them as errors in a clean game and as warnings (with the list) in one that has finds; the game moves each setting to `content/` and switches them to `'error'` ② (check:framework Lint warns while they're warnings).
+
 ## When a new module is made
 Add its section here (what the game must provide, how it's checked) in the same commit as the module, and a
 "What a game must provide" section to the module's README.

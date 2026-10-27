@@ -53,7 +53,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - **Same intention → same motion (design language):** when something happens in one place and the same kind of thing happens elsewhere (points arriving in a total, a piece appearing, a pick being confirmed), it looks and moves the same way there too — reuse the existing animation, timings and feel tiers, never invent a second one. Check for the existing pattern before building a new effect. ③ (design judgement)
 - **Breathing room in every card and container:** nothing (avatar, icon, text, badge) ever touches a card's or container's edge — always padding on every side. And a card that fills in during a sequence is a FIXED size from the start (room for everything it could hold), so nothing makes it grow mid-sequence. Check screenshots for both before calling UI done. ③ until F88 (quality bars in check:framework)
 - **Keep Muzzy focused** (he asked for this): one feature at a time; mid-feature bugs are logged unless P0 / blocking / a two-minute fix — rule in `/develop` and `/bug`. He can always overrule. ② (stop-plan-check: every mid-sprint request becomes a task) · ③ the triage
-- Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them. ② for UI values (check-ui-edit) · ③ for game numbers until F90 (lint standards)
+- Tweakable values live in `content/` JSON so Muzzy can edit them in the Dev Kit or Obsidian — never hardcode them. ② for UI values (check-ui-edit) · ② for game numbers in a game with the framework's lint module (its lint refuses a named setting or a fixed timer in code; a real constant says `// tuning-ok: <why>`) · ③ in a game without it
 - **Look/feel calls on tweakable values** (colours, sizes, timings): pick a sensible default, keep it in `content/`, and point to (or offer) the Dev Kit tool that edits it — don't make Muzzy choose blind from descriptions. Flexible tools = fewer loops.
 - Muzzy's engineering ideas are often simpler and better — weigh them honestly and credit them in the TDD Decisions log.
 - Muzzy edits docs in Obsidian too: read his changes, don't overwrite them, and commit them with /save.
@@ -88,7 +88,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 - **Be independent: finish tasks for real** (Muzzy, 2026-10-14) — after a big action, check first-hand that what you're about to say is true and the task is actually complete (audit the content itself, not just tests), or ask. Never make Muzzy be the one who asks "did you check?" ③ (judgement — the review and done gates back it up)
 - **Fix root causes, not symptoms** — no band-aids, no workarounds that add complexity
 - **Check if logic already exists** before writing new code — avoid duplication
-- **R3F**: NEVER use React state for per-frame updates. Mutate refs in useFrame. ③ until F90 (lint standards)
+- **R3F**: NEVER use React state for per-frame updates. Mutate refs in useFrame. ② in a game with the framework's lint module (bmuz/no-state-in-frame) · ③ in a game without it
 
 ## Plain English Errors
 When errors occur, ALWAYS: (1) translate to plain English, (2) explain why in non-technical terms, (3) offer to fix it. Never show raw stack traces without translation. ③ (manner)

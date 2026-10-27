@@ -75,8 +75,12 @@ const real = run('node', [installerPath, game, ...extra])
 if (real.code !== 0) refuse(`the install failed part-way:\n${tail(real.out)}`, 'git status in the game shows what it changed — `git checkout -- src/` puts the old copy back (ask Muzzy first if there is other uncommitted work)')
 say(real.out.trim())
 ok(`${module} installed`)
-if (ignores?.added.length) {
-  writeFileSync(join(game, eslintFile), ignores.text)
+// The ignores are added to the file as it is NOW: an installer may have edited it too (lint adds its rules there,
+// F90) — writing the copy read before the install would wipe that edit
+const ignoresNow = eslintFile ? addEslintIgnores(readFileSync(join(game, eslintFile), 'utf8'), folders) : null
+if (ignoresNow?.refuse) refuse(`${module}'s installer left ${eslintFile} in a shape the ignores can't be added to (${ignoresNow.refuse})`, `add ${folders.map(f => `'${f}'`).join(', ')} to its globalIgnores([...]) by hand`)
+if (ignoresNow?.added.length) {
+  writeFileSync(join(game, eslintFile), ignoresNow.text)
   ok(`${ignoreNote(true)} — commit it with the module`)
 } else say(`  ${ignoreNote(true)}`)
 // F85: every game waits 7 days before taking a brand-new package version — the 2025 npm worm pushed poisoned versions
