@@ -2,7 +2,7 @@
 // Each deck has a tiny stub script (see ../stub) that calls this library as `PDS`
 // in development mode, so saving this library updates every deck the next time it opens.
 
-var VERSION = '1.6.0';
+var VERSION = '1.7.0';
 var PREFIX = 'PDS - ';
 var GAME_PAGES = ['PDS - Overview', 'PDS - How to Play'];
 var ARCHIVE = 'PDS - Archive';
@@ -45,7 +45,7 @@ function menu(slot) {
 
 // Dialogs call back through the stub's pdsCall(name, payload)
 function call(name, payload) {
-  var actions = { saveSetup: saveSetup, addPages: addPages, archivePages: archivePages, newPds: newPds };
+  var actions = { saveSetup: saveSetup, addPages: addPages, archivePages: archivePages };
   if (!actions[name]) throw new Error('Unknown action: ' + name);
   return actions[name](payload);
 }
@@ -159,30 +159,27 @@ function writeItemLine_(shape, item, game, owner) {
 // Filled in by pds.mjs when the library is deployed (the repo never holds the id)
 var TEMPLATE_ID = 'TEMPLATE_ID_SET_AT_DEPLOY';
 
-// A copy of the template, named as asked, in the same folder as this deck. The template carries the menu,
-// so the new file is ready for Set up deck.
-function newPds(d) {
-  var name = String(d.name || '').trim();
-  if (!name) throw new Error('Please give the file a name.');
-  var here = DriveApp.getFileById(deck_().getId());
-  var parents = here.getParents();
+// A blank copy of the template in the same folder as this deck — no questions. The template carries the menu;
+// Set up deck in the new file fills it in and names the file (Muzzy, 28 Oct 2026).
+function newPds() {
+  var parents = DriveApp.getFileById(deck_().getId()).getParents();
   if (!parents.hasNext()) throw new Error('Could not find the folder this deck is in.');
   var folder = parents.next();
-  var copy = DriveApp.getFileById(TEMPLATE_ID).makeCopy(name, folder);
+  var copy = DriveApp.getFileById(TEMPLATE_ID).makeCopy('XXX#### - GAME - PDS', folder);
   return { name: copy.getName(), url: copy.getUrl(), folder: folder.getName() };
 }
 
 function showNewPds() {
+  var r = newPds();
   var html =
     '<style>' + CSS + '</style>' +
-    '<p class="hint">Makes a fresh copy of the PDS template in the same folder as this deck. Open it, then use <b>PDS → Set up deck…</b>.</p>' +
-    field_('name', 'File name', 'XXX#### - Game Name - PDS') +
-    '<button id="go" onclick="make()">Create</button><p id="msg"></p>' +
-    '<script>function make(){busy();google.script.run.withSuccessHandler(made).withFailureHandler(fail).pdsCall("newPds",{name:document.getElementById("name").value})}' +
-    'function made(r){document.getElementById("go").disabled=false;var e=document.getElementById("msg");e.className="";' +
-    'e.innerHTML="Created <b>"+r.name.replace(/</g,"&lt;")+"</b> in "+r.folder.replace(/</g,"&lt;")+".<br><a target=_blank href=\\""+r.url+"\\">Open it</a>"}' + JS + '</script>';
+    '<p>Created <b>' + esc_(r.name) + '</b> in <b>' + esc_(r.folder) + '</b>.</p>' +
+    '<p><a target="_blank" href="' + esc_(r.url) + '">Open it</a>, then use <b>PDS → Set up deck…</b> — it fills in the deck and names the file.</p>';
   SlidesApp.getUi().showSidebar(HtmlService.createHtmlOutput(html).setTitle('PDS · New PDS'));
 }
+
+// File name built from the setup info
+function fileName_(item, game) { return item + ' - ' + game + ' - PDS'; }
 
 // ---------- Set up deck ----------
 
@@ -207,14 +204,16 @@ function saveSetup(d) {
     if (f.revised && (!r || r === BLANK_DATE)) setText_(f.revised, text_(f.created) || d.created);
     pages++;
   });
-  return 'Saved. Item info updated on every page type; ' + pages + ' pages checked.';
+  var name = fileName_(d.item, d.game);
+  DriveApp.getFileById(deck_().getId()).setName(name);
+  return 'Saved, and the file is now named "' + name + '". Item info updated on every page type; ' + pages + ' pages checked.';
 }
 
 function showSetup() {
   var c = current_();
   var html =
     '<style>' + CSS + '</style>' +
-    '<p class="hint">Fills the frame on every page. Run it again any time something changes.</p>' +
+    '<p class="hint">Fills the frame on every page and names the file "Item # - Game Name - PDS". Run it again any time something changes.</p>' +
     field_('game', 'Game Name (also used as Item Name)', c.game) +
     field_('item', 'Item #', c.item) +
     field_('owner', 'Project Owner', c.owner) +
