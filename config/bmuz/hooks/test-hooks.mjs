@@ -609,7 +609,13 @@ function testHandoffCheck() {
   expect('question only, no work → no card needed', stop([prompt('what does 1 do?'), say('It stops three git commands.')]), 'allow')
   expect('work + plain message → sent back', stop([...work, say('Done! I fixed it.')]), 'block')
   expect('work + the card → allowed', stop([...work, say(card)]), 'allow')
-  expect('work + progress line → allowed', stop([...work, say('Waiting on the helper.\n\n`████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted 10:44 PM`')]), 'allow')
+  const at = (minutesFromNow) => new Date(Date.now() + minutesFromNow * 60_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const progress = (time) => `Waiting on the helper.\n\n\`████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted ${time}\``
+  expect('work + progress line → allowed', stop([...work, say(progress(at(0)))]), 'allow')
+  // framework sprint 48: guessed times (08:05 PM posted at 07:55 PM) — the posted time is the clock's
+  const guessed = stop([...work, say(progress(at(-180)))])
+  expect('a progress line posted 3 hours off the clock → sent back', guessed, 'block')
+  expect('…says the real time and how to read it', { result: /but the clock says/.test(guessed.message) && /date/.test(guessed.message) ? 'ok' : 'no', message: guessed.message }, 'ok')
   const noNextCover = stop([...work, say(card.replace('`/develop` — continues F67, the lesson audit', '`/develop`'))])
   expect('card whose Next has no "— what it covers" → sent back', noNextCover, 'block')
   const noLinks = stop([...work, say(card.replace('nothing to try: it shows up at the next hand-off', 'open the game'))])

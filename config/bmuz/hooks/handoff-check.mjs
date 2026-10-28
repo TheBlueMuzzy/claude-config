@@ -38,6 +38,17 @@ if (inProject) {
   const bare = bareFeatureIds(message, featureNames(top))
   if (bare.length) problems.push(`A feature number always comes with its name (Muzzy, 2026-10-26: "if you bring up F##, it should instead be F## - High Level Name") — rewrite ${bare.map(([id, name]) => `${id} → "${id} — ${name}"`).join(', ')}. Every mention, ranges too ("F148–F150" → name each one).`)
 }
+// The time a progress line says it was posted is the clock's, not a guess (Muzzy, 2026-10-13: "I don't have a time to
+// reference if I walk away and come back" — framework sprint 48 posted 08:05 PM at 07:55 PM, and 07:58 PM twice)
+const posted = message.match(/posted\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+if (posted) {
+  const said = ((Number(posted[1]) % 12) + (/pm/i.test(posted[3]) ? 12 : 0)) * 60 + Number(posted[2])
+  const now = new Date()
+  const real = now.getHours() * 60 + now.getMinutes()
+  const off = Math.min(Math.abs(said - real), 1440 - Math.abs(said - real))
+  const clock = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  if (off > 10) problems.push(`The progress line says "posted ${posted[1]}:${posted[2]} ${posted[3]}", but the clock says ${clock} — run \`date "+%I:%M %p"\` first and post the real time (Muzzy, 2026-10-13: the posted time is what he reads when he comes back).`)
+}
 stopVerdict('handoff-check', input, problems.length && problems.join('\n\n'))
 process.exit(0)
 
