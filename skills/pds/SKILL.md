@@ -1,0 +1,64 @@
+---
+name: pds
+description: Muzzy's work PDS (Product Design Spec) Google Slides decks — make a new PDS deck from the template, install or update the PDS menu (Set up deck, Add pages, Mark revised, Archive pages) in one deck or every deck in a folder, and change the shared "PDS Tools" library code. Use when Muzzy says /pds, "new PDS", "make a PDS for <item>", "update the PDS script/menu", "push the PDS changes to all decks", or asks to change what the PDS menu does.
+---
+
+# PDS decks
+
+A PDS is the factory-facing spec deck for one product (Google Slides, 11×17 in, exported to PDF). Muzzy's **work** Google account owns them. Project notes (decisions, page specs, history): the Google Doc **"PDS Template Redesign — Project Notes"** in the work Drive folder **"PDS Template Redesign"** — read it before changing the design.
+
+## How the pieces fit (why updates are automatic)
+
+- **Template deck** — has the 8 named layouts ("PDS - Overview" … "PDS - Archive") with locked frames and a type-in box per field. Drive tag `pdsRole=template`.
+- **"PDS Tools" library** — one Apps Script project holding ALL the menu code (`library/Code.js` here is its source of truth). Drive tag `pdsRole=library`.
+- **Stub** — small script in each deck (`stub/`), loads the library as `PDS` in **development mode**, so a library update reaches every deck the next time it opens. Menu items are slots (`pdsMenu1…25`) the library assigns, so new menu items need no stub change (11 used).
+- **The template carries the stub** (since 28 Oct 2026), so every copy — `new-deck`, `fresh-test`, the menu's **New PDS…**, or File → Make a copy — has a working menu at once. Copied stubs can't be traced; they keep working through the library and only miss a *stub* change. Tracked stubs: tag `pdsStubScriptId` + `pdsStubFor=<deck id>`.
+- Copies carry their source's tags, so a tag only counts on the file it names: template = `pdsRole=template` + `pdsSelf=<its id>`. ① pds.mjs `template()` / `installStub` check this
+- Files are always found by those Drive tags — never store IDs in this skill (the repo is public). The library's template id is injected by `deploy-library` (placeholder `TEMPLATE_ID_SET_AT_DEPLOY`). ① pds.mjs
+
+## Commands (run from this folder)
+
+```bash
+node pds.mjs status                              # what library/template are tagged
+node pds.mjs new-deck <folderId> <item#> "<Game Name>"
+node pds.mjs deploy-library [folderId]           # push library/ code (creates it the first time)
+node pds.mjs install-stub <presentationId>       # add/refresh the menu in one deck
+node pds.mjs update-folder <folderId>            # add/refresh the menu in every PDS deck under a folder
+node pds.mjs mark-template <presentationId>      # tag THE template (only one may be tagged)
+```
+
+## Procedures
+
+**Testing** — Muzzy always tests from scratch (28 Oct 2026): after any change, run `fresh-test <folderId of "PDS Template Redesign">` — it bins the previous test deck (tag `pdsTest=1`) and makes a clean "TEST <date time> - Example Game - PDS" from the template, menu installed. Give him that link; never reuse an old test deck. ① pds.mjs fresh-test
+
+**New deck** — ask for item #, game name and destination folder (default: the folder of the team's PDS decks). Run `new-deck`, give Muzzy the link, then tell him: open it → **PDS → Set up deck…** → fill the four boxes → Save. First use asks him to allow the script (one time per deck).
+
+**Change what the menu does** — edit `library/Code.js` (bump `VERSION`), `node --check` it, run `deploy-library`, then verify in a test deck (open it, use the changed item, screenshot via Slides thumbnails). Done: every deck has it. Commit the skill change through the claude-config sync (`/sync` or copy to `~/.claude-config` and push).
+
+**Stub change (rare)** — edit `stub/`, then `update-folder` on each PDS folder. Decks copied by hand (not via `new-deck`) have no stub; `update-folder` installs one.
+
+**Layout/design change** — layouts can only be CREATED in Slides (Slide → Edit theme → right-click a layout → Duplicate → Rename); Muzzy does that step, Claude fills them via the Slides API. Existing decks keep their old layouts; change the template for new decks.
+
+## What the menu does (library)
+
+- **Set up deck…** — Game Name (also Item Name), Item #, Project Owner, Date Created → writes the Item line on every layout, the game name into Overview/How to Play titles, and Date Created onto every page still on the old/blank date (pages added later keep theirs).
+- **Add page(s)…** — page types + name (required for component pages); Date Created and Revised = today, status DRAFT; a new Color & Deco page gets one callout (card + real line, dot end, attached to the card). ① library code
+- **Page-order SOP** (Muzzy, 28 Oct 2026) — deck order: 1 Overview · 2 How to Play · 3 Components (one group per component name: Control → Color & Deco → Texture) · 4 Printed Sheets · 5 Packaging · Archive. New page: same-type section → after its last page; component already has pages → inside its group by type order; new component → after the last component group; nothing of that kind yet → after the nearest earlier section (start if none); never in the Archive. ① library `placeIndex` + `test/placement.test.mjs` (18 cases), which `deploy-library` runs and refuses to deploy on failure; `test/defined.test.mjs` refuses a deploy that calls a missing helper.
+- **Set status of selected pages ▸ Draft / Revisions Needed / Complete / Superseded / Dropped** — sets the pill's wording and colour (Draft = layout's own pill; Revisions Needed = soft red; Complete = soft green; Superseded = navy; Dropped = dark grey). Archiving sets Superseded/Dropped on the archived page automatically. Slides can't hold a real drop-down, so this menu is the "drop-down". ① library code
+- **Unarchive selected pages** — for pages after the divider: band removed, unskipped, moved back by the page-order rule, Date Revised today, status Complete. Works on a fresh copy (editor-redraw rule). ① library code
+- **New PDS…** — asks a file name; copies the template into the same folder as the current deck (needs the Drive permission, asked once per deck). ① library code
+- Menu slots in use: 1 setup · 2 add · 3 revised · 4 archive · 5 unarchive · 6–10 statuses · 11 New PDS. Slots 12–25 are free for new items with no stub change.
+- **Changing the template's design**: edit the template (it's the source); new copies get it. Existing decks keep their own layouts.
+- **Mark selected pages revised today.**
+- **Archive selected pages…** — pick **Replace** or **Drop**, give a reason (required). Replace: an exact copy goes after the Archive divider, skipped, band "SUPERSEDED | Archived | Reason" (no "Replaced by" — Muzzy, 28 Oct 2026); the live page is left untouched except Date Revised = today. Both modes band a fresh copy (the editor doesn't redraw a page open on screen when a script changes it); Drop then removes the original. Drop: the page itself moves after the divider, skipped, band "DROPPED | Archived | Reason". (Muzzy rejected "clear the live page", 28 Oct 2026.) ① library code
+- **Set up deck** also fills Date Revised on pages never revised (shows their Date Created). ① library code
+- Field matching: a page's boxes are matched to the layout box they came from (`_ph0` created, `_ph1` revised, `_ph2` status). Layouts are recognised by name, or by their chip text if renamed.
+
+## One-time access (already done on the laptop; redo on a new machine)
+
+1. Work login for gws lives in `~/.config/gws-relatable` (see memory `gws-relatable-account`). Scopes needed:
+   `GOOGLE_WORKSPACE_CLI_CONFIG_DIR=~/.config/gws-relatable gws auth login --scopes https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/presentations,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/script.projects`
+2. The work account must have **Google Apps Script API: On** at https://script.google.com/home/usersettings ② pds.mjs stops with the error below until it is
+3. The Apps Script API must be enabled on the Cloud project behind the gws login (Muzzy's personal `bmuz-workspace-cli`): https://console.cloud.google.com/apis/library/script.googleapis.com?project=bmuz-workspace-cli ② pds.mjs stops with the error below until it is
+
+Errors: "Apps Script API 403 … has not been used/disabled" → step 3. "User has not enabled the Apps Script API" → step 2. "insufficient authentication scopes" → step 1.
