@@ -2,7 +2,7 @@
 // Each deck has a tiny stub script (see ../stub) that calls this library as `PDS`
 // in development mode, so saving this library updates every deck the next time it opens.
 
-var VERSION = '1.8.0';
+var VERSION = '1.8.1';
 var PREFIX = 'PDS - ';
 var GAME_PAGES = ['PDS - Overview', 'PDS - How to Play'];
 var ARCHIVE = 'PDS - Archive';
@@ -185,8 +185,11 @@ function newPds(d) {
     var id = (link.match(/folders\/([A-Za-z0-9_-]+)/) || [])[1] || link;
     folder = DriveApp.getFolderById(id);
   } else {
+    if (!d.season) throw new Error('Choose a season first.');
     if (!d.gamesId) throw new Error('That season has no Games folder yet.');
     folder = DriveApp.getFolderById(d.gamesId);
+    // Remembered for this person across all decks (the latest folder isn't always the current season)
+    PropertiesService.getUserProperties().setProperty('pdsLastSeason', d.season);
   }
   var copy = DriveApp.getFileById(TEMPLATE_ID).makeCopy('XXX#### - GAME - PDS', folder);
   return { name: copy.getName(), url: copy.getUrl(), folder: folder.getName() };
@@ -195,8 +198,12 @@ function newPds(d) {
 function showNewPds() {
   var list = seasons_();
   if (!list.length) { SlidesApp.getUi().alert('No season folders (e.g. "FALL 2028") found in the Product Specs folder.'); return; }
-  var options = list.map(function (s) {
-    return '<option value="' + esc_(s.gamesId || '') + '">' + esc_(s.label) + (s.gamesId ? ' → Games' : ' (no Games folder)') + '</option>';
+  // No automatic pick: future seasons' folders exist early, so "newest" or "today" would be wrong. Last used is pre-selected.
+  var last = PropertiesService.getUserProperties().getProperty('pdsLastSeason');
+  var hasLast = list.some(function (s) { return s.label === last; });
+  var options = '<option value="" data-season=""' + (hasLast ? '' : ' selected') + '>Choose a season…</option>' + list.map(function (s) {
+    return '<option value="' + esc_(s.gamesId || '') + '" data-season="' + esc_(s.label) + '"' + (s.label === last ? ' selected' : '') + '>' +
+      esc_(s.label) + (s.gamesId ? ' → Games' : ' (no Games folder)') + (s.label === last ? ' (last used)' : '') + '</option>';
   }).join('');
   var html =
     '<style>' + CSS + 'select{width:100%;padding:7px;font-size:13px}</style>' +
@@ -204,7 +211,7 @@ function showNewPds() {
     '<div class="label">Season</div><select id="season">' + options + '</select>' +
     field_('link', 'Or paste a folder link (optional, overrides the season)', '') +
     '<button id="go" onclick="make()">Create</button><p id="msg"></p>' +
-    '<script>function make(){busy();google.script.run.withSuccessHandler(made).withFailureHandler(fail).pdsCall("newPds",{gamesId:document.getElementById("season").value,link:document.getElementById("link").value})}' +
+    '<script>function make(){var s=document.getElementById("season");busy();google.script.run.withSuccessHandler(made).withFailureHandler(fail).pdsCall("newPds",{gamesId:s.value,season:s.options[s.selectedIndex].getAttribute("data-season"),link:document.getElementById("link").value})}' +
     'function made(r){document.getElementById("go").disabled=false;var e=document.getElementById("msg");e.className="";' +
     'e.innerHTML="Created <b>"+r.name.replace(/</g,"&lt;")+"</b> in <b>"+r.folder.replace(/</g,"&lt;")+"</b>.<br><a target=_blank href=\\""+r.url+"\\">Open it</a>"}' + JS + '</script>';
   SlidesApp.getUi().showSidebar(HtmlService.createHtmlOutput(html).setTitle('PDS · New PDS'));
