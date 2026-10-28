@@ -481,6 +481,15 @@ function testStopCheckFast() {
   expect('…a turn that edited a file → checked (red → blocked)', stop({ transcript_path: turnFile([{ name: 'Edit', input: { file_path: join(repo, 'a.txt') } }]) }), 'block')
   writeFileSync(join(repo, 'new.ts'), 'export {}\n')
   expect('still red after a new file → blocked', stop(), 'block')
+  // A shell left in a helper's worktree (framework sprint 48) checks the project, not the helper's copy: the worktree
+  // holds the committed green check, the project's own folder the red one
+  const helper = join(repo, '.claude', 'worktrees', 'agent-x')
+  sh(repo, 'worktree', 'add', '-q', helper)
+  expect('cwd in a worktree, no project folder known → that worktree is checked (green)', stop({ cwd: helper }), 'allow')
+  process.env.CLAUDE_PROJECT_DIR = repo
+  expect('cwd left in a helper\'s .claude/worktrees/ → the project is checked (red → blocked)', stop({ cwd: helper }), 'block')
+  delete process.env.CLAUDE_PROJECT_DIR
+  sh(repo, 'worktree', 'remove', '--force', helper)
   // One check:fast at a time per project (Goops 2026-10-19: two runs both build into dist/ and break each other).
   // A stand-in for "another session's run": holds the lock, optionally records a pass on this exact code, then exits.
   const lock = join(repo, '.git', 'bmuz-check.lock')
@@ -1067,28 +1076,30 @@ function testGuardGitSafety() {
   expect('credentials.json in a subfolder → blocked', g('git add -A && git commit -m "y"'), 'deny')
   rmSync(join(repo, 'config'), { recursive: true })
 
-  // ask before throwing uncommitted changes away
+  // refuse throwing uncommitted changes away, naming the stash that keeps a copy — a refusal, not a question, so an
+  // unattended run never stops on a prompt (Muzzy 2026-10-27)
   writeFileSync(join(repo, 'a.txt'), 'edited, never committed\n')
   const co = g('git checkout -- a.txt')
-  expect('`git checkout -- a.txt` over an uncommitted edit → asks', co, 'ask')
-  expect('…names the file and what is lost', { result: /a\.txt/.test(co.message) && /for good/.test(co.message) ? 'ok' : 'no', message: co.message }, 'ok')
-  expect('`git checkout .` → asks', g('git checkout .'), 'ask')
-  expect('`git checkout a.txt` (a file, not a branch) → asks', g('git checkout a.txt'), 'ask')
-  expect('`git checkout main -- a.txt` → asks', g('git checkout main -- a.txt'), 'ask')
-  expect('`git restore a.txt` → asks', g('git restore a.txt'), 'ask')
-  expect('`git restore .` (PowerShell) → asks', runHook('guard-git.mjs', pwsh(repo, 'git restore .')), 'ask')
-  expect('`git checkout -f main` → asks', g('git checkout -f main'), 'ask')
-  expect('bare `git checkout -f` (no branch) → asks (review)', g('git checkout -f'), 'ask')
-  expect('bare `git checkout --force` → asks (review)', g('git checkout --force'), 'ask')
+  expect('`git checkout -- a.txt` over an uncommitted edit → refused (not a question)', co, 'deny')
+  expect('…names the file, what is lost, and the stash to use instead', { result: /a\.txt/.test(co.message) && /for good/.test(co.message) && /git stash push -m "<why>" -- a\.txt/.test(co.message) ? 'ok' : 'no', message: co.message }, 'ok')
+  expect('the stash it names → allowed (keeps a copy)', g('git stash push -m "undo the plant" -- a.txt'), 'allow')
+  expect('`git checkout .` → refused', g('git checkout .'), 'deny')
+  expect('`git checkout a.txt` (a file, not a branch) → refused', g('git checkout a.txt'), 'deny')
+  expect('`git checkout main -- a.txt` → refused', g('git checkout main -- a.txt'), 'deny')
+  expect('`git restore a.txt` → refused', g('git restore a.txt'), 'deny')
+  expect('`git restore .` (PowerShell) → refused', runHook('guard-git.mjs', pwsh(repo, 'git restore .')), 'deny')
+  expect('`git checkout -f main` → refused', g('git checkout -f main'), 'deny')
+  expect('bare `git checkout -f` (no branch) → refused (review)', g('git checkout -f'), 'deny')
+  expect('bare `git checkout --force` → refused (review)', g('git checkout --force'), 'deny')
   expect('`git restore --staged a.txt` (only unstages) → allowed', g('git restore --staged a.txt'), 'allow')
   expect('a plain branch switch `git checkout main` → allowed', g('git checkout main'), 'allow')
   expect('`git checkout -b dev/new` → allowed', g('git checkout -b dev/new'), 'allow')
   expect('`git checkout -- c.txt` (no uncommitted changes there) → allowed', g('git checkout -- c.txt'), 'allow')
-  expect('ask + a force-push later on the same line → the refusal wins', g('git checkout -- a.txt && git push -f'), 'deny')
+  expect('a discard + a force-push later on the same line → refused', g('git checkout -- a.txt && git push -f'), 'deny')
   sh(repo, 'add', 'a.txt')
   expect('staged edit, `git checkout -- a.txt` (copies the staged version back: nothing lost) → allowed', g('git checkout -- a.txt'), 'allow')
-  expect('staged edit, `git checkout HEAD -- a.txt` → asks', g('git checkout HEAD -- a.txt'), 'ask')
-  expect('staged edit, `git restore --staged --worktree a.txt` → asks', g('git restore --staged --worktree a.txt'), 'ask')
+  expect('staged edit, `git checkout HEAD -- a.txt` → refused', g('git checkout HEAD -- a.txt'), 'deny')
+  expect('staged edit, `git restore --staged --worktree a.txt` → refused', g('git restore --staged --worktree a.txt'), 'deny')
   rmSync(root, { recursive: true, force: true })
 }
 

@@ -11,15 +11,18 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 //   no commit includes a secret or Playwright's leftovers (F78): .env, keys, credentials, .playwright-mcp/ —
 //   the same list save.mjs refuses (NEVER_COMMIT in lib.mjs).
-//   `git checkout -- <file>` / `git checkout .` / `git restore <file>` over uncommitted changes → Muzzy is ASKED
-//   first (F78): it throws those changes away for good (Goops F17 lost cracks.ts this way). Branch switches stay free.
+//   `git checkout -- <file>` / `git checkout .` / `git restore <file>` over uncommitted changes → REFUSED, with
+//   `git stash push -- <files>` named instead (F78): checkout throws those changes away for good (Goops F17 lost
+//   cracks.ts this way); a stash takes them out the same but keeps a copy. A refusal, not a question, so an
+//   unattended run never stops on a prompt (Muzzy 2026-10-27: "i want you to be in full auto mode, but these kinds
+//   of messages are still showing up"). Branch switches stay free.
 //   (F80) `F08: done` needs F08 ✅ (or 🎛️) in ROADMAP — "Approved" → done in the plan, not just in git.
 //   (F87) `F08: done` needs a `Checked:` line in F08's SPRINT.md section — what was tested, and the result.
 //   (F80) nothing under .claude/worktrees/ is committed — helpers' worktrees became embedded repos (Goops 2026-10-17).
 //   (F80) a stage commit (`Sprint 04: <goal>`, `GDD: discover`, `GDD: define|design|build plan`, fast-track) carries
 //   STATE.md — the next session starts from RESUME HERE, so it has to say where things now stand.
 import { readRoadmap } from '../templates/ppp/plan-reader.mjs'
-import { readInput, deny as refuse, ask, commands, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage, NEVER_COMMIT } from './lib.mjs'
+import { readInput, deny as refuse, commands, gitCalls, git, defaultBranch, isMergedInto, commitFiles, commitMessage, NEVER_COMMIT } from './lib.mjs'
 
 const input = readInput()
 const command = input.tool_input?.command
@@ -33,12 +36,12 @@ function deny(reason) {
 }
 
 const calls = gitCalls(command, input.cwd)
-const asks = [] // asked only after every call on the line was checked — a refusal later on the line still wins
+const discards = [] // refused after every call on the line was checked — so every lost file is named at once
 for (const [index, call] of calls.entries()) {
   const { dir, sub, args } = call
 
   if (sub === 'commit' && !args.includes('--dry-run')) checkNoSecrets(calls, index)
-  if (sub === 'checkout' || sub === 'restore' || sub === 'switch') { const why = discardsChanges(call); if (why) asks.push(why) }
+  if (sub === 'checkout' || sub === 'restore' || sub === 'switch') { const why = discardsChanges(call); if (why) discards.push(why) }
   if (sub === 'commit' && !args.includes('--dry-run')) checkFeatureCommitOnMain(calls, index, command)
   if (sub === 'commit' && !args.includes('--dry-run')) checkDoneSavesState(calls, index, command)
   if (sub === 'commit' && !args.includes('--dry-run')) checkDoneWasChecked(calls, index, command)
@@ -74,7 +77,7 @@ for (const { words } of commands(command, input.cwd)) {
   const name = script.split(/[\\/]/).pop()
   deny(`Blocked: ${name} ${name === 'merge.mjs' ? 'merges work into main' : 'puts a released version back on main'}, and only /deliver changes main (after its smoke test and checks). Run /deliver — or, if Muzzy asked for this, have him type /deliver.`)
 }
-if (asks.length) ask(asks.join('\n\n'))
+if (discards.length) deny(discards.join('\n\n'))
 process.exit(0)
 
 // A commit never includes .env, keys, credentials or .playwright-mcp/ (F78).
@@ -129,7 +132,8 @@ function discardsChanges({ dir, sub, args }) {
   const lost = (git(dir, 'diff', ...(source ? ['HEAD'] : []), '--name-only', '--', ...paths) || '').split('\n').filter(Boolean)
   if (!lost.length) return null
   const command = `git ${sub} ${args.join(' ')}`.trim()
-  return `\`${command}\` would throw away the uncommitted changes in ${lost.slice(0, 5).join(', ')}${lost.length > 5 ? ` and ${lost.length - 5} more` : ''} — for good: they were never committed, so git can't bring them back (Goops F17 lost cracks.ts this way). Only allow it if Muzzy really means to drop that work; to keep a copy first: \`git stash\`, or commit it.`
+  const named = lost.map(f => (/\s/.test(f) ? `"${f}"` : f)).join(' ')
+  return `Blocked: \`${command}\` would throw away the uncommitted changes in ${lost.slice(0, 5).join(', ')}${lost.length > 5 ? ` and ${lost.length - 5} more` : ''} — for good: they were never committed, so git can't bring them back (Goops F17 lost cracks.ts this way). Do this instead — it takes the same changes out but keeps a copy (\`git stash list\` shows it; \`git stash apply <its id>\` brings it back — not \`pop\`: helpers' worktrees share one stash list):\n  git stash push -m "<why>" -- ${named}\nIf Muzzy really wants the work gone for good, he can run it himself with \`! ${command}\`.`
 }
 
 // `git branch -D x` (or -d with --force): only when x is already fully merged.

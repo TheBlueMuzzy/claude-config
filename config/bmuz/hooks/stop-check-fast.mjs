@@ -16,7 +16,12 @@ if (input.transcript_path) {
   if (!turn.tools.some(tool => isFileEdit(tool) || isCommit(tool))) process.exit(0) // a question, not work
 }
 
-const top = git(input.cwd || '.', 'rev-parse', '--show-toplevel')
+// The project's own folder, not a helper's worktree the shell was left in (framework sprint 48: a `cd` into a finished
+// helper's .claude/worktrees/<name> to read its screenshots made this run check:fast in that half-installed copy —
+// 20 of 23 red, "vitest is not recognized" — while the branch itself was 24/24)
+const project = process.env.CLAUDE_PROJECT_DIR ? resolve(process.env.CLAUDE_PROJECT_DIR) : null
+const inHelperWorktree = (dir) => project && resolve(dir).toLowerCase().startsWith(join(project, '.claude', 'worktrees').toLowerCase())
+const top = git(inHelperWorktree(input.cwd || '.') ? project : (input.cwd || '.'), 'rev-parse', '--show-toplevel')
 if (!top) process.exit(0)
 const root = resolve(top)
 const pkg = existsSync(join(root, 'package.json')) ? JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) : {}
