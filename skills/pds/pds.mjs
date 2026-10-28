@@ -8,6 +8,7 @@
 //   node pds.mjs install-stub <presentationId>    add or refresh the PDS menu in one deck
 //   node pds.mjs update-folder <folderId>         refresh the menu in every PDS deck in a folder (and sub-folders)
 //   node pds.mjs fresh-test <folderId>            bin the last test deck, make a clean one from the template
+//   node pds.mjs set-specs-root <folder link>     the shared Product Specs folder New PDS lists seasons from
 //
 // Files are found by Drive tags (appProperties), never by stored IDs:
 //   library  -> pdsRole=library   template -> pdsRole=template   deck -> pdsStubScriptId=<its menu script>
@@ -110,7 +111,11 @@ async function deployLibrary(folderId) {
     console.log("created library", lib.id);
   }
   // The library needs the template's id for "New PDS…"; it's filled in here so the repo never holds it
-  const files = source("library").map((f) => f.name === "Code" ? { ...f, source: f.source.replace("TEMPLATE_ID_SET_AT_DEPLOY", template().id) } : f);
+  // The specs-folder id is kept as a tag on the template (our own file — the shared folder is never tagged or changed)
+  const tpl = template();
+  const root = (fileInfo(tpl.id).appProperties || {}).pdsSpecsRoot;
+  if (!root) throw new Error("No Product Specs folder recorded — run: set-specs-root <folder link or id>");
+  const files = source("library").map((f) => f.name === "Code" ? { ...f, source: f.source.replace("TEMPLATE_ID_SET_AT_DEPLOY", tpl.id).replace("SPECS_ROOT_ID_SET_AT_DEPLOY", root) } : f);
   const v = pushScript(lib.id, files, "deployed " + new Date().toISOString().slice(0, 10));
   console.log(`library updated: ${lib.id} (version ${v || "?"}). Decks pick it up next time they open.`);
   return lib.id;
@@ -209,6 +214,7 @@ try {
   else if (cmd === "update-folder") await updateFolder(a);
   else if (cmd === "new-deck") await newDeck(a, b, c);
   else if (cmd === "fresh-test") await freshTest(a);
+  else if (cmd === "set-specs-root") { const id = (a.match(/folders\/([A-Za-z0-9_-]+)/) || [])[1] || a; tag(template().id, { pdsSpecsRoot: id }); console.log("Product Specs folder recorded on the template:", id); }
   else console.log(readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(0, 9).join("\n"));
 } catch (e) {
   console.error("PDS tools error: " + e.message);

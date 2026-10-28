@@ -2,7 +2,7 @@
 // Each deck has a tiny stub script (see ../stub) that calls this library as `PDS`
 // in development mode, so saving this library updates every deck the next time it opens.
 
-var VERSION = '1.7.0';
+var VERSION = '1.8.0';
 var PREFIX = 'PDS - ';
 var GAME_PAGES = ['PDS - Overview', 'PDS - How to Play'];
 var ARCHIVE = 'PDS - Archive';
@@ -45,7 +45,7 @@ function menu(slot) {
 
 // Dialogs call back through the stub's pdsCall(name, payload)
 function call(name, payload) {
-  var actions = { saveSetup: saveSetup, addPages: addPages, archivePages: archivePages };
+  var actions = { saveSetup: saveSetup, addPages: addPages, archivePages: archivePages, newPds: newPds };
   if (!actions[name]) throw new Error('Unknown action: ' + name);
   return actions[name](payload);
 }
@@ -156,25 +156,57 @@ function writeItemLine_(shape, item, game, owner) {
 
 // ---------- New PDS ----------
 
-// Filled in by pds.mjs when the library is deployed (the repo never holds the id)
+// Filled in by pds.mjs when the library is deployed (the repo never holds the ids)
 var TEMPLATE_ID = 'TEMPLATE_ID_SET_AT_DEPLOY';
+var SPECS_ROOT_ID = 'SPECS_ROOT_ID_SET_AT_DEPLOY'; // the shared "Product Specs" folder holding the season folders
 
-// A blank copy of the template in the same folder as this deck — no questions. The template carries the menu;
-// Set up deck in the new file fills it in and names the file (Muzzy, 28 Oct 2026).
-function newPds() {
-  var parents = DriveApp.getFileById(deck_().getId()).getParents();
-  if (!parents.hasNext()) throw new Error('Could not find the folder this deck is in.');
-  var folder = parents.next();
+// Season folders ("SPRING 2028", "FALL 2027" …) under the specs folder, newest first, each with its Games folder.
+// Read live, so a new season folder appears with no update. Never changes the shared folder.
+function seasons_() {
+  var out = [];
+  var it = DriveApp.getFolderById(SPECS_ROOT_ID).getFolders();
+  while (it.hasNext()) {
+    var f = it.next();
+    var m = f.getName().trim().match(/^(SPRING|FALL)\s+(\d{4})$/i);
+    if (!m) continue;
+    var games = null, kids = f.getFolders();
+    while (kids.hasNext()) { var k = kids.next(); if (k.getName().trim().toLowerCase() === 'games') { games = k; break; } }
+    out.push({ label: f.getName().trim(), order: Number(m[2]) * 2 + (m[1].toUpperCase() === 'FALL' ? 1 : 0), gamesId: games ? games.getId() : null });
+  }
+  return out.sort(function (a, b) { return b.order - a.order; });
+}
+
+// A blank copy of the template — the template carries the menu; Set up deck in the new file fills it in and names it.
+// Goes into the chosen season's Games folder, or a pasted folder link.
+function newPds(d) {
+  var folder;
+  var link = String(d.link || '').trim();
+  if (link) {
+    var id = (link.match(/folders\/([A-Za-z0-9_-]+)/) || [])[1] || link;
+    folder = DriveApp.getFolderById(id);
+  } else {
+    if (!d.gamesId) throw new Error('That season has no Games folder yet.');
+    folder = DriveApp.getFolderById(d.gamesId);
+  }
   var copy = DriveApp.getFileById(TEMPLATE_ID).makeCopy('XXX#### - GAME - PDS', folder);
   return { name: copy.getName(), url: copy.getUrl(), folder: folder.getName() };
 }
 
 function showNewPds() {
-  var r = newPds();
+  var list = seasons_();
+  if (!list.length) { SlidesApp.getUi().alert('No season folders (e.g. "FALL 2028") found in the Product Specs folder.'); return; }
+  var options = list.map(function (s) {
+    return '<option value="' + esc_(s.gamesId || '') + '">' + esc_(s.label) + (s.gamesId ? ' → Games' : ' (no Games folder)') + '</option>';
+  }).join('');
   var html =
-    '<style>' + CSS + '</style>' +
-    '<p>Created <b>' + esc_(r.name) + '</b> in <b>' + esc_(r.folder) + '</b>.</p>' +
-    '<p><a target="_blank" href="' + esc_(r.url) + '">Open it</a>, then use <b>PDS → Set up deck…</b> — it fills in the deck and names the file.</p>';
+    '<style>' + CSS + 'select{width:100%;padding:7px;font-size:13px}</style>' +
+    '<p class="hint">Makes a blank PDS. Open it, then use <b>PDS → Set up deck…</b> — it fills in the deck and names the file.</p>' +
+    '<div class="label">Season</div><select id="season">' + options + '</select>' +
+    field_('link', 'Or paste a folder link (optional, overrides the season)', '') +
+    '<button id="go" onclick="make()">Create</button><p id="msg"></p>' +
+    '<script>function make(){busy();google.script.run.withSuccessHandler(made).withFailureHandler(fail).pdsCall("newPds",{gamesId:document.getElementById("season").value,link:document.getElementById("link").value})}' +
+    'function made(r){document.getElementById("go").disabled=false;var e=document.getElementById("msg");e.className="";' +
+    'e.innerHTML="Created <b>"+r.name.replace(/</g,"&lt;")+"</b> in <b>"+r.folder.replace(/</g,"&lt;")+"</b>.<br><a target=_blank href=\\""+r.url+"\\">Open it</a>"}' + JS + '</script>';
   SlidesApp.getUi().showSidebar(HtmlService.createHtmlOutput(html).setTitle('PDS · New PDS'));
 }
 
