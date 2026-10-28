@@ -9,7 +9,7 @@ A PDS is the factory-facing spec deck for one product (Google Slides, 11×17 in,
 
 ## How the pieces fit (why updates are automatic)
 
-- **Template deck** — has the 8 named layouts ("PDS - Overview" … "PDS - Archive") with locked frames and a type-in box per field. Drive tag `pdsRole=template`.
+- **Template deck** — **"TEMPLATE Games - PDS"** in the top of the shared Product Specs folder (moved there 28 Oct 2026; Muzzy: "that's the MAIN file"). The old "XXX#### - GAME - PDS" next to it is the pre-redesign template — leave it; Muzzy removes things in the shared folder himself. Has the 8 named layouts ("PDS - Overview" … "PDS - Archive") with locked frames and a type-in box per field. Drive tag `pdsRole=template`.
 - **"PDS Tools" library** — one Apps Script project holding ALL the menu code (`library/Code.js` here is its source of truth). Drive tag `pdsRole=library`.
 - **Stub** — small script in each deck (`stub/`), loads the library as `PDS` in **development mode**, so a library update reaches every deck the next time it opens. Menu items are slots (`pdsMenu1…25`) the library assigns, so new menu items need no stub change (11 used).
 - **The template carries the stub** (since 28 Oct 2026), so every copy — `new-deck`, `fresh-test`, the menu's **New PDS…**, or File → Make a copy — has a working menu at once. Copied stubs can't be traced; they keep working through the library and only miss a *stub* change. Tracked stubs: tag `pdsStubScriptId` + `pdsStubFor=<deck id>`.
@@ -28,6 +28,10 @@ node pds.mjs mark-template <presentationId>      # tag THE template (only one ma
 ```
 
 ## Procedures
+
+**Template backup** — one always-current copy, "TEMPLATE Games - PDS (backup)", in Muzzy's personal _Templates folder (tag `pdsBackupFolder` on the template). `backup-template` copies only if the template changed and bins the older backup. ① runs automatically after `deploy-library` and `fresh-test`; ③ after Muzzy edits the template by hand in Slides, run `backup-template` (nothing can detect a manual edit until the next command runs)
+
+**Shared folder etiquette** — if anything Claude's tools made lands in the shared Product Specs tree (e.g. a test New PDS), tell Muzzy the file + link and let him delete it; never delete or move things there yourself. ③ judgement
 
 **Testing** — Muzzy always tests from scratch (28 Oct 2026): after any change, run `fresh-test <folderId of "PDS Template Redesign">` — it bins the previous test deck (tag `pdsTest=1`) and makes a clean "TEST <date time> - Example Game - PDS" from the template, menu installed. Give him that link; never reuse an old test deck. ① pds.mjs fresh-test
 

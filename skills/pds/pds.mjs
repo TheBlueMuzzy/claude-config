@@ -9,6 +9,8 @@
 //   node pds.mjs update-folder <folderId>         refresh the menu in every PDS deck in a folder (and sub-folders)
 //   node pds.mjs fresh-test <folderId>            bin the last test deck, make a clean one from the template
 //   node pds.mjs set-specs-root <folder link>     the shared Product Specs folder New PDS lists seasons from
+//   node pds.mjs set-backup-folder <folder link>  Muzzy's personal folder for the template backup (saves one now)
+//   node pds.mjs backup-template [--force]        refresh the backup if the template changed (also runs after deploy / fresh-test)
 //
 // Files are found by Drive tags (appProperties), never by stored IDs:
 //   library  -> pdsRole=library   template -> pdsRole=template   deck -> pdsStubScriptId=<its menu script>
@@ -118,6 +120,7 @@ async function deployLibrary(folderId) {
   const files = source("library").map((f) => f.name === "Code" ? { ...f, source: f.source.replace("TEMPLATE_ID_SET_AT_DEPLOY", tpl.id).replace("SPECS_ROOT_ID_SET_AT_DEPLOY", root) } : f);
   const v = pushScript(lib.id, files, "deployed " + new Date().toISOString().slice(0, 10));
   console.log(`library updated: ${lib.id} (version ${v || "?"}). Decks pick it up next time they open.`);
+  backupTemplate();
   return lib.id;
 }
 
@@ -196,6 +199,23 @@ async function freshTest(folderId) {
   const stamp = `${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")} ${h % 12 || 12}.${String(n.getMinutes()).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
   const id = await newDeck(folderId, "TEST " + stamp, "Example Game");
   tag(id, { pdsTest: "1" });
+  backupTemplate();
+}
+
+// One always-current backup of the template in Muzzy's personal folder (tag pdsBackupFolder on the template).
+// Copies only when the template changed since the last backup, then bins the older backup.
+function backupTemplate(force) {
+  const tpl = template();
+  const info = gws("drive", "files", "get", "--params", p({ fileId: tpl.id, supportsAllDrives: true, fields: "name,modifiedTime,appProperties" }));
+  const folder = (info.appProperties || {}).pdsBackupFolder;
+  if (!folder) { console.log("backup: no backup folder set (set-backup-folder <link>)"); return; }
+  const q = `'${folder}' in parents and trashed=false and appProperties has { key='pdsBackupOf' and value='${tpl.id}' }`;
+  const old = gws("drive", "files", "list", "--params", p({ q, fields: "files(id,name,appProperties)", supportsAllDrives: true, includeItemsFromAllDrives: true, corpora: "allDrives" })).files || [];
+  if (!force && old.some((b) => (b.appProperties || {}).pdsBackupSourceModified === info.modifiedTime)) { console.log("backup: up to date"); return; }
+  const copy = gws("drive", "files", "copy", "--params", p({ fileId: tpl.id, supportsAllDrives: true, fields: "id,name" }), "--json", p({ name: `${info.name} (backup)`, parents: [folder] }));
+  tag(copy.id, { pdsBackupOf: tpl.id, pdsBackupSourceModified: info.modifiedTime, pdsRole: "backup" });
+  for (const b of old) gws("drive", "files", "update", "--params", p({ fileId: b.id, supportsAllDrives: true, fields: "id" }), "--json", p({ trashed: true }));
+  console.log(`backup: saved "${copy.name}"${old.length ? " (older backup binned)" : ""}`);
 }
 
 function status() {
@@ -214,6 +234,8 @@ try {
   else if (cmd === "update-folder") await updateFolder(a);
   else if (cmd === "new-deck") await newDeck(a, b, c);
   else if (cmd === "fresh-test") await freshTest(a);
+  else if (cmd === "set-backup-folder") { const id = (a.match(/folders\/([A-Za-z0-9_-]+)/) || [])[1] || a; tag(template().id, { pdsBackupFolder: id }); console.log("backup folder recorded on the template:", id); backupTemplate(true); }
+  else if (cmd === "backup-template") backupTemplate(b === "--force" || a === "--force");
   else if (cmd === "set-specs-root") { const id = (a.match(/folders\/([A-Za-z0-9_-]+)/) || [])[1] || a; tag(template().id, { pdsSpecsRoot: id }); console.log("Product Specs folder recorded on the template:", id); }
   else console.log(readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(0, 9).join("\n"));
 } catch (e) {
