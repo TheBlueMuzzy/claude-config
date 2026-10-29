@@ -29,7 +29,7 @@ node pds.mjs mark-template <presentationId>      # tag THE template (only one ma
 
 ## Procedures
 
-**Template backup** — one always-current copy, "TEMPLATE Games - PDS (backup)", in Muzzy's personal _Templates folder (tag `pdsBackupFolder` on the template). `backup-template` copies only if the template changed and bins the older backup. ① runs automatically after `deploy-library` and `fresh-test`; ③ after Muzzy edits the template by hand in Slides, run `backup-template` (nothing can detect a manual edit until the next command runs)
+**Template backup** — one always-current copy, "TEMPLATE Games - PDS (backup)", in Muzzy's personal _Templates folder (tag `pdsBackupFolder` on the template). `backup-template` copies only if the template changed and bins the older backup. ① runs automatically after `deploy-library` and `fresh-test`; ③ after Muzzy edits the template by hand in Slides, run `backup-template` (nothing can detect a manual edit until the next command runs). Muzzy declined a nightly auto-backup (29 Oct 2026): he'll say when he's edited the template — then run `backup-template`
 
 **Shared folder etiquette** — if anything Claude's tools made lands in the shared Product Specs tree (e.g. a test New PDS), tell Muzzy the file + link and let him delete it; never delete or move things there yourself. ③ judgement
 
