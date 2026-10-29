@@ -2,14 +2,14 @@
 // Each deck has a tiny stub script (see ../stub) that calls this library as `PDS`
 // in development mode, so saving this library updates every deck the next time it opens.
 
-var VERSION = '1.8.1';
+var VERSION = '1.9.0';
 var PREFIX = 'PDS - ';
-var GAME_PAGES = ['PDS - Overview', 'PDS - How to Play'];
+var GAME_PAGES = ['PDS - Overview', 'PDS - How to Play', 'PDS - Component Overview'];
 var ARCHIVE = 'PDS - Archive';
-var ADDABLE = ['PDS - Overview', 'PDS - How to Play', 'PDS - Control Drawing', 'PDS - Color & Deco', 'PDS - Texture & Finish', 'PDS - Printed Sheet', 'PDS - Packaging'];
+var ADDABLE = ['PDS - Overview', 'PDS - How to Play', 'PDS - Component Overview', 'PDS - Control Drawing', 'PDS - Color & Deco', 'PDS - Texture & Finish', 'PDS - Printed Sheet', 'PDS - Packaging'];
 var COMPONENT_SET = ['PDS - Control Drawing', 'PDS - Color & Deco', 'PDS - Texture & Finish'];
 // The page-type chip text on each layout, used to recognise a layout if its name was changed
-var CHIPS = { 'OVERVIEW': 'PDS - Overview', 'HOW TO PLAY': 'PDS - How to Play', 'CONTROL DRAWING': 'PDS - Control Drawing', 'COLOR & DECO': 'PDS - Color & Deco', 'TEXTURE & FINISH': 'PDS - Texture & Finish', 'PRINTED SHEET': 'PDS - Printed Sheet', 'PACKAGING': 'PDS - Packaging', 'ARCHIVE': 'PDS - Archive' };
+var CHIPS = { 'OVERVIEW': 'PDS - Overview', 'HOW TO PLAY': 'PDS - How to Play', 'COMPONENTS': 'PDS - Component Overview', 'CONTROL DRAWING': 'PDS - Control Drawing', 'COLOR & DECO': 'PDS - Color & Deco', 'TEXTURE & FINISH': 'PDS - Texture & Finish', 'PRINTED SHEET': 'PDS - Printed Sheet', 'PACKAGING': 'PDS - Packaging', 'ARCHIVE': 'PDS - Archive' };
 var BLANK_DATE = 'DD Mon YYYY';
 
 // ---------- menu ----------
@@ -270,7 +270,7 @@ function addPages(d) {
   var types = (d.types || []).filter(function (t) { return ADDABLE.indexOf(t) >= 0; });
   if (!types.length) throw new Error('Tick at least one page type.');
   var name = String(d.name || '').trim();
-  if (!name && types.some(function (t) { return SECTION[t] === 3; })) throw new Error('Component pages need the component name — it keeps its pages together.');
+  if (!name && types.some(isComponent_)) throw new Error('Component pages need the component name — it keeps its pages together.');
   var layouts = pdsLayouts_();
   var deck = deck_();
   var info = current_();
@@ -316,17 +316,19 @@ function addCallout_(slide) {
 }
 
 // ---------- Page order (the placement SOP, Muzzy 28 Oct 2026) ----------
-// Deck order: 1 Overview · 2 How to Play · 3 Components (one group per component: Control → Color & Deco → Texture) ·
-//             4 Printed Sheets · 5 Packaging · then the Archive divider and archived pages.
+// Deck order: 1 Overview · 2 How to Play · 3 Component Overview · 4 Components (one group per component:
+//             Control → Color & Deco → Texture) · 5 Printed Sheets · 6 Packaging · then the Archive divider and archived pages.
 // A new page goes:
-//   - Overview / How to Play / Printed Sheet / Packaging → after the last live page of the same type
+//   - Overview / How to Play / Component Overview / Printed Sheet / Packaging → after the last live page of the same type
 //   - component page, component already has pages → inside its group, after its last page of the same or an
 //     earlier type (so Control lands first, Texture last); before the group if nothing earlier exists
-//   - component page, new component → after the last component page (new group at the end of section 3)
+//   - component page, new component → after the last component page (new group at the end of section 4)
 //   - nothing of that kind yet → after the last page of any earlier section; at the very start if none
 //   - never inside the Archive. Pages that aren't PDS pages are ignored when working this out.
-var SECTION = { 'PDS - Overview': 1, 'PDS - How to Play': 2, 'PDS - Control Drawing': 3, 'PDS - Color & Deco': 3, 'PDS - Texture & Finish': 3, 'PDS - Printed Sheet': 4, 'PDS - Packaging': 5 };
+var SECTION = { 'PDS - Overview': 1, 'PDS - How to Play': 2, 'PDS - Component Overview': 3, 'PDS - Control Drawing': 4, 'PDS - Color & Deco': 4, 'PDS - Texture & Finish': 4, 'PDS - Printed Sheet': 5, 'PDS - Packaging': 6 };
 var COMPONENT_ORDER = { 'PDS - Control Drawing': 1, 'PDS - Color & Deco': 2, 'PDS - Texture & Finish': 3 };
+// Per-component pages (Control / Color & Deco / Texture) carry a component name and group together
+function isComponent_(kind) { return !!COMPONENT_ORDER[kind]; }
 
 function placeFor_(kind, name) {
   var slides = deck_().getSlides();
@@ -335,7 +337,7 @@ function placeFor_(kind, name) {
   var info = [];
   for (var i = 0; i < limit; i++) {
     var k = slides[i].isSkipped() ? null : slideKind_(slides[i]);
-    info.push({ kind: k, name: k && SECTION[k] === 3 ? text_(fields_(slides[i]).title) : '' });
+    info.push({ kind: k, name: k && isComponent_(k) ? text_(fields_(slides[i]).title) : '' });
   }
   return placeIndex(info, kind, name);
 }
@@ -349,8 +351,8 @@ function placeIndex(pages, kind, name) {
   var last = function (test) { for (var j = info.length - 1; j >= 0; j--) if (test(info[j])) return j; return -1; };
   var at;
   var key = String(name || '').trim().toLowerCase();
-  if (sec === 3 && key) {
-    var inGroup = function (x) { return x.sec === 3 && x.name === key; };
+  if (isComponent_(kind) && key) {
+    var inGroup = function (x) { return isComponent_(x.kind) && x.name === key; };
     var groupLast = last(inGroup);
     if (groupLast >= 0) {
       var before = last(function (x) { return inGroup(x) && COMPONENT_ORDER[x.kind] <= COMPONENT_ORDER[kind]; });
@@ -370,7 +372,7 @@ function showAddPages() {
   }).join('');
   var html =
     '<style>' + CSS + '</style>' +
-    '<p class="hint">New pages are dated today and placed in deck order: Overview · How to Play · Components (Control → Color &amp; Deco → Texture, grouped by name) · Printed Sheets · Packaging. Same name as an existing component = joins its group.</p>' +
+    '<p class="hint">New pages are dated today and placed in deck order: Overview · How to Play · Component Overview · Components (Control → Color &amp; Deco → Texture, grouped by name) · Printed Sheets · Packaging. Same name as an existing component = joins its group.</p>' +
     field_('name', 'Name (required for component pages; e.g. "Spoon", "Instruction Sheet", "Retail Box")', '') +
     '<div class="label">Page types</div>' + boxes +
     '<button id="go" onclick="add()">Add pages</button><p id="msg"></p>' +
@@ -457,7 +459,7 @@ function unarchiveSelected() {
     page.getShapes().forEach(function (s) { if (/^(SUPERSEDED|DROPPED)/.test(s.getText().asString())) s.remove(); });
     page.setSkipped(false);
     var f = fields_(page);
-    page.move(placeFor_(kind, SECTION[kind] === 3 ? text_(f.title) : ''));
+    page.move(placeFor_(kind, isComponent_(kind) ? text_(f.title) : ''));
     setText_(f.revised, today);
     paintStatus_(f.status, 'COMPLETE', f.created);
     if (n === 0) page.selectAsCurrentPage();

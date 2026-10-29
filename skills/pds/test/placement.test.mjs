@@ -10,7 +10,7 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(readFileSync(join(here, "../library/Code.js"), "utf8"), ctx);
 
-const O = "PDS - Overview", H = "PDS - How to Play", C = "PDS - Control Drawing", D = "PDS - Color & Deco", T = "PDS - Texture & Finish", P = "PDS - Printed Sheet", K = "PDS - Packaging";
+const O = "PDS - Overview", H = "PDS - How to Play", M = "PDS - Component Overview", C = "PDS - Control Drawing", D = "PDS - Color & Deco", T = "PDS - Texture & Finish", P = "PDS - Printed Sheet", K = "PDS - Packaging";
 const pg = (kind, name = "") => ({ kind, name });
 // Insert using the library rule, return the deck as short labels
 function add(deck, kind, name) {
@@ -18,7 +18,7 @@ function add(deck, kind, name) {
   deck.splice(at, 0, pg(kind, kind === C || kind === D || kind === T ? name.trim() : ""));
   return deck;
 }
-const show = (deck) => deck.map((p) => ({ [O]: "O", [H]: "H", [C]: "C", [D]: "D", [T]: "T", [P]: "P", [K]: "K" }[p.kind] || "?") + (p.name ? ":" + p.name : "")).join(" ");
+const show = (deck) => deck.map((p) => ({ [O]: "O", [H]: "H", [M]: "M", [C]: "C", [D]: "D", [T]: "T", [P]: "P", [K]: "K" }[p.kind] || "?") + (p.name ? ":" + p.name : "")).join(" ");
 
 let fails = 0;
 function check(label, deck, expected) {
@@ -52,6 +52,13 @@ check("Overview into a deck with no Overview → very start", add([pg(H), pg(C, 
 check("first component into a deck with only game pages", add([pg(O), pg(H), pg(K)], C, "Cup"), "O H C:Cup K");
 check("empty deck", add([], C, "Cup"), "C:Cup");
 check("non-PDS pages are ignored", add([pg(O), pg(null), pg(C, "Cup"), pg(null)], D, "Cup"), "O ? C:Cup D:Cup ?");
+check("Component Overview → right after How to Play", add(full(), M), "O H M C:Spoon D:Spoon T:Spoon C:Fork D:Fork P K");
+check("second Component Overview → after the first", add([pg(O), pg(H), pg(M), pg(C, "Cup")], M), "O H M M C:Cup");
+check("Component Overview with no How to Play → after Overview", add([pg(O), pg(C, "Cup")], M), "O M C:Cup");
+check("Component Overview into a deck of only components → very start", add([pg(C, "Cup"), pg(K)], M), "M C:Cup K");
+check("How to Play goes before an existing Component Overview", add([pg(O), pg(M), pg(C, "Cup")], H), "O H M C:Cup");
+check("first component lands after Component Overview", add([pg(O), pg(H), pg(M), pg(K)], C, "Cup"), "O H M C:Cup K");
+check("Color & Deco joins its group past the Component Overview", add([pg(O), pg(M), pg(C, "Cup")], D, "Cup"), "O M C:Cup D:Cup");
 
 console.log(fails ? `\n${fails} FAILED` : "\nall placement tests passed");
 process.exit(fails ? 1 : 0);
