@@ -10,7 +10,8 @@
 //                D7  the Fast tier is green (check:fast, reusing stop-check-fast's green record; else test + build)
 //                D10 check:framework is green (a game with framework copies but no check:framework → refused)
 //   BMUZ project (.planning/STATE.md)
-//                D6  STATE's Log has a line dated today          D32 RESUME HERE names the new tag (Version: is written here)
+//                D6  STATE's Log has a line dated today          D32 RESUME HERE names the new tag (Version: is written here,
+//                    with its "(UI kit 0.37.3 · …)" module list from each <module>/kit/VERSION in a project of modules, F164)
 //                D38 Key facts has a `Release:` line             D11 no code since `Last full check:` (with check:full)
 //                D20 no code since `Reviewed through:`           D19 no code since `Security reviewed:`
 //                D12 no open P0 (BUGS.md) · D13 open P1s printed
@@ -28,14 +29,14 @@
 //                    (override: --deps-risk-ok) — deps-check.mjs
 //   printed      D42 "server code changed since <tag>: yes/no"
 // Overrides are Muzzy's judgement calls, so each one used goes in the release commit's body ("Released with: …").
-// Then: bump (build → 0), history entry, package.json + lock, STATE `Version:`, CHANGELOG.md + the itch text (from the
+// Then: bump (build → 0), history entry, package.json + lock, STATE `Version:` (+ its module list, F164), CHANGELOG.md + the itch text (from the
 // notes, F84), public/third-party-notices.txt (games, F85), commit "Release vX.Y.Z: <summary>" (asked of the commit
 // hooks first, F80), annotated tag vX.Y.Z, cleanup.sh (D46). It never pushes: /deliver pushes after the smoke pass.
 //   release.mjs <kind> --draft-notes   writes the notes draft for the next version from the commits since the last tag
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { git, run, say, ok, refuse, tail, readJson, writeJson, args, projectDir, exists, changedFiles, checksVerdict,
-  todays, section, stateValue, commitsIn, codeCommitsSince, lastTag, isCode, fastChecks, cleanup, guardCommit } from './lib.mjs'
+  todays, section, stateValue, commitsIn, codeCommitsSince, lastTag, isCode, fastChecks, cleanup, guardCommit, moduleVersions, moduleList } from './lib.mjs'
 import { defaultBranch } from '../hooks/lib.mjs'
 import { readBugs, isOpenBug, readRoadmap, readSprint } from '../templates/ppp/plan-reader.mjs'
 import { notesFile, itchFile, notesPath, notesProblems, draftNotes, changelogEntry, addToChangelog, itchText } from './notes.mjs'
@@ -165,7 +166,7 @@ if (stateText !== null) {
   // D6: /save's STATE + Log step happened for this delivery
   const log = section(stateText, 'Log\\b') || []
   if (!log.some(l => /^- /.test(l) && isToday(l.slice(0, 20)))) fail(`STATE's Log has no line dated today (${today[0]}) — the log should record what's being delivered`, 'add one dated line, player\'s-eye (what this release brings)')
-  // D32: RESUME HERE names the new tag; Version: is written here
+  // D32: RESUME HERE names the new tag; Version: (and a project of modules' list, F164) is written here
   const resume = (section(stateText, '▶ RESUME HERE') || []).join('\n')
   if (!new RegExp(`\\bv${next.replace(/\./g, '\\.')}(?!\\d)`).test(resume)) fail(`STATE's ▶ RESUME HERE doesn't name ${tag} — a fresh session wouldn't know this went out`, `rewrite it: "Released ${tag} — next: /sprint (or /roadmap)", plus Stage = deliver and the Live line`)
   const oldVersion = stateText.match(/(Version:\*{0,2}[ \t]*)v?(\d+\.\d+\.\d+(?:\.\d+)?)/)
@@ -173,6 +174,12 @@ if (stateText !== null) {
   stateOut = oldVersion
     ? stateText.replace(oldVersion[0], `${oldVersion[1]}${written}`)
     : stateText.replace(/^(## Where we are[^\n]*\n)/m, `$1Version: ${next}.0\n`)
+  // F164: a project of modules (dev/framework) — the "(UI kit 0.37.3 · …)" list after the number is rebuilt from each
+  // <module>/kit/VERSION (it was hand-copied, and a release behind). No modules (a game) → the line stays as it was.
+  const modules = moduleVersions(root)
+  if (modules.length) {
+    stateOut = stateOut.replace(/(Version:\*{0,2}[ \t]*v?\d+\.\d+\.\d+(?:\.\d+)?)(?:[ \t]*\(([^)\n]*)\))?/, (_, number, oldList = '') => `${number} (${moduleList(oldList, modules)})`)
+  }
   // D38: where it goes is on record
   const release = stateValue(stateText, 'Release')
   if (!release) fail('STATE Key facts has no `Release:` line — where this goes (or why nowhere) isn\'t on record', 'add one: `Release: <platform> (recipe …)` · `Release: none (library)` · `Release: not set up (declined <date>)` · `Release: <platform> — blocked: <why>`')

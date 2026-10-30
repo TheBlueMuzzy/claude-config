@@ -1,7 +1,7 @@
 // Proves every BMUZ hook blocks what it should and lets the normal case through (F68).
 // Run: node ~/.claude/config/bmuz/hooks/test-hooks.mjs   (a few seconds; makes throwaway repos in the temp folder)
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, mkdirSync, rmSync, symlinkSync, cpSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, mkdirSync, rmSync, symlinkSync, cpSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -935,6 +935,14 @@ function testStopPlanCheck() {
   expect('…with the link', { result: /artifact\/abc123/.test(notPublished.message) ? 'ok' : 'no', message: notPublished.message }, 'ok')
   expect('republished this turn → allowed', stop([editSprint, tool('Artifact', { file_path: join(repo, '.planning', 'ppp.html'), url: 'https://claude.ai/artifact/abc123' })]), 'allow')
   expect('next turn, nothing rebuilt since → allowed', stop([editSprint]), 'allow')
+  // the claude-artifacts server's publish_files counts as a republish too (Goops 2026-10-29, Glyphtender 2026-10-30)
+  utimesSync(join(gitDir, 'bmuz-ppp-published'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000)) // rebuilt after the last publish
+  expect('rebuilt again, not republished → sent back', stop([editSprint]), 'block')
+  utimesSync(join(gitDir, 'bmuz-ppp-published'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
+  const publishFiles = (path) => tool('mcp__claude-artifacts__publish_files', { slug: 'c6424984', base_version: '1', files: [{ as: 'index.html', path }] })
+  expect('…a publish_files of a copy elsewhere → still sent back', stop([editSprint, publishFiles(join(repo, 'copy.html'))]), 'block')
+  utimesSync(join(gitDir, 'bmuz-ppp-published'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
+  expect('…republished with publish_files (index.html = .planning/ppp.html) → allowed', stop([editSprint, publishFiles(join(repo, '.planning', 'ppp.html'))]), 'allow')
 
   // F74: a milestone needs a look-back, and every look-back item a real home
   const tagMilestone = tool('Bash', { command: 'git tag v0.9.0 && git push --tags' })

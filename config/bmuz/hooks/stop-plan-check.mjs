@@ -67,6 +67,13 @@ for (const tool of turn.tools) {
     const p = project(resolve(file, '..', '..'))
     if (p) { p.published = true; p.sentFiles.push(...sentFiles(tool.input.files)) }
   }
+  // The claude-artifacts server's publish_files counts too: its index.html entry is the project's .planning/ppp.html
+  // (Goops 2026-10-29 + Glyphtender 2026-10-30: a publish through it wasn't seen, so the hook kept asking — Muzzy OK'd the fix)
+  if (/claude-artifacts__publish_files$/.test(tool.name) && Array.isArray(tool.input.files)) {
+    const page = tool.input.files.find(f => f?.as === 'index.html' && /[\\/]\.planning[\\/]ppp\.html$/.test(f.path || ''))
+    const p = page && project(resolve(page.path, '..', '..'))
+    if (p) { p.published = true; p.sentFiles.push(...tool.input.files.flatMap(f => [f.as, f.path]).filter(Boolean)) }
+  }
   if (/[\\/]\.planning[\\/]research[\\/]sketches[\\/][^\\/]+\.html$/.test(file) && tool.name !== 'Artifact') { const p = project(existingDir(file)); if (p) p.sketches.add(basename(file)) }
   if (['Write', 'Edit', 'MultiEdit'].includes(tool.name) && /[\\/]content[\\/]/.test(file)) project(existingDir(file)) // a data file: checked against the TDD (6)
 }
@@ -127,7 +134,7 @@ for (const [root, p] of projects) {
   const published = join(gitDir, 'bmuz-ppp-published')
   if (p.published) { writeFileSync(published, new Date().toISOString()); continue }
   if (!existsSync(published) || statSync(published).mtimeMs < statSync(rebuilt).mtimeMs) {
-    problems.push(`${name}: the plan files changed, so the planner page was rebuilt (.planning/ppp.html) — republish it to ${link} with the Artifact tool (url = that link).`)
+    problems.push(`${name}: the plan files changed, so the planner page was rebuilt (.planning/ppp.html) — republish it to ${link} with the Artifact tool (url = that link), or claude-artifacts publish_files with files: [{ as: 'index.html', path: '<project>/.planning/ppp.html' }] (get_artifact on the link gives slug + base_version).`)
   }
 }
 stopVerdict('stop-plan-check', input, problems.length && `Before handing back:\n- ${problems.join('\n- ')}`)

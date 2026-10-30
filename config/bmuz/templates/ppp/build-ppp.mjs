@@ -335,6 +335,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; padding-top:
 .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--card); }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sk { display: grid; gap: 6px; }
+.sk[hidden], #sk-hint[hidden] { display: none; } /* display: grid above would beat the browser's own [hidden] rule: every sketch showed at once */
 .frame { width: min(100%, 430px); height: min(80vh, 820px); margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #000; }
 @media (min-width: 800px) { .frame { width: min(100%, 740px); } }  /* room for a sketch's knobs panel beside a full phone-size board */
 .frame iframe { width: 100%; height: 100%; border: 0; display: block; }

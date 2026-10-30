@@ -204,6 +204,37 @@ export function commitsIn(root, value) {
 // writes (F85) are made from the packages, not written by hand.
 export const isCode = (f) => !!f && !f.startsWith('.planning/') && !/\.md$/i.test(f) && f !== 'version.json' && f !== '.gitignore' && f !== 'public/third-party-notices.txt'
 
+// F164: a project of modules (dev/framework) — every top-level folder with kit/VERSION, as [{ folder, version }] sorted
+// by folder name. Starters, node_modules and hidden folders (.claude) aren't modules. A game has none (its copies sit
+// under src/), so it gets [].
+export function moduleVersions(root) {
+  let folders = []
+  try { folders = readdirSync(root, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name) } catch { return [] }
+  return folders
+    .filter(name => !name.startsWith('.') && name !== 'node_modules' && name !== 'starters' && existsSync(join(root, name, 'kit', 'VERSION')))
+    .sort()
+    .map(folder => ({ folder, version: readFileSync(join(root, folder, 'kit', 'VERSION'), 'utf8').trim() }))
+}
+
+// F164: the "(UI kit 0.37.3 · Dev Kit 0.28.1 · …)" list after STATE's Version number, rebuilt from the modules. A module
+// already in the list keeps its place and label ("UI kit" is ui-kit: labels match folders ignoring case, spaces and
+// dashes) with its new number; a module not listed yet goes at the end under its folder name; a listed one with no
+// folder any more is dropped. `oldList` is the text inside the brackets ('' when there's none yet).
+export function moduleList(oldList, modules) {
+  const key = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const left = new Map(modules.map(m => [key(m.folder), m]))
+  const entries = []
+  for (const part of oldList.split('·')) {
+    const label = part.trim().replace(/\s+v?\d+(\.\d+)*$/, '') // "UI kit 0.37.3" → "UI kit"
+    const module = left.get(key(label))
+    if (!module) continue
+    entries.push(`${label} ${module.version}`)
+    left.delete(key(label))
+  }
+  for (const module of left.values()) entries.push(`${module.folder} ${module.version}`)
+  return entries.join(' · ')
+}
+
 // The newest version tag HEAD contains (null before the first release).
 export const lastTag = (root) => git(root, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', 'HEAD')
 
