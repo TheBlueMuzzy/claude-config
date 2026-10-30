@@ -92,7 +92,9 @@ function* cardProblems(text) {
     if (!new RegExp(`\\*\\*${escape(label)}:?\\*\\*:?`, 'i').test(text)) yield `**${label}:**`
   }
   const next = section(text, 'Next')
-  if (next !== null && !/`?\/[a-z][\w-]*`?.*\s[—-]\s+\S/i.test(next)) yield 'a **Next:** line with `/command` — what it will cover'
+  // Work still running on its own (a helper mid-feature) → "nothing to type — <what Claude does next>": a bare /command
+  // there read as "type this", and Muzzy typed /develop five times to keep things moving (2026-10-30)
+  if (next !== null && !/`?\/[a-z][\w-]*`?.*\s[—-]\s+\S|^\s*nothing to type\s*[—-]\s+\S/i.test(next)) yield 'a **Next:** line with `/command` — what it will cover (or, while work keeps going on its own, "nothing to type — <what happens next>")'
   const tryIt = section(text, 'Try it')
   if (tryIt !== null && !/https?:\/\/|nothing to try/i.test(tryIt)) yield 'links (http…) under **Try it:** — or "nothing to try: <why>"'
   const notAsked = notQuestions(section(text, 'Questions'))

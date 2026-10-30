@@ -3,6 +3,8 @@
 //   modules: devkit · ui-kit · audio · table · ai · rooms · saves · version · crashes · emotes     e.g.  install-module.mjs ui-kit . cozy
 //   (+ any module born from the extraction queue, F114: kit/VERSION + "bmuz": { "folders" } in its package.json)
 // Steps, stopping at the first problem:
+//   0. the module's UPGRADES.md (F168): refused when it says "Needs Dev Kit: X" and the game's Dev Kit is older (the
+//      fix: update devkit first); its hand steps after the game's version are printed with the dry run
 //   1. the module's OWN tests + type check (+ ui-kit's check-ui) pass in the framework — a red module never ships
 //      (ui-kit 0.4.4 once shipped with its own check-ui failing)
 //   2. the installer's dry run (what will change) + the module's folders the game's eslint.config must ignore (F112)
@@ -31,6 +33,37 @@ if (!exists(game, 'package.json')) refuse(`${game} has no package.json — is th
 const moduleDir = join(FRAMEWORK, module)
 const installer = exists(moduleDir, 'scripts') && readdirSync(join(moduleDir, 'scripts')).find(f => /^install-.*\.mjs$/.test(f) && !f.includes('.test.'))
 if (!installer) refuse(`no installer in ${join(moduleDir, 'scripts')}`)
+
+// 0. (F168) the module's UPGRADES.md (beside its README) — `- <version>: <hand step>` lines, newest first, and maybe
+// `Needs Dev Kit: <version>` (its checks call something only that Dev Kit's runner has: ai 0.8.3 on Glyphtender's Dev Kit
+// 0.20 crashed with "t.warn is not a function"). A framework from before F168 has none: nothing printed, nothing refused.
+const parts = (v) => v.split('.').map(Number)
+const newer = (a, b) => { const x = parts(a), y = parts(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i]; return false }
+const notes = exists(moduleDir, 'UPGRADES.md') ? readFileSync(join(moduleDir, 'UPGRADES.md'), 'utf8').split(/\r?\n/) : []
+const needsDevkit = notes.map(l => l.match(/^Needs Dev Kit:\s*(\d+\.\d+\.\d+)/)?.[1]).find(Boolean)
+const handSteps = notes.map(l => l.match(/^- (\d+\.\d+\.\d+): (.+)$/)).filter(Boolean).map(([, version, text]) => ({ version, text }))
+// the version a game has of a module = the first x.y.z in <its first folder>/VERSION ("0.3.1 (framework b3626bf)")
+const versionInGame = (name) => {
+  const folder = moduleFolders(name)?.[0]
+  const file = folder && join(game, folder, 'VERSION')
+  return file && existsSync(file) ? readFileSync(file, 'utf8').match(/\d+\.\d+\.\d+/)?.[0] ?? null : null
+}
+const newVersion = readFileSync(join(moduleDir, 'kit', 'VERSION'), 'utf8').trim()
+const gameVersion = versionInGame(module)
+if (needsDevkit && module !== 'devkit') {
+  const gameDevkit = versionInGame('devkit')
+  if (gameDevkit && newer(needsDevkit, gameDevkit)) {
+    refuse(`${module} ${newVersion}'s checks need Dev Kit ${needsDevkit} or newer — the game has Dev Kit ${gameDevkit}, so nothing was installed`,
+      `update devkit first: node ~/.claude/config/bmuz/scripts/install-module.mjs devkit ${gameArg ?? '.'}   then run this again`)
+  }
+  // no Dev Kit at all: nothing runs the checks yet, so nothing can crash — said, not refused
+  if (!gameDevkit) say(`! ${module}'s checks need Dev Kit ${needsDevkit} or newer, and the game has no Dev Kit — they won't run until it's installed (install-module.mjs devkit)`)
+}
+// the steps after the game's version, up to the new one (none for a first install or when already current)
+const stepsSince = gameVersion ? handSteps.filter(s => newer(s.version, gameVersion) && !newer(s.version, newVersion)) : []
+const stepsNote = stepsSince.length
+  ? `\n--- hand steps: ${module} ${gameVersion} → ${newVersion} (from ${module}/UPGRADES.md — the installer doesn't do these) ---\n${stepsSince.map(s => `  ${s.version}: ${s.text}`).join('\n')}\n---`
+  : ''
 
 // 1. the module's own checks, in the framework
 const scripts = readJson(join(moduleDir, 'package.json'))?.scripts ?? {}
@@ -69,7 +102,7 @@ const ignoreNote = (done) => !eslintFile ? `eslint: no eslint.config.* in the ga
 const installerPath = join(moduleDir, 'scripts', installer)
 const dry = run('node', [installerPath, game, ...extra, '--dry-run'])
 if (dry.code !== 0) refuse(`the installer's dry run failed:\n${tail(dry.out)}`)
-say(`\n--- dry run ---\n${dry.out.trim()}\n${ignoreNote(false)}\n---`)
+say(`\n--- dry run ---\n${dry.out.trim()}\n${ignoreNote(false)}\n---${stepsNote}`)
 if (flags.has('--dry-run')) { say('Dry run only — nothing changed.'); process.exit(0) }
 const real = run('node', [installerPath, game, ...extra])
 if (real.code !== 0) refuse(`the install failed part-way:\n${tail(real.out)}`, 'git status in the game shows what it changed — `git checkout -- src/` puts the old copy back (ask Muzzy first if there is other uncommitted work)')
@@ -126,5 +159,5 @@ if (exists(game, 'scripts/check-all.mjs') && !readFileSync(join(game, 'scripts',
 } else if (exists(game, 'scripts/check-all.mjs') && !exists(game, 'scripts/ports.mjs')) { // (review, F118: copied without its lookup)
   say(`! scripts/ports.mjs is missing — check:full stops at once without it: copy ~/.claude/config/bmuz/templates/ports.mjs to scripts/ports.mjs`)
 }
-say(`\nNext: do the wiring steps the installer printed above, then prove the module's main promise in the game (develop skill: "Installing a module = proving its main promise").`)
+say(`\nNext: do the wiring steps the installer printed above${stepsSince.length ? ` and the ${stepsSince.length} hand step${stepsSince.length > 1 ? 's' : ''} since ${gameVersion} (under the dry run)` : ''}, then prove the module's main promise in the game (develop skill: "Installing a module = proving its main promise").`)
 if (lintRed) process.exit(1)

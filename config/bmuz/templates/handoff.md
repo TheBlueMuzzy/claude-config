@@ -13,8 +13,10 @@ here and the check follows (it reads every `**Label:**` in the card).
 **Proof:** the checks that ran (with results) + what the screenshots showed
 **Your to-dos:** things only Muzzy can do (say yes in another window, try it on the phone, play a round) — or "none"
 **Questions:** only decisions Muzzy answers, numbered 1. 2. 3. so he can answer by number, each one a question ending in "?" (options indented under it, Claude's pick first) — or "none"
-**Next:** `/command` — what it will cover
+**Next:** `/command` — what it will cover · or, while work keeps going on its own: "nothing to type — I keep going: <what's next>"
 ```
+A `/command` under **Next** means "type this when you're ready". Never put one there while helpers are still working — Muzzy reads it as his cue and types it again and again (2026-10-30: five `/develop`s during F168).
+
 Questions holds questions only (Muzzy, 2026-10-23: "this didn't seem like a question. it felt like information. this
 section is called Questions: i'm confused by that") — information goes in Done / You'll see, actions in Your to-dos; the
 check sends back a Questions item with no "?". A question about something on screen names it as a player would (the

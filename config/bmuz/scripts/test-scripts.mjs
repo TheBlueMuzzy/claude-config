@@ -139,6 +139,44 @@ async function testInstallModule() {
   write(join(game, 'src', 'devkit', 'check-framework.mjs'), 'process.exit(0)')
   const gameRed = install('audio', '.')
   expect("F112: the game's own lint red → exit 1, its output shown, the module's checks still run", gameRed.code === 1 && /game's own lint fails/.test(gameRed.out) && /src\/game\.tsx/.test(gameRed.out) && /audio's code checks pass in the game/.test(gameRed.out), gameRed.out)
+  // the game's own lint green again, no stand-in framework check
+  write(join(game, 'lint.mjs'), "console.log('lint clean')\n")
+  rmSync(join(game, 'src', 'devkit'), { recursive: true, force: true })
+  // F168: the module's UPGRADES.md — the hand steps between the game's version and the new one are printed, and a
+  // module whose checks need a newer Dev Kit than the game has is refused with the command that fixes it
+  write(join(game, 'eslint.config.js'), "export default defineConfig([\n  globalIgnores(['dist', 'src/audio']),\n])\n")
+  write(join(audio, 'UPGRADES.md'), [
+    '# Audio — upgrade notes', '', 'Hand steps… `- <version>: <step>` newest first.', '',
+    '- 0.4.0: run audio:check --fix, then listen', '- 0.4.0: LOOK CHANGE — the meter is taller', '- 0.3.1: rename sfx.json', '- 0.3.0: add the Sound row', '- 0.2.0: very old step', '',
+  ].join('\n'))
+  write(join(game, 'src', 'audio', 'VERSION'), '0.3.0 (framework abc1234)\n')
+  const steps = install('audio', '.', '--dry-run')
+  expect('F168: dry run prints the hand steps after the game\'s version up to the new one (0.3.0 → 0.4.0: 0.4.0 ×2 + 0.3.1)', steps.code === 0 && /audio 0\.3\.0 → 0\.4\.0/.test(steps.out) && /run audio:check --fix/.test(steps.out) && /LOOK CHANGE — the meter is taller/.test(steps.out) && /rename sfx\.json/.test(steps.out), steps.out)
+  expect('F168: …not the steps of the game\'s own version or older ones', !/add the Sound row/.test(steps.out) && !/very old step/.test(steps.out), steps.out)
+  const realSteps = install('audio', '.')
+  expect('F168: a real install prints them too', realSteps.code === 0 && /rename sfx\.json/.test(realSteps.out) && !/add the Sound row/.test(realSteps.out), realSteps.out)
+  const current = install('audio', '.', '--dry-run') // the real install above stamped 0.4.0
+  expect('F168: already on the newest version → no hand steps printed', current.code === 0 && !/run audio:check --fix/.test(current.out) && !/rename sfx\.json/.test(current.out), current.out)
+  rmSync(join(game, 'src', 'audio'), { recursive: true, force: true })
+  const fresh = install('audio', '.', '--dry-run')
+  expect('F168: not installed yet (a first install) → no upgrade steps (the installer prints the wiring)', fresh.code === 0 && !/rename sfx\.json/.test(fresh.out) && !/run audio:check --fix/.test(fresh.out), fresh.out)
+  // Needs Dev Kit
+  write(join(audio, 'UPGRADES.md'), '# Audio — upgrade notes\n\nNeeds Dev Kit: 0.21.0 — its checks call t.warn\n\n- 0.4.0: run audio:check --fix, then listen\n')
+  write(join(game, 'src', 'audio', 'VERSION'), '0.3.0 (framework abc1234)\n')
+  write(join(game, 'src', 'devkit', 'VERSION'), '0.20.2\ncommit 7e80f0a\n')
+  const oldKit = install('audio', '.', '--dry-run')
+  expect('F168: needs Dev Kit 0.21.0, the game has 0.20.2 → refused, says update devkit first with the command', oldKit.code === 1 && /Dev Kit 0\.21\.0/.test(oldKit.out) && /0\.20\.2/.test(oldKit.out) && /update devkit first: node \S*install-module\.mjs devkit \./.test(oldKit.out), oldKit.out)
+  const oldKitReal = install('audio', '.')
+  expect('F168: …and the real install is refused before anything changes', oldKitReal.code === 1 && readFileSync(join(game, 'src', 'audio', 'VERSION'), 'utf8') === '0.3.0 (framework abc1234)\n', oldKitReal.out)
+  write(join(game, 'src', 'devkit', 'VERSION'), '0.21.0\ncommit 1234567\n')
+  const newKit = install('audio', '.', '--dry-run')
+  expect('F168: the game\'s Dev Kit is new enough (0.21.0) → goes ahead', newKit.code === 0 && !/update devkit first/.test(newKit.out) && /run audio:check --fix/.test(newKit.out), newKit.out)
+  rmSync(join(game, 'src', 'devkit'), { recursive: true, force: true })
+  const noKit = install('audio', '.', '--dry-run')
+  expect('F168: a game with no Dev Kit at all → warned (its checks won\'t run until one is installed), not refused', noKit.code === 0 && /no Dev Kit/.test(noKit.out) && /0\.21\.0/.test(noKit.out), noKit.out)
+  rmSync(join(audio, 'UPGRADES.md'))
+  const noNotes = install('audio', '.', '--dry-run')
+  expect('F168: a module without UPGRADES.md (an older framework) → installs as before', noNotes.code === 0 && !/update devkit first/.test(noNotes.out), noNotes.out)
   rmSync(root, { recursive: true, force: true })
   // F112 review fixes — addEslintIgnores itself: a globalIgnores([ in a comment or a string is never the real list,
   // and an empty list's comment stays
@@ -162,6 +200,7 @@ const TODAY = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-$
 // A BMUZ game ready to release v0.9.3 (update): code committed as "F01: cards", STATE records today's Log line, a
 // RESUME HERE naming the tag, a Release line, and both reviews + the full check through that commit. `opts` breaks
 // pieces of it: state: { resume, log, release, reviewed, security, full } (false = leave the line out), roadmap, scripts.
+// files: { path: text } committed with the code (F164: module folders); where: STATE's "Where we are" line.
 function releaseProject(root, name, opts = {}) {
   const repo = makeRepo(root, name)
   write(join(repo, '.gitignore'), 'node_modules/\n')
@@ -170,10 +209,11 @@ function releaseProject(root, name, opts = {}) {
   write(join(repo, 'package-lock.json'), JSON.stringify({ name: 't', version: '0.9.2', packages: { '': { version: '0.9.2' } } }, null, 2) + '\n')
   write(join(repo, 'pass.js'), 'process.exit(0)\n')
   write(join(repo, 'src', 'game.js'), 'export const cards = 7\n')
+  for (const [path, text] of Object.entries(opts.files || {})) write(join(repo, path), text)
   sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'F01: cards')
   const sha = sh(repo, 'rev-parse', '--short', 'HEAD')
   const s = { resume: 'Released v0.9.3 — next: /sprint', log: `- ${TODAY} — Cards fan out in your hand`, release: '**Release:** none (library)', reviewed: sha, security: sha, full: sha, ...opts.state }
-  write(join(repo, '.planning', 'STATE.md'), ['# State', '## ▶ RESUME HERE', s.resume, '## Where we are', 'Stage: deliver · Version: 0.9.2.7 · Branch: main', '## Key facts', s.release,
+  write(join(repo, '.planning', 'STATE.md'), ['# State', '## ▶ RESUME HERE', s.resume, '## Where we are', opts.where || 'Stage: deliver · Version: 0.9.2.7 · Branch: main', '## Key facts', s.release,
     s.reviewed !== false ? `Reviewed through: ${s.reviewed} (F01)` : '', s.security !== false ? `**Security reviewed:** ${s.security}` : '', s.full !== false ? `Last full check: ${s.full} — all green` : '',
     '## Log', s.log, '- 2026-01-01 — older', ''].join('\n'))
   write(join(repo, '.planning', 'ROADMAP.md'), opts.roadmap || '# T — Roadmap\nRelease target: alpha\n## v0.1 — First  ← current\n- ✅ F01 🧱 Cards — must:alpha\n')
@@ -222,6 +262,31 @@ function testRelease() {
   sh(repo, 'checkout', '-q', 'main')
   write(join(repo, 'version.json'), JSON.stringify({ name: 'T', version: '1..3', build: 0, history: [] }) + '\n'); sh(repo, 'commit', '-qam', 'odd version')
   expect('version "1..3" (not X.Y.Z) → refused (review)', /isn't X\.Y\.Z/.test(release('update', 'x').out))
+  rmSync(root, { recursive: true, force: true })
+}
+
+// F164: in a project of modules (<folder>/kit/VERSION at the top, like dev/framework), STATE's "Version: X (a 1.2.3 · …)"
+// list is filled from those files at release — it was hand-copied and a release behind
+function testReleaseModuleList() {
+  console.log('release module list (F164) — STATE\'s module versions come from each <module>/kit/VERSION')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-modlist-'))
+  const release = (repo, ...a) => script('release.mjs', a, { cwd: repo, env: { BMUZ_CLEANUP: FAKE_CLEANUP } })
+  const whereLine = (repo) => readFileSync(join(repo, '.planning', 'STATE.md'), 'utf8').split('\n').find(l => /Version:/.test(l))
+  const modules = { 'ui-kit/kit/VERSION': '0.37.4\n', 'devkit/kit/VERSION': '0.29.0\n', 'audio/kit/VERSION': '0.5.0\n',
+    // not modules: starters, a hidden folder, a kit two folders deep
+    'starters/game/kit/VERSION': '9.9.9\n', 'starters/kit/VERSION': '9.9.9\n', '.claude/kit/VERSION': '9.9.9\n', 'tools/ui/kit/VERSION': '9.9.9\n' }
+  // a framework-shaped project: renamed labels kept, numbers updated, a gone module dropped, a new one at the end
+  const fw = releaseProject(root, 'fw', { files: modules, where: 'Doing: x   Branch: main   Version: 0.9.2 (UI kit 0.37.3 · Dev Kit 0.28.1 · gone 0.1.0)' })
+  const up = release(fw, 'update', 'Modules')
+  expect('framework-shaped: list rewritten — "UI kit"/"Dev Kit" labels kept with new numbers, "gone" dropped, audio appended', up.code === 0 && whereLine(fw) === 'Doing: x   Branch: main   Version: 0.9.3 (UI kit 0.37.4 · Dev Kit 0.29.0 · audio 0.5.0)', `${whereLine(fw)}\n${up.out}`)
+  // a module project whose Version line has no list yet gets one, folder names in alphabetical order
+  const bare = releaseProject(root, 'bare', { files: modules })
+  const upBare = release(bare, 'update', 'Modules')
+  expect('no list yet in a module project → one added after the number', upBare.code === 0 && whereLine(bare) === 'Stage: deliver · Version: 0.9.3.0 (audio 0.5.0 · devkit 0.29.0 · ui-kit 0.37.4) · Branch: main', `${whereLine(bare)}\n${upBare.out}`)
+  // a game (no top-level <folder>/kit/VERSION) keeps its Version line exactly, bracket included
+  const game = releaseProject(root, 'game', { files: { 'tools/ui/kit/VERSION': '0.37.3\n' }, where: 'Stage: deliver · Version: 0.9.2.7 (alpha build) · Branch: main' })
+  const upGame = release(game, 'update', 'Cards')
+  expect('a game without modules → Version line as before, its own bracket untouched', upGame.code === 0 && whereLine(game) === 'Stage: deliver · Version: 0.9.3.0 (alpha build) · Branch: main', `${whereLine(game)}\n${upGame.out}`)
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -1530,7 +1595,7 @@ function testFrameworkAround() {
 }
 
 const only = process.argv[2]
-const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
+const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)
