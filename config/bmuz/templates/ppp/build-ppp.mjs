@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { STATES, TYPES, readRoadmap, readBugs, isOpenBug } from './plan-reader.mjs';
 import { frameworkStatus, newer } from './framework-words.mjs';
 
@@ -146,13 +147,23 @@ const sketchDir = path.join(projectDir, '.planning', 'research', 'sketches');
 // Optional: --only=a.html,b.html lists just those (e.g. while other sketches are still being built).
 const onlyArg = process.argv.find(a => a.startsWith('--only='));
 const only = onlyArg ? onlyArg.slice(7).split(',').map(s => s.trim()) : null;
-const sketches = (fs.existsSync(sketchDir) ? fs.readdirSync(sketchDir).filter(f => f.endsWith('.html') && (!only || only.includes(f))).sort() : []).map(file => {
+// Newest first (Muzzy, Goops 2026-11-01: "it's a pain to find what I need as there are more and more"): the sketch he
+// was just sent is always the first tab. "Newest" = when git first saw the file (the same on both machines; a file
+// mtime isn't); not committed yet = newest of all. Same day → by title.
+const firstAdded = (file) => {
+  try {
+    const out = execFileSync('git', ['log', '--diff-filter=A', '--format=%ct', '--', path.join('.planning', 'research', 'sketches', file)],
+      { cwd: projectDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split('\n').pop();
+    return out ? Number(out) : Infinity;
+  } catch { return Infinity; }
+};
+const sketches = (fs.existsSync(sketchDir) ? fs.readdirSync(sketchDir).filter(f => f.endsWith('.html') && (!only || only.includes(f))) : []).map(file => {
   const src = fs.readFileSync(path.join(sketchDir, file), 'utf8');
   const t = (src.match(/<title>([^<]*)<\/title>/i) || [])[1] || file.replace(/\.html$/, '');
   const dsc = (src.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || [])[1] || '';
   const unent = (x) => x.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  return { file, title: unent(t.trim()), desc: unent(dsc.trim()) };
-});
+  return { file, title: unent(t.trim()), desc: unent(dsc.trim()), added: firstAdded(file) };
+}).sort((a, b) => (b.added - a.added) || a.title.localeCompare(b.title));
 const openBugs = readBugs(bugs).filter(isOpenBug).map(b => [null, b.id, b.priority, b.status, b.next]);
 const bugCounts = ['P0', 'P1', 'P2', 'P3'].map(p => `${p} ${openBugs.filter(b => b[2] === p).length}`).join(' · ');
 
