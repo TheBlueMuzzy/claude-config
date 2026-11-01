@@ -64,5 +64,6 @@ New: <the notes file's Highlights + 2–4 of its bullets, as written>
 Alpha musts: 9/9 ✅ · Look-back: 6 lessons → 2 hooks, 1 check, 3 lines
 Devlog: paste .planning/archive/releases/v0.3.0-itch.txt into itch (or "no itch page")
 ```
+Devlog line: leave it out while HUB.md says "No itch.io / store posts yet" (Muzzy 2026-11-01: stores wait for one big multi-game release).
 The "New:" lines come from the notes file ① (release.mjs printed its itch text) — never re-written from the commits ③.
 Milestone or stage delivered → ask one question: "One thing to keep doing, or stop doing, next time?" — a real answer becomes a look-back item with its home, landed the same session. Then: "Next: `/sprint` for the next batch, or `/roadmap` to see what's left."

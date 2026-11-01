@@ -47,6 +47,7 @@ All code projects live here: `C:\Users\Muzzy\Documents\dev\`
 - **Board games are separate.** They stay in Google Drive `Boardgames\` (not code, no git). A digital version of a board game is its own project here.
 - **Never put code projects in Google Drive** — sync corrupts git (it happened to an old DoomDial copy).
 - Repos are **public** by default (free GitHub Pages needs it).
+- **No itch.io / store posts yet** (Muzzy 2026-11-01): games go out on GitHub Pages only. Store pages wait for one big release, after a handful of games are through and the framework + BMUZ updates are brought back into them. Release.mjs still saves the itch text, but don't ask Muzzy to paste devlogs until then.
 
 ## New project checklist
 1. Create `dev\games\<name>` (lowercase-with-dashes) + git + GitHub repo
