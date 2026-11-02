@@ -97,7 +97,12 @@ const override = (flag, why) => { if (!flags.has(flag)) return false; used.push(
 // --- git: what's being released ------------------------------------------------------------------------------------
 // ROADMAP / STATE updates for the release ride along in the release commit (/deliver §5); code never does
 const dirty = changedFiles(root).map(f => f.path)
-const code = dirty.filter(f => !/^\.planning\//.test(f) && !/\.md$/i.test(f) && f !== NOTICES)
+// New crash maps under releases/<build>/maps/ that git has never seen = a local check build's leftovers (Glyphtender
+// 0.11.2.5), not work to commit
+const isMap = f => /^releases\/[^/]+\/maps\//.test(f)
+const leftoverMaps = changedFiles(root).filter(f => f.status === '??' && isMap(f.path)).map(f => f.path)
+if (leftoverMaps.length) fail(`crash maps left over from a local check build (not the release build):\n${[...new Set(leftoverMaps.map(f => f.split('/').slice(0, 2).join('/')))].map(l => `    ${l}/`).join('\n')}`, 'delete them — they\'re test output (the release\'s own maps are built after the release commit, with the deploy\'s settings)')
+const code = dirty.filter(f => !/^\.planning\//.test(f) && !/\.md$/i.test(f) && f !== NOTICES && !leftoverMaps.includes(f))
 if (code.length) fail(`there's uncommitted code — a release commit holds only the version change and plan notes:\n${code.slice(0, 8).map(l => `    ${l}`).join('\n')}`, 'commit it on the work branch (or /save) first')
 const branch = git(root, 'rev-parse', '--abbrev-ref', 'HEAD')
 const main = defaultBranch(root)

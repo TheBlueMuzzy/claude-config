@@ -129,6 +129,8 @@ function requireSmokePass(root, commit, what, checkUncommitted) {
   }
 }
 
+// Crash maps (releases/<version>/maps/) are build output kept for reading crash reports, never shipped — committing
+// them after the release build (Glyphtender v0.12.0) shouldn't need a second smoke pass
 function isDocs(file) {
-  return file.startsWith('.planning/') || file.endsWith('.md')
+  return file.startsWith('.planning/') || file.endsWith('.md') || /^releases\/[^/]+\/maps\//.test(file)
 }
