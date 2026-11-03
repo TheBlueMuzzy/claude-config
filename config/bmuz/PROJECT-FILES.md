@@ -7,6 +7,7 @@
 version.json        X.Y.Z + build (~/.claude/references/versioning.md)
 CHANGELOG.md        every release's notes, newest first — written by release.mjs from .planning/archive/releases/ (F84)
 content/            data the game reads; Muzzy edits it in Obsidian or the Dev Kit (tuning/, anim/, text/, data/, ui/ = style.json + settings.json from game-ui, credits.json)
+                    a game with ranks / levels keeps every level gate in ONE ladder file (named beats → a level), and code, tests and e2e ask it by name — never a bare level number (Goops 2026-11-02: shrinking 51 ranks to 31 found 14 gate fields in 9 files, one code file and ~525 test lines restating ranks) ③ until the framework ladder piece (Goops F78 — One rank ladder file)
 .planning/
   GDD.md            the design: what it is, how it plays, how it should feel, scope   (/discover /define · /gdd)
   TDD.md            the engineering plan: how it's built, standards, decisions, compliance   (/define · /tdd)
