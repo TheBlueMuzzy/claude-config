@@ -811,7 +811,14 @@ async function testPortPreflight() {
   expect('check:fast never looks at ports', area.status === 0 && !/Port /.test(area.stdout), area.stdout)
 
   // the lookup itself, shared with stop-servers.mjs
-  const { shortCommand, heldPorts } = await import(pathToFileURL(join(SCRIPTS, '..', 'templates', 'ports.mjs')).href)
+  const { shortCommand, heldPorts, holders } = await import(pathToFileURL(join(SCRIPTS, '..', 'templates', 'ports.mjs')).href)
+  const named = holders(base + 6, [
+    { pid: 900001, ppid: 1, cmd: `"C:\\Program Files\\Git\\usr\\bin\\bash.exe" -c "source x; curl :${base + 6}"` },
+    { pid: 900002, ppid: 1, cmd: `"C:\\Program Files\\nodejs\\node.exe" C:\\g\\node_modules\\vite\\bin\\vite.js --port ${base + 6}` },
+    { pid: 900003, ppid: 1, cmd: `node tool.mjs ${base + 60}` },
+    { pid: process.pid, ppid: 1, cmd: `node test-scripts.mjs ${base + 6}` },
+  ])
+  expect('netstat silent → the holder is found by its command line naming the port; a shell that only mentions it, another port and this process aren\'t (F177)', JSON.stringify(named) === '[900002]', JSON.stringify(named))
   expect('a tool in node_modules is shown by its name: `vite --port 5291 --strictPort`', shortCommand('"C:\\Program Files\\nodejs\\node.exe" C:\\dev\\ui-kit\\node_modules\\vite\\bin\\vite.js --port 5291 --strictPort') === 'vite --port 5291 --strictPort')
   expect('…npm too: `npm run dev`', shortCommand('"C:\\Program Files\\nodejs\\node.exe" "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run dev') === 'npm run dev')
   expect('free ports → [] (no process list asked for)', heldPorts([inArgs, constant, declared]).length === 0)

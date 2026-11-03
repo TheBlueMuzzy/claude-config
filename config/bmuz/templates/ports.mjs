@@ -66,12 +66,19 @@ export function answeringPorts(ports) {
 
 // The processes holding one port: netstat's listeners when it lists them, else every process whose command line names
 // the port as a word (`vite --port 5291`, `wrangler dev --port=1997`, `hold.mjs 6011`) — what's left to go on when
-// netstat leaves the server out (F177). `all` = processes(). Never this process itself.
+// netstat leaves the server out (F177). `all` = processes(). Never this process or the ones it runs inside (the shell
+// that ran `stop-servers.mjs 5173` names the port too — it was named as 5173's holder).
 export function holders(port, all) {
   const pids = listeners(port)
   if (pids.length) return pids
+  const byPid = new Map(all.map(p => [p.pid, p]))
+  const mine = new Set()
+  for (let p = byPid.get(process.pid); p && !mine.has(p.pid); p = byPid.get(p.ppid)) mine.add(p.pid)
+  mine.add(process.pid)
   const named = new RegExp(`(^|[\\s:=])${port}($|[\\s"'/])`)
-  return all.filter(p => p.pid !== process.pid && named.test(p.cmd)).map(p => p.pid)
+  // a shell only mentions the port in a command it was given (Claude Code's own shells keep theirs) — it never listens
+  const shell = /^"?[^"]*[\\/](bash|sh|zsh|pwsh|powershell)(\.exe)?"?\s/i
+  return all.filter(p => !mine.has(p.pid) && named.test(p.cmd) && !shell.test(p.cmd)).map(p => p.pid)
 }
 
 // Every process: [{ pid, ppid, cmd, started }]. Throws with the reason when the list can't be read.
