@@ -30,4 +30,39 @@ echo "REMOTE $(git -C "$T/pc/.claude-config" show origin/main:skills/a/SKILL.md)
 cp "$T/pc/.claude-config/skills/a/SKILL.md" "$T/pc/.claude/skills/a/SKILL.md"
 git -C "$T/pc/.claude-config" rev-parse HEAD > "$T/pc/.claude/.config-applied"
 HOME="$T/pc" bash "$SYNC" status 2>/dev/null | sed 's/^/STATUS-3 /'
+
+# F176 — Sync keeps unpushed edits: setup.sh (what /sync runs) must not wipe a file edited here since the last sync.
+# The real setup.sh, copied into a fake machine's repo; plugins off. (2026-11-03: another session's /sync wiped the
+# F172 hook fix at 13:17:59.)
+SETUP="$HOME/.claude-config/setup.sh"
+if [ -f "$SETUP" ]; then
+  git init -q --bare -b main "$T/remote2.git"
+  mk2() {
+    local h="$T/$1"; mkdir -p "$h/.claude"
+    git clone -q "$T/remote2.git" "$h/.claude-config" 2>/dev/null
+    git -C "$h/.claude-config" config user.email t@e.st; git -C "$h/.claude-config" config user.name t
+    git -C "$h/.claude-config" config core.autocrlf false
+  }
+  mk2 a; R="$T/a/.claude-config"
+  cp "$SETUP" "$R/setup.sh"
+  for f in CLAUDE.md QUICKSTART.md settings.json statusline.sh; do echo "$f" > "$R/$f"; done
+  for s in a b c; do mkdir -p "$R/skills/$s"; echo "$s-v1" > "$R/skills/$s/SKILL.md"; done
+  mkdir -p "$R/agents" "$R/config" "$R/references"; touch "$R/agents/.keep" "$R/config/.keep" "$R/references/.keep"
+  git -C "$R" add -A; git -C "$R" commit -qm seed; git -C "$R" push -q -u origin main 2>/dev/null
+  HOME="$T/a" BMUZ_SETUP_NO_PLUGINS=1 bash "$R/setup.sh" >/dev/null 2>&1
+  # the other machine changes b and c; this one edits a and c without pushing
+  mk2 b2; R2="$T/b2/.claude-config"
+  echo "b-v2-other" > "$R2/skills/b/SKILL.md"; echo "c-v2-other" > "$R2/skills/c/SKILL.md"
+  git -C "$R2" commit -qam other; git -C "$R2" push -q 2>/dev/null
+  printf 'a-local\r\n' > "$T/a/.claude/skills/a/SKILL.md"   # (a CRLF edit still counts as an edit)
+  echo "c-local" > "$T/a/.claude/skills/c/SKILL.md"
+  git -C "$R" pull -q --ff-only 2>/dev/null
+  HOME="$T/a" BMUZ_SETUP_NO_PLUGINS=1 bash "$R/setup.sh" 2>&1 | grep -iE "kept|both" | sed 's/^/SETUP-OUT /'
+  echo "SETUP-A $(tr -d '\r' < "$T/a/.claude/skills/a/SKILL.md")"
+  echo "SETUP-B $(cat "$T/a/.claude/skills/b/SKILL.md")"
+  echo "SETUP-C $(cat "$T/a/.claude/skills/c/SKILL.md")"
+  # a file only line endings apart from the repo is not an edit: it takes the repo's copy quietly
+  printf 'b-v2-other\r\n' > "$T/a/.claude/skills/b/SKILL.md"
+  HOME="$T/a" BMUZ_SETUP_NO_PLUGINS=1 bash "$R/setup.sh" 2>&1 | grep -iE "kept.*skills/b" | sed 's/^/SETUP-CRLF /'
+fi
 echo "DONE"

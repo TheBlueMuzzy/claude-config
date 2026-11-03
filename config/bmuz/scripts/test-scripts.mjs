@@ -484,6 +484,12 @@ function testConfigSync() {
   expect('PC push → refused (NOT-APPLIED), nothing pushed', /PC-PUSH-2 NOT-APPLIED/.test(out) && !/PC-PUSH-2 PUSHED/.test(out), out)
   expect('…GitHub keeps the laptop\'s version', /REMOTE v2-laptop/.test(out), out)
   expect('after applying it → status quiet', !/STATUS-3/.test(out), out)
+  // F176 — Sync keeps unpushed edits (setup.sh)
+  expect('F176: a file edited here, not pushed → kept by setup.sh', /SETUP-A a-local/.test(out), out)
+  expect('F176: …and named', /SETUP-OUT .*kept.*skills\/a\/SKILL\.md/i.test(out), out)
+  expect('F176: a file only the other machine changed → copied in', /SETUP-B b-v2-other/.test(out), out)
+  expect('F176: changed on both machines → this one kept, said as both', /SETUP-C c-local/.test(out) && /SETUP-OUT .*both.*skills\/c\/SKILL\.md/i.test(out), out)
+  expect('F176: line endings alone are not an edit', !/SETUP-CRLF/.test(out), out)
 }
 
 // F80: what /save's skill text used to ask Claude to remember — checks, RESUME HERE, planner, setup sync — now the script
