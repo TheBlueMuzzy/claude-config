@@ -103,7 +103,13 @@ for (const [root, p] of projects) {
   if (released && existsSync(join(root, '.planning', 'STATE.md'))) {
     let pass = ''
     try { pass = readFileSync(join(root, '.planning', 'live-pass'), 'utf8').split(/\r?\n/)[1] || '' } catch {}
-    if (pass.split(/\s+/)[0] !== released) problems.push(`${name}: ${released} was released this turn, but .planning/live-pass doesn't record a live check for it — after the push run node ~/.claude/config/bmuz/scripts/live-check.mjs (it waits for the deploy, checks the page has ${released}, and records it; a project with nothing hosted records the skip), then commit live-pass with STATE.`)
+    // F173: not on GitHub yet (no remote branch holds the tag's commit) and the hand-back names a deploy Muzzy runs →
+    // the live check can't happen until he does: let the turn end (Glyphtender v0.13.0 looped 6 turns on this)
+    const pushed = !!git(root, 'for-each-ref', '--contains', released, 'refs/remotes')
+    const lastSaid = input.last_assistant_message ?? turn.lastText ?? ''
+    if (pass.split(/\s+/)[0] === released || (!pushed && /\bdeploy/i.test(lastSaid))) { /* recorded, or waiting on Muzzy */ }
+    else if (!pushed) problems.push(`${name}: ${released} is tagged but not on GitHub yet — after the smoke pass, git push --follow-tags, then node ~/.claude/config/bmuz/scripts/live-check.mjs (then commit live-pass with STATE). If it waits on Muzzy (a server deploy only he can run), say so in the hand-off's Your to-dos and the turn may end.`)
+    else problems.push(`${name}: ${released} was released this turn, but .planning/live-pass doesn't record a live check for it — after the push run node ~/.claude/config/bmuz/scripts/live-check.mjs (it waits for the deploy, checks the page has ${released}, and records it; a project with nothing hosted records the skip), then commit live-pass with STATE.`)
   }
   // 4. approved but not saved
   if (p.done) {
