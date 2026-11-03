@@ -816,6 +816,9 @@ async function testPortPreflight() {
     { pid: 900001, ppid: 1, cmd: `"C:\\Program Files\\Git\\usr\\bin\\bash.exe" -c "source x; curl :${base + 6}"` },
     { pid: 900002, ppid: 1, cmd: `"C:\\Program Files\\nodejs\\node.exe" C:\\g\\node_modules\\vite\\bin\\vite.js --port ${base + 6}` },
     { pid: 900003, ppid: 1, cmd: `node tool.mjs ${base + 60}` },
+    { pid: 900004, ppid: 1, cmd: `node --max-old-space-size=${base + 6} build.mjs` }, // a flag's number isn't a port (review)
+    { pid: 900005, ppid: 1, cmd: `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" http://localhost:${base + 6}/` },
+    { pid: 900006, ppid: 1, cmd: `bash -c "npm run dev -- --port ${base + 6}"` }, // a bare shell (Linux ps)
     { pid: process.pid, ppid: 1, cmd: `node test-scripts.mjs ${base + 6}` },
   ])
   expect('netstat silent → the holder is found by its command line naming the port; a shell that only mentions it, another port and this process aren\'t (F177)', JSON.stringify(named) === '[900002]', JSON.stringify(named))

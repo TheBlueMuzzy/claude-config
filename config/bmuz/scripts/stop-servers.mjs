@@ -6,7 +6,7 @@
 //   --dry-run                                                       only list what would stop
 // Never stops Claude Code itself, a shell, or anything this script runs inside.
 import { run, say, ok, refuse, args } from './lib.mjs'
-import { answeringPorts, holders, processes } from '../templates/ports.mjs' // the one who-holds-this-port lookup (check-all's port pre-flight uses it too, F118)
+import { answeringPorts, holders, listeners, processes } from '../templates/ports.mjs' // the one who-holds-this-port lookup (check-all's port pre-flight uses it too, F118)
 
 const { words, flags } = args()
 const target = words[0]
@@ -49,6 +49,11 @@ for (const seed of seeds) {
   for (let up = realParent(top); stoppable(up); up = realParent(top)) { top = up; visited.add(up.pid) }
   if (mine.has(top.pid) || PROTECTED.test(top.cmd)) { say(`skipped ${top.pid} (it's part of this session)`); continue }
   roots.add(top)
+}
+// found only by command line (netstat named nobody) and that points at more than one server → a guess, so don't stop
+// any of them (review: Vite told `--port 5173` may have moved to 5174 — only one of them is really on the port)
+if (/^\d+$/.test(target) && roots.size > 1 && !listeners(Number(target)).length) {
+  refuse(`port ${target} answers, but Windows won't say which of these ${roots.size} servers holds it:\n${[...roots].map(r => `    ${r.pid}: ${r.cmd.slice(0, 110)}`).join('\n')}`, 'stop it by name: stop-servers.mjs wrangler (or vite, or a word from its command line)')
 }
 for (const root of roots) say(`${flags.has('--dry-run') ? 'would stop' : 'stopping'} ${root.pid}: ${root.cmd.slice(0, 110)}`)
 if (flags.has('--dry-run')) process.exit(0)
