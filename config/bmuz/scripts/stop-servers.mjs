@@ -6,7 +6,7 @@
 //   --dry-run                                                       only list what would stop
 // Never stops Claude Code itself, a shell, or anything this script runs inside.
 import { run, say, ok, refuse, args } from './lib.mjs'
-import { listeners, processes } from '../templates/ports.mjs' // the one who-holds-this-port lookup (check-all's port pre-flight uses it too, F118)
+import { answeringPorts, holders, processes } from '../templates/ports.mjs' // the one who-holds-this-port lookup (check-all's port pre-flight uses it too, F118)
 
 const { words, flags } = args()
 const target = words[0]
@@ -26,8 +26,13 @@ const stoppable = (p) => p && !mine.has(p.pid) && !PROTECTED.test(p.cmd) && SERV
 
 let seeds
 if (/^\d+$/.test(target)) {
-  seeds = listeners(Number(target)).map(pid => byPid.get(pid)).filter(Boolean)
-  if (!seeds.length) { ok(`nothing is listening on port ${target}`); process.exit(0) }
+  // "nothing" only when nothing answers there — netstat's list often leaves out a server started from Claude Code's
+  // shell, and said "✓ nothing is listening" while it kept running (F177)
+  if (!answeringPorts([Number(target)]).size) { ok(`nothing is listening on port ${target}`); process.exit(0) }
+  seeds = holders(Number(target), all).map(pid => byPid.get(pid)).filter(p => p && !mine.has(p.pid))
+  // found by command line, a shell or editor that only mentions the port isn't the server — keep the dev servers
+  if (seeds.some(stoppable)) seeds = seeds.filter(stoppable)
+  if (!seeds.length) refuse(`port ${target} answers, but Windows won't say which process holds it`, 'stop it by name: stop-servers.mjs wrangler (or vite, or a word from its command line)')
   const other = seeds.find(p => !stoppable(p))
   if (other) refuse(`port ${target} belongs to something that isn't a dev server: ${other.pid} ${other.cmd.slice(0, 90) || '(a system process)'}`, 'close it yourself if you really mean to')
 } else {
@@ -53,5 +58,9 @@ for (const root of roots) {
     : run('kill', ['-TERM', `-${root.pid}`])
   if (result.code !== 0 && !/not found|No such process/i.test(result.out)) refuse(`couldn't stop ${root.pid}:\n${result.out.trim()}`)
 }
-if (/^\d+$/.test(target) && listeners(Number(target)).length) refuse(`port ${target} is still in use after stopping ${roots.size} tree(s)`, 'run this again in a few seconds; if it persists, look at Task Manager for the process')
+const stillUp = async () => { // a stopped tree lets go of its port within a moment
+  for (let tries = 0; tries < 6; tries++) { if (!answeringPorts([Number(target)]).size) return false; await new Promise(r => setTimeout(r, 500)) }
+  return true
+}
+if (/^\d+$/.test(target) && await stillUp()) refuse(`port ${target} is still in use after stopping ${roots.size} tree(s)`, 'run this again in a few seconds; if it persists, look at Task Manager for the process')
 ok(`stopped ${roots.size} server tree(s)${/^\d+$/.test(target) ? ` — port ${target} is free` : ''}`)

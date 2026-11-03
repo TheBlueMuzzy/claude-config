@@ -30,6 +30,18 @@ function expect(name, ok, detail = '') {
 const sh = (dir, ...a) => execFileSync('git', ['-C', dir, ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 const write = (path, text) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text) }
 
+// Windows' port list gone blank (F177): a server started from Claude Code's shell is missing from `netstat -ano` most of
+// the time (1–2 reads in 20). A copy of node named netstat.exe, found first on the PATH, fails at once and prints nothing —
+// the same blank list, every time. Returns the env to run a script with (null off Windows: ss / lsof see every server).
+function blindNetstat(root) {
+  if (process.platform !== 'win32') return null
+  const bin = join(root, 'blind-bin')
+  mkdirSync(bin, { recursive: true })
+  copyFileSync(process.execPath, join(bin, 'netstat.exe'))
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toUpperCase() !== 'PATH'))
+  return { ...env, PATH: `${bin};${process.env.PATH || process.env.Path || ''}` }
+}
+
 // A git repo with a bare "origin", main checked out, one commit.
 function makeRepo(root, name = 'repo') {
   const origin = join(root, `${name}-origin.git`)
@@ -672,12 +684,19 @@ async function testStopServers() {
   const port = 5600 + Math.floor(Math.random() * 300)
   // like wrangler: a supervisor that starts the worker again whenever it dies
   // listening on IPv6 localhost only, like Vite on Windows (the real try's miss)
-  write(join(root, 'worker.mjs'), `import http from 'node:http'; http.createServer((q, s) => s.end('ok')).listen(${port}, '::1')`)
+  // its command line names the port, like a real one (`vite --port 5291`, `wrangler dev --port 1997`) — when Windows' port
+  // list leaves the server out, that's how stop-servers still finds it (F177)
+  write(join(root, 'worker.mjs'), `import http from 'node:http'; http.createServer((q, s) => s.end('ok')).listen(Number(process.argv[2]), '::1')`)
   write(join(root, 'supervisor.mjs'), [
     "import { spawn } from 'node:child_process'",
-    "const start = () => spawn(process.execPath, [new URL('./worker.mjs', import.meta.url).pathname.replace(/^\\/(\\w:)/, '$1')], { stdio: 'ignore' }).on('exit', () => setTimeout(start, 300))",
+    `const start = () => spawn(process.execPath, [new URL('./worker.mjs', import.meta.url).pathname.replace(/^\\/(\\w:)/, '$1'), '${port}'], { stdio: 'ignore' }).on('exit', () => setTimeout(start, 300))`,
     'start(); setInterval(() => {}, 1000)',
   ].join('\n'))
+  // a server whose command line doesn't say its port (port only in its own file)
+  const quietPort = port + 300
+  write(join(root, 'quiet.mjs'), `import http from 'node:http'; http.createServer((q, s) => s.end('ok')).listen(${quietPort}, '127.0.0.1')`)
+  const blind = blindNetstat(root)
+  const stopBlind = (args) => { const r = spawnSync('node', [join(SCRIPTS, 'stop-servers.mjs'), ...args], { encoding: 'utf8', env: blind }); return { code: r.status, out: `${r.stdout || ''}${r.stderr || ''}` } }
   const { spawn } = await import('node:child_process')
   const sup = spawn(process.execPath, [join(root, 'supervisor.mjs')], { stdio: 'ignore', detached: true })
   sup.unref()
@@ -686,11 +705,20 @@ async function testStopServers() {
   expect('test server is up', await listening())
   const dry = script('stop-servers.mjs', [String(port), '--dry-run'])
   expect('--dry-run names the supervisor (the top of the tree), stops nothing', /would stop/.test(dry.out) && dry.out.includes(`stop ${sup.pid}:`) && await listening(), dry.out)
-  const stop = script('stop-servers.mjs', [String(port)])
+  // the real stop with Windows' port list blank — stop-servers must not say "nothing is listening" (F177)
+  const stop = blind ? stopBlind([String(port)]) : script('stop-servers.mjs', [String(port)])
   await new Promise(r => setTimeout(r, 1200)) // a restarting supervisor would be back by now
-  expect('stopped by port → the port stays free (supervisor gone too)', stop.code === 0 && !(await listening()), stop.out)
+  expect('stopped by port, even when Windows\' port list leaves the server out → the port stays free (supervisor gone too)', stop.code === 0 && !(await listening()), stop.out)
   const none = script('stop-servers.mjs', [String(port)])
   expect('nothing on the port → says so (exit 0)', none.code === 0 && /nothing is listening/.test(none.out), none.out)
+  if (blind) {
+    const quiet = spawn(process.execPath, [join(root, 'quiet.mjs')], { stdio: 'ignore' })
+    const quietUp = async () => { try { await fetch(`http://127.0.0.1:${quietPort}`); return true } catch { return false } }
+    for (let i = 0; i < 40 && !(await quietUp()); i++) await new Promise(r => setTimeout(r, 150))
+    const unnamed = stopBlind([String(quietPort)])
+    expect('a port that answers but nobody can be named → refused, saying to stop it by name (never "✓ nothing is listening")', unnamed.code === 1 && !/nothing is listening/.test(unnamed.out) && /by name/.test(unnamed.out) && await quietUp(), unnamed.out)
+    quiet.kill()
+  }
   expect('no port or name → refused', script('stop-servers.mjs', []).code === 1)
   expect('a bare "node" (would match MCP servers, other tools) → refused (review)', script('stop-servers.mjs', ['node']).code === 1)
   // check-all template: a second full run while one is going → refused before it starts anything
@@ -702,7 +730,8 @@ async function testStopServers() {
   const stale = spawnSync('node', [join(SCRIPTS, '..', 'templates', 'check-all.mjs'), 'full'], { cwd: game, encoding: 'utf8', timeout: 120_000 })
   expect('…a lock left by a run that died is ignored (the run starts, then frees the lock)', /Fast checks/.test(stale.stdout) && !existsSync(join(game, 'e2e-shots', '.check-lock')), stale.stdout)
   try { process.kill(sup.pid) } catch {}
-  rmSync(root, { recursive: true, force: true })
+  script('stop-servers.mjs', ['bmuz-servers-']) // a failed stop above would leave the worker holding the folder (EPERM below)
+  rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 })
 }
 
 async function testPortPreflight() {
@@ -743,6 +772,13 @@ async function testPortPreflight() {
       && busy.out.includes(`Port ${declared} (shots)`), busy.out)
   expect(`…in seconds (${busy.seconds.toFixed(1)} s)`, busy.seconds < 10, busy.seconds)
   expect('…and the lock is freed', !existsSync(join(game, 'e2e-shots', '.check-lock')))
+  const blind = blindNetstat(root)
+  if (blind) {
+    const r = spawnSync('node', ['scripts/check-all.mjs', 'full'], { cwd: game, encoding: 'utf8', timeout: 120_000, env: blind })
+    const out = `${r.stdout || ''}${r.stderr || ''}`
+    expect('Windows\' port list blank (a server started from Claude Code\'s shell) → still refused, the holder still named by its command line (F177)',
+      r.status === 1 && /NOT STARTED — 2 ports/.test(out) && /hold\.mjs/.test(out) && !/Fast checks/.test(out), out)
+  }
   server.kill()
   server = await hold([constant, base + 3])
   const constantBusy = full()
@@ -757,7 +793,7 @@ async function testPortPreflight() {
     const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toUpperCase() !== 'PATH'))
     const r = spawnSync(process.execPath, ['--input-type=module', '-e', `import { heldPorts } from ${JSON.stringify(pathToFileURL(join(SCRIPTS, '..', 'templates', 'ports.mjs')).href)}; console.log(JSON.stringify(heldPorts([${constant}])))`], { encoding: 'utf8', env: { ...env, PATH: path } })
     let got = []; try { got = JSON.parse(r.stdout) } catch { /* shown below */ }
-    expect('…and when the process list can\'t be read, the port is still named as held (`process <id>`, no crash)', got.length === 1 && got[0].port === constant && /^process \d+$/.test(got[0].cmd), r.stdout + r.stderr)
+    expect('…and when the process list can\'t be read, the port is still named as held (`process <id>`, or that Windows didn\'t say — no crash)', got.length === 1 && got[0].port === constant && /^process \d+$|didn't say/.test(got[0].cmd), r.stdout + r.stderr)
   }
   server.kill()
   // a check-all copied without its ports.mjs: check:fast still works, check:full stops at once saying what to copy
@@ -779,6 +815,15 @@ async function testPortPreflight() {
   expect('a tool in node_modules is shown by its name: `vite --port 5291 --strictPort`', shortCommand('"C:\\Program Files\\nodejs\\node.exe" C:\\dev\\ui-kit\\node_modules\\vite\\bin\\vite.js --port 5291 --strictPort') === 'vite --port 5291 --strictPort')
   expect('…npm too: `npm run dev`', shortCommand('"C:\\Program Files\\nodejs\\node.exe" "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run dev') === 'npm run dev')
   expect('free ports → [] (no process list asked for)', heldPorts([inArgs, constant, declared]).length === 0)
+  // a port with only closing connections (TIME_WAIT / FIN_WAIT after a server stopped) is free — nothing answers there
+  // (Glyphtender F97 + F99: refused as "held by (a system process)" until the rows cleared a minute later)
+  const net = await import('node:net')
+  const closing = base + 5
+  const srv = net.createServer(s => s.end()).listen(closing, '127.0.0.1')
+  await new Promise(r => srv.once('listening', r))
+  await Promise.all([0, 1, 2].map(() => new Promise(r => net.connect(closing, '127.0.0.1').on('close', r).on('error', r))))
+  await new Promise(r => srv.close(r))
+  expect('a port with only closing connections left → free', heldPorts([closing]).length === 0, JSON.stringify(heldPorts([closing])))
   rmSync(root, { recursive: true, force: true })
 }
 
