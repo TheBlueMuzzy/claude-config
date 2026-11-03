@@ -42,6 +42,7 @@ import { readBugs, isOpenBug, readRoadmap, readSprint } from '../templates/ppp/p
 import { notesFile, itchFile, notesPath, notesProblems, draftNotes, changelogEntry, addToChangelog, itchText } from './notes.mjs'
 import { checkDeps, noticesText, summaryLines } from './deps-check.mjs'
 import { checkFile, releaseCheckProblems, stageRank } from './release-check.mjs'
+import { usesCrashMaps, deployEnv, releaseMaps } from './crash-maps.mjs'
 
 const KINDS = { update: 2, milestone: 1, stage: 1, major: 0 } // which part of X.Y.Z goes up
 const NOTICES = 'public/third-party-notices.txt' // F85: the licence texts the Credits screen links to
@@ -339,6 +340,23 @@ if (commit.code !== 0) { putBack(); refuse(`the release commit failed — the ve
 const tagged = run('git', ['tag', '-a', tag, '-m', `${tag}: ${summary}`], { cwd: root })
 if (tagged.code !== 0) refuse(`committed, but the tag failed:\n${tagged.out}`, `\`git tag -a ${tag} -m "${summary}"\``)
 ok(`Release ${tag} committed and tagged (${changed.join(', ')})${used.length ? ` — on record: ${used.join('; ')}` : ''}`)
+// F174 — crash maps from a build with the deploy's settings, committed right after the release (never by hand again)
+if (usesCrashMaps(root)) {
+  const label = `${next}.0`
+  const env = { ...deployEnv(root), NODE_ENV: 'production', CRASHES_MAPS: 'release' }
+  const built = run('npm', ['run', 'build'], { cwd: root, env })
+  const maps = releaseMaps(root, label)
+  const settings = Object.keys(env).filter(k => k.startsWith('VITE_')).join(', ') || 'no VITE_ settings in deploy.yml'
+  if (built.code !== 0 || !maps.length) {
+    say(`⚠ crash maps NOT made for ${label} (${built.code !== 0 ? 'the build failed' : 'the build filed no maps under releases/ — crashes module older than 0.3.0? update it with install-module.mjs'}) — make them by hand before pushing: ${Object.entries(env).map(([k, v]) => `${k}=${v}`).join(' ')} npm run build, then commit releases/${label}/maps${built.code !== 0 ? `\n${tail(built.out, 8)}` : ''}`)
+  } else {
+    const msg = `Crash maps for ${label} built with the deploy's settings (${settings})`
+    const addMaps = run('git', ['add', '--', `releases/${label}/maps`], { cwd: root })
+    const mapsCommit = addMaps.code === 0 && run('git', ['commit', '-q', '-m', msg], { cwd: root })
+    if (!mapsCommit || mapsCommit.code !== 0) say(`⚠ crash maps built (${maps.length}) but not committed — commit releases/${label}/maps before pushing:\n${tail((mapsCommit || addMaps).out, 6)}`)
+    else ok(`${msg}: ${maps.length} map(s) committed — main: ${maps.find(f => /^assets\/(main|index)-/.test(f)) || '(none named main-/index-)'}`)
+  }
+}
 if (made[itchFile(next)]) say(`\n--- itch.io devlog text (saved as ${itchFile(next)}) — paste it into the devlog editor ---\n${made[itchFile(next)].trim()}\n---\n`)
 const cleaned = cleanup(root, 'the release') // D46: clean up after ourselves, as /save does
 if (cleaned) say(cleaned)

@@ -24,9 +24,10 @@ function frameworkAround(dir) {
 
 // Run a command; returns { code, out, stdout } — out = stdout + stderr together (for messages), stdout alone for
 // output that gets parsed (a stderr warning glued onto JSON broke stop-servers' process list under load). Never throws.
-export function run(command, args, { cwd = process.cwd(), timeout = 600_000 } = {}) {
+export function run(command, args, { cwd = process.cwd(), timeout = 600_000, env } = {}) {
   const [file, list] = withoutShell(command, args)
-  const result = spawnSync(file, list, { cwd, encoding: 'utf8', timeout, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
+  // env: added to this process's own (F174: the release maps build gets the deploy's VITE_… settings)
+  const result = spawnSync(file, list, { cwd, encoding: 'utf8', timeout, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024, ...(env ? { env: { ...process.env, ...env } } : {}) })
   return { code: result.status ?? 1, out: `${result.stdout || ''}${result.stderr || ''}${result.error ? String(result.error.message) : ''}`, stdout: result.stdout || '' }
 }
 
