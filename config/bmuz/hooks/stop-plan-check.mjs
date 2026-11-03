@@ -30,6 +30,7 @@ const turn = readTurn(input.transcript_path)
 
 // The projects this turn worked in: where it committed, and where it edited plan files.
 const projects = new Map() // root → { committed, touchedSprint, published }
+const sentPages = [] // planner pages sent from anywhere else (a scratchpad copy, or as content) — F172
 const project = (dir) => {
   const top = dir && git(dir, 'rev-parse', '--show-toplevel')
   if (!top) return null
@@ -73,7 +74,11 @@ for (const tool of turn.tools) {
     const page = tool.input.files.find(f => f?.as === 'index.html' && /[\\/]\.planning[\\/]ppp\.html$/.test(f.path || ''))
     const p = page && project(resolve(page.path, '..', '..'))
     if (p) { p.published = true; p.sentFiles.push(...tool.input.files.flatMap(f => [f.as, f.path]).filter(Boolean)) }
+    // F172: a chat working in another project can only attach a scratchpad copy — kept here, matched by its bytes below
+    const copy = tool.input.files.find(f => f?.as === 'index.html' && f.path && !page)
+    if (copy) sentPages.push({ path: copy.path, files: tool.input.files })
   }
+  if (/claude-artifacts__publish_version$/.test(tool.name) && typeof tool.input.content === 'string') sentPages.push({ content: tool.input.content, files: [] })
   if (/[\\/]\.planning[\\/]research[\\/]sketches[\\/][^\\/]+\.html$/.test(file) && tool.name !== 'Artifact') { const p = project(existingDir(file)); if (p) p.sketches.add(basename(file)) }
   if (['Write', 'Edit', 'MultiEdit'].includes(tool.name) && /[\\/]content[\\/]/.test(file)) project(existingDir(file)) // a data file: checked against the TDD (6)
 }
@@ -132,6 +137,8 @@ for (const [root, p] of projects) {
   if (unsent.length) problems.push(`${name}: sketch ${unsent.join(', ')} changed this turn, but the planner wasn't republished with ${unsent.length > 1 ? 'them' : 'it'} — publish .planning/ppp.html to ${link} with files: {${unsent.map(s => `"sketches/${s}": ".planning/research/sketches/${s}"`).join(', ')}} (/ppp step 2), so its Sketches tab shows the new version.`)
   if (!rebuilt || !link || !existsSync(rebuilt)) continue
   const published = join(gitDir, 'bmuz-ppp-published')
+  const copy = !p.published && sentSamePage(join(root, '.planning', 'ppp.html'))
+  if (copy) { p.published = true; p.sentFiles.push(...copy.files.flatMap(f => [f.as, f.path]).filter(Boolean)) }
   if (p.published) { writeFileSync(published, new Date().toISOString()); continue }
   if (!existsSync(published) || statSync(published).mtimeMs < statSync(rebuilt).mtimeMs) {
     problems.push(`${name}: the plan files changed, so the planner page was rebuilt (.planning/ppp.html) — republish it to ${link} with the Artifact tool (url = that link), or claude-artifacts publish_files with files: [{ as: 'index.html', path: '<project>/.planning/ppp.html' }] (get_artifact on the link gives slug + base_version).`)
@@ -188,6 +195,17 @@ function sentFiles(files) {
   if (!files) return []
   if (Array.isArray(files)) return files.map(f => (typeof f === 'string' ? f : f?.path || '')).filter(Boolean)
   return Object.entries(files).flatMap(([key, v]) => [key, typeof v === 'string' ? v : v?.from || v?.path || ''])
+}
+
+// F172: a page sent from elsewhere (a scratchpad copy, or publish_version content) whose bytes are this project's
+// ppp.html as it is now — a copy made before the last rebuild doesn't match, so a stale page is still sent back
+function sentSamePage(pppFile) {
+  let mine
+  try { mine = readFileSync(pppFile, 'utf8') } catch { return null }
+  return sentPages.find((sent) => {
+    if (sent.content !== undefined) return sent.content === mine
+    try { return readFileSync(sent.path, 'utf8') === mine } catch { return false }
+  }) ?? null
 }
 
 function openBugs(root) {

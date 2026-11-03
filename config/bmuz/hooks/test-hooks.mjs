@@ -943,6 +943,20 @@ function testStopPlanCheck() {
   expect('…a publish_files of a copy elsewhere → still sent back', stop([editSprint, publishFiles(join(repo, 'copy.html'))]), 'block')
   utimesSync(join(gitDir, 'bmuz-ppp-published'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
   expect('…republished with publish_files (index.html = .planning/ppp.html) → allowed', stop([editSprint, publishFiles(join(repo, '.planning', 'ppp.html'))]), 'allow')
+  // F172: a chat opened in another project can only send a scratchpad copy — the same bytes as the project's
+  // ppp.html count as its publish, from any folder (Glyphtender v0.13/v0.14 /deliver, sent back 3+ times)
+  const page = '<!DOCTYPE html><title>planner</title>'
+  writeFileSync(join(repo, '.planning', 'ppp.html'), page)
+  const scratch = mkdtempSync(join(tmpdir(), 'ppp-scratch-'))
+  writeFileSync(join(scratch, 'ppp.html'), page)
+  writeFileSync(join(scratch, 'old.html'), page + '<!-- before the last rebuild -->')
+  utimesSync(join(gitDir, 'bmuz-ppp-published'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
+  expect('F172: publish_files of a scratchpad copy with the same bytes → allowed', stop([editSprint, publishFiles(join(scratch, 'ppp.html'))]), 'allow')
+  utimesSync(join(gitDir, 'bmuz-ppp-published'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
+  expect('F172: …a copy made before the last rebuild (other bytes) → sent back', stop([editSprint, publishFiles(join(scratch, 'old.html'))]), 'block')
+  utimesSync(join(gitDir, 'bmuz-ppp-published'), new Date(Date.now() - 60_000), new Date(Date.now() - 60_000))
+  expect('F172: publish_version with the page as content → allowed', stop([editSprint, tool('mcp__claude-artifacts__publish_version', { slug: 'c6424984', base_version: '1', content: page })]), 'allow')
+  rmSync(scratch, { recursive: true, force: true })
 
   // F74: a milestone needs a look-back, and every look-back item a real home
   const tagMilestone = tool('Bash', { command: 'git tag v0.9.0 && git push --tags' })
