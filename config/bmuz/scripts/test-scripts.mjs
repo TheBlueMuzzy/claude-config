@@ -284,20 +284,14 @@ function testReleaseCrashMaps() {
     '.github/workflows/deploy.yml': 'jobs:\n  build:\n    steps:\n      - run: npm run build\n        env:\n          VITE_PARTY_HOST: game.example.dev\n          SECRET_TOKEN: ${{ secrets.TOKEN }}\n',
     'build.mjs': build,
   }
-  const game = releaseProject(root, 'game', { files })
-  const pkg = JSON.parse(readFileSync(join(game, 'package.json'), 'utf8'))
-  pkg.scripts = { ...pkg.scripts, build: 'node build.mjs' }
-  write(join(game, 'package.json'), JSON.stringify(pkg, null, 2) + '\n'); sh(game, 'commit', '-qam', 'build script')
+  const game = releaseProject(root, 'game', { files, scripts: { build: 'node build.mjs' } })
   const up = release(game, 'update', 'Cards')
   const map = join(game, 'releases', '0.9.3.0', 'maps', 'assets', 'main-game.example.dev.js.map')
   expect('F174: the maps are built with deploy.yml\'s VITE_ setting + NODE_ENV=production', up.code === 0 && existsSync(map) && readFileSync(map, 'utf8') === 'production', up.out)
   expect('F174: …committed after the release commit, the tag stays on the release', sh(game, 'log', '-1', '--format=%s').startsWith('Crash maps for 0.9.3.0 built with the deploy\'s settings (VITE_PARTY_HOST)') && sh(game, 'log', '-1', '--format=%s', 'v0.9.3') === 'Release v0.9.3: Cards' && !sh(game, 'status', '--porcelain'), `${sh(game, 'log', '-2', '--format=%s')}\n${up.out}`)
   expect('F174: …said, naming the main map', /2?map\(s\) committed — main: assets\/main-game\.example\.dev\.js\.map/.test(up.out), up.out)
   // a build that files nothing under releases/ (crashes older than 0.3.0 ignores CRASHES_MAPS?) → warned, not hidden
-  const old = releaseProject(root, 'old', { files: { ...files, 'build.mjs': 'process.exit(0)\n' } })
-  const pkg2 = JSON.parse(readFileSync(join(old, 'package.json'), 'utf8'))
-  pkg2.scripts = { ...pkg2.scripts, build: 'node build.mjs' }
-  write(join(old, 'package.json'), JSON.stringify(pkg2, null, 2) + '\n'); sh(old, 'commit', '-qam', 'build script')
+  const old = releaseProject(root, 'old', { files: { ...files, 'build.mjs': 'process.exit(0)\n' }, scripts: { build: 'node build.mjs' } })
   const none = release(old, 'update', 'Cards')
   expect('F174: no maps made → the release still stands, with a ⚠ and the by-hand command', none.code === 0 && /crash maps NOT made for 0\.9\.3\.0/.test(none.out) && /VITE_PARTY_HOST=game\.example\.dev/.test(none.out) && sh(old, 'log', '-1', '--format=%s') === 'Release v0.9.3: Cards', none.out)
   // a game without crash maps: no build at all
