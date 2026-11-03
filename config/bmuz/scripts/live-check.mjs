@@ -19,6 +19,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { git, run, say, ok, refuse, tail, readJson, args, projectDir, gh, sleep, stateValue, lastTag, deleteMergedRemotes } from './lib.mjs'
 import { askAddress, defaultBranch, liveUrl, roomsHealthUrl } from '../hooks/lib.mjs'
+import { usesCrashMaps, deployEnv, mainScriptOf, releaseMaps } from './crash-maps.mjs'
 
 const { flags } = args()
 const root = git(projectDir(), 'rev-parse', '--show-toplevel')
@@ -98,11 +99,11 @@ async function look() {
   if (res.redirected && /login|signin|sign_in|sign-in|auth|sso|accounts\./i.test(res.url)) return { problem: `the page sends visitors to a login (${res.url}) — it isn't public`, fatal: true }
   if (res.status !== 200) return { problem: `the page answers HTTP ${res.status}` }
   const html = await res.text()
-  if (hasVersion(html)) return { found: 'the page' }
+  if (hasVersion(html)) return { found: 'the page', html }
   // a Vite game shows its version from the JS bundle, not the HTML (glyphtender recipe gotcha, 2026-10-04)
   const scripts = [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)].map(m => new URL(m[1], res.url).href).filter(s => new URL(s).host === new URL(res.url).host).slice(0, 6)
   for (const src of scripts) {
-    try { const js = await fetch(src, { headers: { 'cache-control': 'no-cache' } }); if (js.ok && hasVersion(await js.text())) return { found: src.split('/').pop() } } catch { /* next one */ }
+    try { const js = await fetch(src, { headers: { 'cache-control': 'no-cache' } }); if (js.ok && hasVersion(await js.text())) return { found: src.split('/').pop(), html } } catch { /* next one */ }
   }
   return { problem: `the page loads, but ${version} isn't in it or its scripts yet (still the old version?)` }
 }
@@ -115,6 +116,16 @@ for (let n = 1; n <= tries; n++) {
 }
 if (!seen.found) refuse(`${url}: ${seen.problem}`, seen.fatal ? 'make the site public (GitHub Pages needs a public repo; check the host\'s visibility settings), then run this again' : 'is the deploy finished? Hard-refresh / check the host, then run this again')
 ok(`${url} is public and shows ${version} (found in ${seen.found})`)
+// F174: the crash maps committed for this build fit what players run — the live page's main script has its map
+if (usesCrashMaps(root)) {
+  const v = readJson(join(root, 'version.json'))
+  const label = `${version}.${v?.build ?? 0}`
+  const main = mainScriptOf(seen.html)
+  const maps = releaseMaps(root, label)
+  if (!main) say(`⚠ crash maps: couldn't find the live page's main script to compare with releases/${label}/maps — check by hand`)
+  else if (!maps.includes(`${main}.map`)) refuse(`the live page runs ${main}, but releases/${label}/maps has no ${main}.map${maps.length ? ` (it holds ${maps.find(f => /^assets\/(main|index)-/.test(f)) || maps[0]} — built with other settings?)` : ' (no maps for this version at all)'} — live players' crash reports can't be read`, `build them with the deploy's settings: ${Object.entries({ ...deployEnv(root), NODE_ENV: 'production', CRASHES_MAPS: 'release' }).map(([k, val]) => `${k}=${val}`).join(' ')} npm run build, commit releases/${label}/maps, push, then run this again`)
+  else ok(`crash maps fit the live code: releases/${label}/maps/${main}.map`)
+}
 
 // 2b. the online room server (F82): its /health answers (rooms kit 0.8.0+)
 const roomsHealth = roomsHealthUrl(state)
