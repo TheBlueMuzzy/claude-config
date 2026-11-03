@@ -265,6 +265,48 @@ function testRelease() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F174 — Crash maps by the release script: a crash-maps game gets its maps built with the deploy's settings and
+// committed right after the release commit (Glyphtender did it by hand at v0.12–v0.14)
+function testReleaseCrashMaps() {
+  console.log('release crash maps (F174) — built with the deploy\'s settings, committed after the release')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-maps-'))
+  const release = (repo, ...a) => script('release.mjs', a, { cwd: repo, env: { BMUZ_CLEANUP: FAKE_CLEANUP } })
+  // a stand-in build: files a map named after the deploy setting it got, only for the release build (crashes 0.3.0)
+  const build = [
+    "import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'",
+    "const v = JSON.parse(readFileSync('version.json', 'utf8'))",
+    "const dir = process.env.CRASHES_MAPS === 'release' ? `releases/${v.version}.${v.build}/maps/assets` : 'node_modules/.cache/crashes-maps'",
+    'mkdirSync(dir, { recursive: true })',
+    "writeFileSync(`${dir}/main-${process.env.VITE_PARTY_HOST || 'LOCAL'}.js.map`, process.env.NODE_ENV || '')",
+  ].join('\n')
+  const files = {
+    'vite.config.ts': "import { crashesMaps } from './src/crashes/vitePlugin.mjs'\nexport default { plugins: [crashesMaps()] }\n",
+    '.github/workflows/deploy.yml': 'jobs:\n  build:\n    steps:\n      - run: npm run build\n        env:\n          VITE_PARTY_HOST: game.example.dev\n          SECRET_TOKEN: ${{ secrets.TOKEN }}\n',
+    'build.mjs': build,
+  }
+  const game = releaseProject(root, 'game', { files })
+  const pkg = JSON.parse(readFileSync(join(game, 'package.json'), 'utf8'))
+  pkg.scripts = { ...pkg.scripts, build: 'node build.mjs' }
+  write(join(game, 'package.json'), JSON.stringify(pkg, null, 2) + '\n'); sh(game, 'commit', '-qam', 'build script')
+  const up = release(game, 'update', 'Cards')
+  const map = join(game, 'releases', '0.9.3.0', 'maps', 'assets', 'main-game.example.dev.js.map')
+  expect('F174: the maps are built with deploy.yml\'s VITE_ setting + NODE_ENV=production', up.code === 0 && existsSync(map) && readFileSync(map, 'utf8') === 'production', up.out)
+  expect('F174: …committed after the release commit, the tag stays on the release', sh(game, 'log', '-1', '--format=%s').startsWith('Crash maps for 0.9.3.0 built with the deploy\'s settings (VITE_PARTY_HOST)') && sh(game, 'log', '-1', '--format=%s', 'v0.9.3') === 'Release v0.9.3: Cards' && !sh(game, 'status', '--porcelain'), `${sh(game, 'log', '-2', '--format=%s')}\n${up.out}`)
+  expect('F174: …said, naming the main map', /2?map\(s\) committed — main: assets\/main-game\.example\.dev\.js\.map/.test(up.out), up.out)
+  // a build that files nothing under releases/ (crashes older than 0.3.0 ignores CRASHES_MAPS?) → warned, not hidden
+  const old = releaseProject(root, 'old', { files: { ...files, 'build.mjs': 'process.exit(0)\n' } })
+  const pkg2 = JSON.parse(readFileSync(join(old, 'package.json'), 'utf8'))
+  pkg2.scripts = { ...pkg2.scripts, build: 'node build.mjs' }
+  write(join(old, 'package.json'), JSON.stringify(pkg2, null, 2) + '\n'); sh(old, 'commit', '-qam', 'build script')
+  const none = release(old, 'update', 'Cards')
+  expect('F174: no maps made → the release still stands, with a ⚠ and the by-hand command', none.code === 0 && /crash maps NOT made for 0\.9\.3\.0/.test(none.out) && /VITE_PARTY_HOST=game\.example\.dev/.test(none.out) && sh(old, 'log', '-1', '--format=%s') === 'Release v0.9.3: Cards', none.out)
+  // a game without crash maps: no build at all
+  const plain = releaseProject(root, 'plain')
+  const quiet = release(plain, 'update', 'Cards')
+  expect('F174: a game without crashesMaps() → no maps step', quiet.code === 0 && !/crash maps/i.test(quiet.out), quiet.out)
+  rmSync(root, { recursive: true, force: true })
+}
+
 // F164: in a project of modules (<folder>/kit/VERSION at the top, like dev/framework), STATE's "Version: X (a 1.2.3 · …)"
 // list is filled from those files at release — it was hand-copied and a release behind
 function testReleaseModuleList() {
@@ -1032,6 +1074,17 @@ async function testLiveCheck() {
   const gone = rooms('Rooms: http://127.0.0.1:1/')
   expect('F82: nothing listening → refused: DOWN', gone.code === 1 && /room server is DOWN/.test(gone.out), gone.out)
   state('**Release:** GitHub Pages')
+  // F174 — Crash maps by the release script: the live page's main script must have its map in releases/<v>/maps
+  write(join(repo, 'vite.config.ts'), "import { crashesMaps } from './src/crashes/vitePlugin.mjs'\nexport default { plugins: [crashesMaps()] }\n")
+  const noMaps = live()
+  expect('F174: a crash-maps game, no maps for this version → refused, naming the live script', noMaps.code === 1 && /runs assets\/index-abc\.js/.test(noMaps.out) && /no maps for this version/.test(noMaps.out), noMaps.out)
+  write(join(repo, 'releases', '0.3.0.0', 'maps', 'assets', 'index-LOCAL.js.map'), '{}')
+  const wrongMaps = live()
+  expect('F174: maps from a build with other settings (another hash) → refused, says so', wrongMaps.code === 1 && /index-LOCAL\.js\.map/.test(wrongMaps.out) && /other settings/.test(wrongMaps.out) && /CRASHES_MAPS=release/.test(wrongMaps.out), wrongMaps.out)
+  write(join(repo, 'releases', '0.3.0.0', 'maps', 'assets', 'index-abc.js.map'), '{}')
+  const fits = live()
+  expect('F174: the live script\'s map is there → "crash maps fit the live code"', fits.code === 0 && /crash maps fit the live code: releases\/0\.3\.0\.0\/maps\/assets\/index-abc\.js\.map/.test(fits.out), fits.out)
+  rmSync(join(repo, 'vite.config.ts')); rmSync(join(repo, 'releases'), { recursive: true, force: true })
   // e2e:update + smoke:live
   write(join(repo, 'package.json'), JSON.stringify({ scripts: { 'e2e:update': 'node -e "process.exit(1)"' } }))
   expect('e2e:update fails → refused (returning players may get the old version)', /e2e:update fails/.test(live().out))
@@ -1601,7 +1654,7 @@ function testFrameworkAround() {
 }
 
 const only = process.argv[2]
-const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
+const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList, 'release-crash-maps': testReleaseCrashMaps,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)
