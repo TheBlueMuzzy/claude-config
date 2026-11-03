@@ -1,5 +1,5 @@
 # GitHub Pages release recipe (web games, + optional PartyServer room server on Cloudflare)
-Last used: 2026-10-12 (glyphtender v0.9.0 + v0.9.1 — server first (new secret via `printf '%s' "$KEY" | npx wrangler secret put NAME`, check with `npx wrangler secret list`), then Pages; e2e:update + live load PASS)
+Last used: 2026-11-03 (glyphtender v0.14.0 — smoke pass first, then `npm run party:deploy` ran from auto mode (the deploy guard wants a fresh smoke pass; ask Muzzy to paste it only if auto mode refuses), push, live-check.mjs; the online test on a fresh browser needs Play online unlocked: `localStorage.setItem('glyphtender:tutorial','done')` then reload) · before: 2026-10-12 (glyphtender v0.9.0 + v0.9.1 — server first (new secret via `printf '%s' "$KEY" | npx wrangler secret put NAME`, check with `npx wrangler secret list`), then Pages; e2e:update + live load PASS)
 
 ## Prerequisites
 - GitHub remote under TheBlueMuzzy; `gh` CLI logged in (`gh auth status`).
@@ -16,7 +16,7 @@ Last used: 2026-10-12 (glyphtender v0.9.0 + v0.9.1 — server first (new secret 
 
 ## Every release
 1. On master after the merge + release commit + tag (see /deliver §4–5).
-2. **Server first, if `party/` changed in the merge** (`git diff <last-tag>..HEAD --stat -- party/ src/engine src/rooms`): `npm run party:deploy` (wrangler → `https://<name>.joebrogno.workers.dev`). Server first so a new front end never talks to an old server. Claude Code's auto mode blocks `wrangler deploy` — ask Muzzy to paste `! cd <project> && npm run party:deploy` (Roll Better, 2026-10-12). Check the new server still accepts the OLD client's messages (players with the old page cached).
+2. **Server first, if `party/` changed in the merge** (`git diff <last-tag>..HEAD --stat -- party/ src/engine src/rooms`): `npm run party:deploy` (wrangler → `https://<name>.joebrogno.workers.dev`). Server first so a new front end never talks to an old server. Run the smoke pass (step 3) BEFORE this — the deploy guard refuses `party:deploy` without a fresh one. Auto mode may block `wrangler deploy` (it did 2026-10-12, it didn't 2026-11-03) — if it does, ask Muzzy to paste `! cd <project> && npm run party:deploy` (Roll Better, 2026-10-12). Check the new server still accepts the OLD client's messages (players with the old page cached).
 3. Smoke pass: `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` → commit `.planning/smoke-pass` (a hook blocks the push without it — HOOKS.md). Then `git push origin master --tags` → starts the Pages workflow.
 4. `gh run list --limit 1` → `gh run watch <id>` → then confirm with `gh run view <id> --json conclusion,jobs` (don't trust `$?` after a pipe).
 5. Delete the merged work branch locally + on the remote.
