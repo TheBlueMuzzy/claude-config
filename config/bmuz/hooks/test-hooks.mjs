@@ -1066,6 +1066,23 @@ function testStopPlanCheck() {
   expect('…a live-pass naming the new tag (a recorded skip counts) → allowed', inFresh([releaseCmd]), 'allow')
   writeFileSync(join(r, '.planning', 'live-pass'), 'abc123\nv0.1.1 https://x.github.io/t/\n2026-10-19T10:00:00Z\nconsole: smoke:live\n')
   expect('…a real live pass for it → allowed', inFresh([releaseCmd]), 'allow')
+  // F173 — Release waits on Muzzy's deploy: tagged here but not pushed yet, and the hand-back names the deploy Muzzy
+  // runs → it waits on him, not sent back (Glyphtender v0.13.0 looped 6 turns); once pushed, the live check is due
+  const saying = (tools, text) => {
+    const path = join(fresh.root, `f${n++}.jsonl`)
+    writeFileSync(path, [{ ...prompt, timestamp: turnStart }, ...tools.map(t => ({ ...t, cwd: r }))].map(e => JSON.stringify(e)).join('\n'))
+    return runHook('stop-plan-check.mjs', { hook_event_name: 'Stop', transcript_path: path, session_id: `say${n}`, last_assistant_message: text })
+  }
+  writeFileSync(join(r, 'notes.txt'), 'v0.1.2\n'); sh(r, 'add', '-A'); sh(r, 'commit', '-q', '-m', 'Release v0.1.2')
+  tagAt('v0.1.2', new Date(Date.now() + 2000))
+  const waiting = '**Your to-dos**\n1. Deploy the online server — paste: `! cd ~/Documents/dev/games/t && npm run party:deploy`'
+  expect('F173: tagged, not pushed, hand-back names Muzzy\'s deploy → allowed (waits on him)', saying([releaseCmd], waiting), 'allow')
+  const quiet = saying([releaseCmd], 'Released v0.1.2.')
+  expect('F173: tagged, not pushed, nothing said about what it waits on → sent back', quiet, 'block')
+  expect('F173: …told to push (or say what it waits on)', { result: /push/i.test(quiet.message) ? 'ok' : 'no', message: quiet.message }, 'ok')
+  sh(r, 'push', '-q')
+  expect('F173: pushed, still no live check → sent back even when the deploy is named', saying([releaseCmd], waiting), 'block')
+  writeFileSync(join(r, '.planning', 'live-pass'), 'abc123\nv0.1.2 https://x.github.io/t/\n2026-10-19T10:00:00Z\n')
   const sketch = join(r, '.planning', 'research', 'sketches', 'goo.html')
   const editSketch = tool('Write', { file_path: sketch })
   const sketchUnsent = inFresh([editSketch])
