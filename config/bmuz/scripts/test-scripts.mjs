@@ -374,6 +374,14 @@ function testReleaseGates() {
   write(join(fullOk, 'src', 'late.js'), 'x\n'); sh(fullOk, 'add', '-A'); sh(fullOk, 'commit', '-q', '-m', 'tiny fix after the review')
   const late = release(fullOk, 'update', 'x', '--dry-run')
   expect('D20 + D19 + D11: a code commit after Reviewed through / Security reviewed / Last full check → all three refused, naming it', late.code === 1 && /after STATE's "Reviewed through/.test(late.out) && /after STATE's "Security reviewed/.test(late.out) && /after STATE's "Last full check/.test(late.out) && /tiny fix after the review/.test(late.out), late.out)
+  // F175 — Test-only commits + slow tests: a commit that only changes tests ships nothing to players → the security
+  // review still covers it; the code review and the full check still don't (a test can still be wrong)
+  const testOnly = releaseProject(root, 'testonly', { scripts: { 'check:full': 'node pass.js' } })
+  write(join(testOnly, 'party', 'save.test.ts'), 'it("x", { timeout: 60_000 }, () => {})\n'); write(join(testOnly, 'e2e', 'online.mjs'), 'x\n')
+  sh(testOnly, 'add', '-A'); sh(testOnly, 'commit', '-q', '-m', 'Test: the whole-game save test gets 60 s')
+  const tests = release(testOnly, 'update', 'x', '--dry-run')
+  expect('F175: a test-only commit (*.test.ts + e2e/) → the security review still covers it', !/after STATE's "Security reviewed/.test(tests.out), tests.out)
+  expect('F175: …the code review and the full check still ask for it', /after STATE's "Reviewed through/.test(tests.out) && /after STATE's "Last full check/.test(tests.out), tests.out)
 
   // D10: framework pieces without check:framework → refused; check:framework red → refused; green → passes
   const fw = releaseProject(root, 'fw')
