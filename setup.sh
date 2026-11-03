@@ -24,6 +24,44 @@ if [ ! -d "$HOME/.claude-backup-pre-bmuz2" ]; then
   done
 fi
 
+# --- F176: never wipe a file edited on THIS machine since the last sync ---
+# (2026-11-03: another session's /sync copied the repo over ~/.claude and lost a hook fix that wasn't pushed yet.)
+# .config-applied = the repo commit this machine was last level with. A live file that differs from the incoming copy
+# AND from its copy at that commit was changed here → set it aside, copy everything, put it back, and say so.
+# Line endings don't count as a change. No marker yet (a new machine) → copy everything, as before.
+APPLIED=""
+if [ -f "$CLAUDE_DIR/.config-applied" ]; then
+  APPLIED=$(cat "$CLAUDE_DIR/.config-applied")
+  git -C "$REPO_DIR" cat-file -e "$APPLIED^{commit}" 2>/dev/null || APPLIED=""
+fi
+KEEP_DIR=$(mktemp -d)
+KEPT=()
+same_text() { cmp -s <(tr -d '\r' < "$1") <(tr -d '\r' < "$2"); }
+was_text() { git -C "$REPO_DIR" show "$APPLIED:$1" 2>/dev/null | tr -d '\r'; }
+keep_if_edited() { # $1 = path inside the repo / ~/.claude
+  local rel="$1" live="$CLAUDE_DIR/$1" incoming="$REPO_DIR/$1"
+  [ -f "$live" ] && [ -f "$incoming" ] && [ -n "$APPLIED" ] || return 0
+  same_text "$live" "$incoming" && return 0
+  if git -C "$REPO_DIR" cat-file -e "$APPLIED:$rel" 2>/dev/null; then
+    cmp -s <(was_text "$rel") <(tr -d '\r' < "$live") && return 0 # unchanged here → the incoming copy wins
+    if cmp -s <(was_text "$rel") <(tr -d '\r' < "$incoming"); then
+      KEPT+=("kept yours (changed here, not pushed yet): ~/.claude/$rel")
+    else
+      KEPT+=("changed on both machines — kept yours: ~/.claude/$rel (theirs: git -C ~/.claude-config show HEAD:$rel)")
+    fi
+  else
+    KEPT+=("changed on both machines — kept yours: ~/.claude/$rel (theirs: git -C ~/.claude-config show HEAD:$rel)")
+  fi
+  mkdir -p "$KEEP_DIR/$(dirname "$rel")"
+  cp "$live" "$KEEP_DIR/$rel"
+}
+for f in CLAUDE.md QUICKSTART.md settings.json statusline.sh statusline.ps1; do keep_if_edited "$f"; done
+for dir in agents config references skills; do
+  [ -d "$CLAUDE_DIR/$dir" ] || continue
+  while IFS= read -r rel; do keep_if_edited "$rel"; done < <(diff -rq "$CLAUDE_DIR/$dir" "$REPO_DIR/$dir" 2>/dev/null \
+    | sed -n "s#^Files $CLAUDE_DIR/\(.*\) and $REPO_DIR/.* differ\$#\1#p")
+done
+
 # --- Copy files ---
 echo "Copying top-level files..."
 cp "$REPO_DIR/CLAUDE.md" "$CLAUDE_DIR/"
@@ -45,6 +83,15 @@ for dir in agents config references skills; do
   echo "  $dir/"
   cp -r "$REPO_DIR/$dir" "$CLAUDE_DIR/"
 done
+
+# --- F176: put back what was changed here, and say so (/save pushes it; a both-machines file → compare first) ---
+if [ ${#KEPT[@]} -gt 0 ]; then
+  cp -r "$KEEP_DIR/." "$CLAUDE_DIR/"
+  echo ""
+  echo "Kept ${#KEPT[@]} file(s) changed on this machine since the last sync:"
+  for k in "${KEPT[@]}"; do echo "  $k"; done
+fi
+rm -rf "$KEEP_DIR"
 
 # --- Retire old pieces (BMUZ 1 + GSD). Moved to ~/.claude/archive/, never deleted. ---
 # Keep this list in sync with RETIRED.txt
@@ -76,6 +123,7 @@ PLUGINS=(
   "playground@claude-plugins-official"
   "typescript-lsp@claude-plugins-official"
 )
+[ -n "$BMUZ_SETUP_NO_PLUGINS" ] && PLUGINS=() # (tests: a fake home never installs plugins)
 for plugin in "${PLUGINS[@]}"; do
   echo "  Installing $plugin..."
   claude plugin install "$plugin" 2>/dev/null || echo "    (skipped — may already be installed)"
