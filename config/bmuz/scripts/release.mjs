@@ -36,7 +36,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { git, run, say, ok, refuse, tail, readJson, writeJson, args, projectDir, exists, changedFiles, checksVerdict,
-  todays, section, stateValue, commitsIn, codeCommitsSince, lastTag, isCode, fastChecks, cleanup, guardCommit, moduleVersions, moduleList } from './lib.mjs'
+  todays, section, stateValue, commitsIn, codeCommitsSince, lastTag, isCode, isTestFile, fastChecks, cleanup, guardCommit, moduleVersions, moduleList } from './lib.mjs'
 import { defaultBranch } from '../hooks/lib.mjs'
 import { readBugs, isOpenBug, readRoadmap, readSprint } from '../templates/ppp/plan-reader.mjs'
 import { notesFile, itchFile, notesPath, notesProblems, draftNotes, changelogEntry, addToChangelog, itchText } from './notes.mjs'
@@ -197,7 +197,8 @@ if (stateText !== null) {
   ]
   for (const [label, what, fix] of covers) {
     const value = stateValue(stateText, label)
-    const missed = codeCommitsSince(root, commitsIn(root, value), since)
+    // F175: tests never reach players — a test-only commit stays inside the security review (not the code review / full check)
+    const missed = codeCommitsSince(root, commitsIn(root, value), since).filter(c => label !== 'Security reviewed' || !c.files.every(isTestFile))
     if (!missed.length) continue
     const list = missed.slice(0, 5).map(c => `${c.sha} ${c.subject.slice(0, 60)}`).join('\n    ') + (missed.length > 5 ? `\n    … and ${missed.length - 5} more` : '')
     fail(`${value ? `code changed after STATE's "${label}: ${value.slice(0, 40)}"` : `STATE has no "${label}:" line`}, so ${what} doesn't cover ${missed.length} commit${missed.length > 1 ? 's' : ''}${since ? ` since ${since}` : ''}:\n    ${list}`, fix)

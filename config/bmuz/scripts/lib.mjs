@@ -242,6 +242,12 @@ export const lastTag = (root) => git(root, 'describe', '--tags', '--abbrev=0', '
 // Commits (no merges) since the last tag that change code and aren't inside any of `covered` (commits a STATE line
 // names): [{ sha, subject, files }]. A "Rollback to vX.Y.Z" commit brings back code that was already released —
 // already reviewed and checked — so it never counts.
+// F175: a file that only tests the game (never shipped to players) — a commit of nothing but these doesn't need a new
+// security review (Glyphtender v0.14.0: a one-line `{ timeout }` reopened all three gates)
+export function isTestFile(path) {
+  return /\.(test|spec)\.[cm]?[jt]sx?$/.test(path) || /(^|\/)(e2e|tests?|__tests__)\//.test(path)
+}
+
 export function codeCommitsSince(root, covered = [], since = lastTag(root)) {
   const range = ['HEAD', ...covered.map(c => `^${c}`), ...(since ? [`^${since}`] : [])]
   const out = git(root, 'log', '--no-merges', '--format=%x01%h%x02%s', '--name-only', ...range) || ''
