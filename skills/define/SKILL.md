@@ -31,6 +31,7 @@ At the end of each part: update `Current phase:` in the GDD and STATE (Stage, RE
 
 ## 3. Defining one big feature (in an existing game)
 Same three parts, feature-sized: what it's for (which principle it serves), its scope (must for which release?), how it works, and how it breaks down into features with needs ③ (design work). Add them to the right milestone in ROADMAP.md with new IDs ② (plan-lint: unique IDs, type, scope, needs). Update the GDD section it belongs in ③.
+- **Changing a system that already exists?** First spend 5 minutes reading how its code really works — who holds what, what each screen can see (online too) — before the sketch or the design. ③ (Glyphtender sprint 33 retro, 2026-11-03: "awards are per player" and "an online screen has no log mid-game" were found after the sketch)
 
 ## 4. Hand-off
 STATE: Stage = define → develop when the map is done; RESUME HERE → "Roadmap ready — N features ready to start. Next: /sprint" ② (the `GDD: build plan` commit carries STATE — guard-git).
