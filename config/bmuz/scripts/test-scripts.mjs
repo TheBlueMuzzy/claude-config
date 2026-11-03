@@ -524,6 +524,7 @@ function testConfigSync() {
   expect('F176: a file edited here, not pushed → kept by setup.sh', /SETUP-A a-local/.test(out), out)
   expect('F176: …and named', /SETUP-OUT .*kept.*skills\/a\/SKILL\.md/i.test(out), out)
   expect('F176: a file only the other machine changed → copied in', /SETUP-B b-v2-other/.test(out), out)
+  expect('F176 fix: claude.ai\'s synced skills (machine-made, config-sync\'s noise) are never reported as kept', !/SETUP-OUT .*skills\/synced/.test(out), out)
   expect('F176: changed on both machines → this one kept, said as both', /SETUP-C c-local/.test(out) && /SETUP-OUT .*both.*skills\/c\/SKILL\.md/i.test(out), out)
   expect('F176: line endings alone are not an edit', !/SETUP-CRLF/.test(out), out)
 }

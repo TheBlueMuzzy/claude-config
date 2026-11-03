@@ -46,14 +46,16 @@ if [ -f "$SETUP" ]; then
   mk2 a; R="$T/a/.claude-config"
   cp "$SETUP" "$R/setup.sh"
   for f in CLAUDE.md QUICKSTART.md settings.json statusline.sh; do echo "$f" > "$R/$f"; done
-  for s in a b c; do mkdir -p "$R/skills/$s"; echo "$s-v1" > "$R/skills/$s/SKILL.md"; done
+  for s in a b c synced/x; do mkdir -p "$R/skills/$s"; echo "$s-v1" > "$R/skills/$s/SKILL.md"; done
   mkdir -p "$R/agents" "$R/config" "$R/references"; touch "$R/agents/.keep" "$R/config/.keep" "$R/references/.keep"
   git -C "$R" add -A; git -C "$R" commit -qm seed; git -C "$R" push -q -u origin main 2>/dev/null
   HOME="$T/a" BMUZ_SETUP_NO_PLUGINS=1 bash "$R/setup.sh" >/dev/null 2>&1
   # the other machine changes b and c; this one edits a and c without pushing
   mk2 b2; R2="$T/b2/.claude-config"
   echo "b-v2-other" > "$R2/skills/b/SKILL.md"; echo "c-v2-other" > "$R2/skills/c/SKILL.md"
+  echo "synced-other" > "$R2/skills/synced/x/SKILL.md" # claude.ai's own synced skills update on each machine by themselves
   git -C "$R2" commit -qam other; git -C "$R2" push -q 2>/dev/null
+  echo "synced-here" > "$T/a/.claude/skills/synced/x/SKILL.md"
   printf 'a-local\r\n' > "$T/a/.claude/skills/a/SKILL.md"   # (a CRLF edit still counts as an edit)
   echo "c-local" > "$T/a/.claude/skills/c/SKILL.md"
   git -C "$R" pull -q --ff-only 2>/dev/null

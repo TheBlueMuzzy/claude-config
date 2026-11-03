@@ -41,6 +41,8 @@ was_text() { git -C "$REPO_DIR" show "$APPLIED:$1" 2>/dev/null | tr -d '\r'; }
 keep_if_edited() { # $1 = path inside the repo / ~/.claude
   local rel="$1" live="$CLAUDE_DIR/$1" incoming="$REPO_DIR/$1"
   [ -f "$live" ] && [ -f "$incoming" ] && [ -n "$APPLIED" ] || return 0
+  # machine-made files that change by themselves on each machine (config-sync.sh's NOISE list): not anyone's edit
+  [[ "/$rel" =~ active-project\.json|last-checkup|/skills/synced/|node_modules|\.last-complete-round|obsidian-vault|/evals/results ]] && return 0
   same_text "$live" "$incoming" && return 0
   if git -C "$REPO_DIR" cat-file -e "$APPLIED:$rel" 2>/dev/null; then
     cmp -s <(was_text "$rel") <(tr -d '\r' < "$live") && return 0 # unchanged here → the incoming copy wins
