@@ -179,6 +179,7 @@ Rules:
 - **Reviews:** `/code-review` (low) per feature, on that feature's commits — a whole-branch diff is too big to read in one pass. Record `Reviewed through: <commit>` in STATE; /deliver reviews only what's newer + runs `/security-review` once on the branch.
 - Never hand Muzzy a command to run — run it, then link the results page ② (handoff-check sends back a card whose local links don't answer) · ③ the manner.
 - **A busy port fails at once, by name** (F118): check:full checks every port its e2e scripts use before it starts anything ① (check-all's port pre-flight). A new e2e script declares a fixed port as `const PORT = 5401` or a `// ports: 5401 1995` header line (a port read from the args counts from the E2E line) ③ (the convention).
+- **An e2e that fails only on a busy PC:** wait on what happens, never a fixed time; and a page that "never boots" may have lost a file (`net::ERR_NO_BUFFER_SPACE`: waiting longer can't help, load it again — Glyphtender `e2e/open-game.mjs`, B029) ③ (2026-11-03).
 
 ## STATE.md  (under ~120 lines)
 ```markdown
