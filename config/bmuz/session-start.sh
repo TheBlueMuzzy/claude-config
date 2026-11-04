@@ -109,8 +109,9 @@ STATE=.planning/STATE.md
 if [ -f "$STATE" ]; then
   if grep -q "RESUME HERE" "$STATE"; then
     echo ""
-    # Print the RESUME HERE section and the "Where we are" section
-    awk '/^## .*RESUME HERE/{p=1} /^## /&&!/RESUME HERE|Where we are/{p=0} p' "$STATE"
+    # Print the RESUME HERE section and the "Where we are" section — only headings that START with them
+    # (Goops' "## Earlier notes (moved out of RESUME HERE…)" got printed too: 47 KB every session, audit 2026-11-04)
+    awk '/^## (▶ )?RESUME HERE/{p=1} /^## /&&!/^## ((▶ )?RESUME HERE|Where we are)/{p=0} p' "$STATE"
   else
     echo ""
     echo "(Old GSD-style STATE.md — offer to convert this project to BMUZ-2 when Muzzy starts work.)"
