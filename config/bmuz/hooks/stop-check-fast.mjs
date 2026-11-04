@@ -5,7 +5,7 @@
 // pull or a Dev Kit edit, every question turn ran the check — or was sent back for work-in-progress that was red).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { readInput, readTurn, isFileEdit, isCommit, git, codeFingerprint, runCheckFast, holdCheckLock } from './lib.mjs'
+import { readInput, say, readTurn, isFileEdit, isCommit, git, codeFingerprint, runCheckFast, holdCheckLock } from './lib.mjs'
 
 const TIME_LIMIT_MS = Number(process.env.BMUZ_STOP_LIMIT_MS) || 300_000 // the hook itself gets 360 s (env = tests only)
 
@@ -44,10 +44,10 @@ if (code === 0) {
   process.exit(0)
 }
 const tail = output.trim().split('\n').slice(-40).join('\n')
-process.stdout.write(JSON.stringify({
+say({
   decision: 'block',
   reason: timedOut
     ? `npm run check:fast ran over ${TIME_LIMIT_MS / 60000} minutes, so the code wasn't confirmed. Say so plainly in your report (and why it's slow, if you can tell).`
     : `npm run check:fast is failing on the current code. Fix it before handing back — or, if it can't be fixed now, tell Muzzy plainly what's broken and why. Last lines:\n\n${tail}`,
-}))
+})
 process.exit(0)

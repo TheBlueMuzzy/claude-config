@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { readInput, STOPPING, DECIDING, DECISION_BRIEF, fromMuzzy } from './lib.mjs'
+import { readInput, say, STOPPING, DECIDING, DECISION_BRIEF, fromMuzzy } from './lib.mjs'
 
 const CTX_DIR = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx') // (tests use their own folder)
 const LEVELS = [90, 80]
@@ -36,8 +36,8 @@ if (event === 'UserPromptSubmit' || isCommit) {
 
 if (notes.length) {
   const text = notes.join('\n\n')
-  if (event === 'UserPromptSubmit') process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: text } }))
-  else process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: text } }))
+  if (event === 'UserPromptSubmit') say({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: text } })
+  else say({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: text } })
 }
 process.exit(0)
 

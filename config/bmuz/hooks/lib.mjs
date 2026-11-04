@@ -2,41 +2,81 @@
 // decides, and answers with JSON on stdout. Plain Node, no packages — runs the same on the PC and the laptop.
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve, isAbsolute, relative } from 'node:path'
+import { basename, dirname, join, resolve, isAbsolute, relative } from 'node:path'
 
 // The tool call Claude Code sends: { cwd, tool_name, tool_input: { command | file_path }, ... }
+let given = {} // kept for the firing log (which event, which project)
 export function readInput() {
   try {
-    return JSON.parse(readFileSync(0, 'utf8')) // 0 = stdin
+    given = JSON.parse(readFileSync(0, 'utf8')) // 0 = stdin
+    return given
   } catch {
     return {}
   }
 }
 
 // --- answers ---------------------------------------------------------------
+// Every answer goes out through say(), so every one is logged (F181) — a hook never writes stdout itself.
 
 // Stop a tool call before it runs. Claude sees the reason.
 export function deny(reason) {
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason },
-  }))
+  say({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } })
   process.exit(0)
 }
 
 // Before a tool call runs: show Muzzy a permission prompt with the reason, so he decides (F78). Not a refusal.
 export function ask(reason) {
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: reason },
-  }))
+  say({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: reason } })
   process.exit(0)
 }
 
 // After a tool ran: show Claude a message next to the result (the tool has already happened).
 export function tellClaude(reason) {
-  process.stdout.write(JSON.stringify({ decision: 'block', reason }))
+  say({ decision: 'block', reason })
   process.exit(0)
+}
+
+// Any hook answer (the JSON Claude Code reads on stdout), logged as one line. Doesn't exit.
+export function say(answer) {
+  process.stdout.write(JSON.stringify(answer))
+  const out = answer.hookSpecificOutput || {}
+  const kind = out.permissionDecision || (answer.decision === 'block' ? 'block' : 'context') // deny | ask | block | context
+  logFiring(kind, out.permissionDecisionReason || answer.reason || out.additionalContext || answer.systemMessage || '', out.hookEventName)
+}
+
+// A session-start script's note (crash-news, live-ping, producer-notes): plain text, which Claude reads as context.
+export function tellSession(text) {
+  console.log(text)
+  logFiring('context', text.trim(), 'SessionStart', process.argv[2] || '.')
+}
+
+// --- the firing log (F181) -------------------------------------------------------
+// One JSON line per answer in ~/.claude/logs/bmuz-hooks.jsonl (BMUZ_FIRE_LOG = tests), for the audit and /checkup:
+// which hook spoke, how, where, and what it said. Silent passes aren't logged. Past ~5 MB the file becomes
+// bmuz-hooks.1.jsonl (the one before is dropped). Logging must never change an answer: any error is swallowed.
+export const FIRE_LOG_MAX = 5_000_000
+export function logFiring(kind, text, event, dir) {
+  try {
+    const file = process.env.BMUZ_FIRE_LOG || join(homedir(), '.claude', 'logs', 'bmuz-hooks.jsonl')
+    const hook = basename(process.argv[1] || 'unknown').replace(/\.mjs$/, '')
+    const line = { t: new Date().toISOString(), hook, event: given.hook_event_name || event || '', kind, project: projectName(dir || given.cwd || process.cwd()), text: String(text).slice(0, 300), src: 'live' }
+    mkdirSync(dirname(file), { recursive: true })
+    try { if (statSync(file).size > FIRE_LOG_MAX) renameSync(file, file.replace(/\.jsonl$/, '.1.jsonl')) } catch {}
+    appendFileSync(file, JSON.stringify(line) + '\n')
+  } catch {}
+}
+
+// The project a folder belongs to: the name of the nearest folder holding .git, else the folder's own name.
+export function projectName(dir) {
+  let at = resolve(dir)
+  for (;;) {
+    if (existsSync(join(at, '.git'))) return basename(at)
+    const up = dirname(at)
+    if (up === at) return basename(resolve(dir))
+    at = up
+  }
 }
 
 // --- Stop hooks: sent back until it's done, not just once (F80) ---------------------
@@ -54,7 +94,7 @@ export function stopVerdict(hook, input, problems, { max = 3 } = {}) {
   try { sent = parseInt(readFileSync(counter, 'utf8'), 10) || 0 } catch {}
   if (sent >= max) { try { unlinkSync(counter) } catch {} ; return }
   try { mkdirSync(dir, { recursive: true }); writeFileSync(counter, String(sent + 1)) } catch {}
-  process.stdout.write(JSON.stringify({ decision: 'block', reason: problems }))
+  say({ decision: 'block', reason: problems })
 }
 
 // --- files that must never be committed (F78) ------------------------------------

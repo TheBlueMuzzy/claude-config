@@ -1,7 +1,7 @@
 // Proves every BMUZ hook blocks what it should and lets the normal case through (F68).
 // Run: node ~/.claude/config/bmuz/hooks/test-hooks.mjs   (a few seconds; makes throwaway repos in the temp folder)
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, mkdirSync, rmSync, symlinkSync, cpSync, utimesSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync, rmSync, symlinkSync, cpSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +12,8 @@ let passed = 0
 // Stop hooks count their send-backs per session (lib.stopVerdict) — in a throwaway folder, never the real ~/.claude/ctx
 const CTX = mkdtempSync(join(tmpdir(), 'bmuz-hooks-ctx-'))
 process.env.BMUZ_CTX_DIR = CTX
+// Every answer a hook gives is logged (lib.say, F181) — to a throwaway file here, never the real ~/.claude/logs
+process.env.BMUZ_FIRE_LOG = join(CTX, 'fire-log.jsonl')
 
 // Send a tool call to a hook; returns 'deny' | 'block' | 'allow' plus the message.
 export function runHook(script, input) {
@@ -1734,8 +1736,78 @@ function testFrozenFiles() {
   rmSync(root, { recursive: true, force: true })
 }
 
+
+function testFiringLog() {
+  console.log('the firing log — every answer a hook gives lands as one line (F181)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-firelog-'))
+  const log = join(root, 'logs', 'bmuz-hooks.jsonl')
+  const lines = (file = log) => existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : []
+  const run = (script, input, env = {}, args = []) => spawnSync('node', [script, ...args], { input: JSON.stringify(input), encoding: 'utf8', env: { ...process.env, BMUZ_FIRE_LOG: log, ...env } })
+  // a stand-in hook that answers the way it's told, through lib (its log name comes from its file name)
+  const fake = join(root, 'fake-hook.mjs')
+  const lib = JSON.stringify(new URL('./lib.mjs', import.meta.url).href)
+  writeFileSync(fake, `import * as lib from ${lib}\nconst input = lib.readInput()\nconst [how, text] = process.argv.slice(2)\nif (how === 'stop') lib.stopVerdict('fake', input, text)\nelse if (how === 'context') lib.say({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: text } })\nelse if (how === 'session') lib.tellSession(text)\nelse lib[how](text)\n`)
+  const project = join(root, 'my-game')
+  mkdirSync(join(project, '.git'), { recursive: true }); mkdirSync(join(project, 'src'))
+  const ways = [['deny', 'PreToolUse', 'deny'], ['ask', 'PreToolUse', 'ask'], ['tellClaude', 'PostToolUse', 'block'], ['stop', 'Stop', 'block'], ['context', 'PostToolUse', 'context']]
+  for (const [how, event, kind] of ways) {
+    const before = lines().length
+    const out = run(fake, { cwd: join(project, 'src'), hook_event_name: event, session_id: `fire-${how}` }, {}, [how, `the ${how} reason`])
+    const line = lines()[before] || {}
+    expect(`${how} → one line: hook fake-hook, kind ${kind}, event ${event}, project = the git root's name, the reason, src live`,
+      { result: lines().length === before + 1 && line.hook === 'fake-hook' && line.kind === kind && line.event === event && line.project === 'my-game' && line.text === `the ${how} reason` && line.src === 'live' && !isNaN(Date.parse(line.t)) && out.stdout.includes(`the ${how} reason`) ? 'logged' : 'missing', message: JSON.stringify(line) + out.stderr }, 'logged')
+  }
+  const before = lines().length
+  run(fake, {}, {}, ['session', '🐞 2 new errors from players'])
+  const said = lines()[before] || {}
+  expect('a session-start note (tellSession) → kind context, event SessionStart', { result: said.kind === 'context' && said.event === 'SessionStart' && said.text?.startsWith('🐞') ? 'logged' : 'missing', message: JSON.stringify(said) }, 'logged')
+  const long = run(fake, { cwd: project, hook_event_name: 'Stop' }, {}, ['tellClaude', 'x'.repeat(2000)])
+  expect('a long reason → the line keeps the first 300 characters; the answer keeps it all', { result: lines().at(-1)?.text?.length === 300 && long.stdout.includes('x'.repeat(2000)) ? 'cut' : 'whole', message: '' }, 'cut')
+
+  // real hooks, through lib
+  const { root: repoRoot, repo } = makeRepo()
+  const n = lines().length
+  run(join(HOOKS, 'guard-git.mjs'), { cwd: repo, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git reset --hard' } })
+  const g = lines()[n] || {}
+  expect('guard-git refusing reset --hard → a deny line from guard-git', { result: g.hook === 'guard-git' && g.kind === 'deny' && g.project === 'repo' && /reset --hard/.test(g.text) ? 'logged' : 'missing', message: JSON.stringify(g) }, 'logged')
+  run(join(HOOKS, 'guard-git.mjs'), { cwd: repo, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git status' } })
+  run(join(HOOKS, 'session-moments.mjs'), { hook_event_name: 'UserPromptSubmit', session_id: 'fire-quiet', prompt: 'make the cards bigger' })
+  expect('silent passes (git status, a plain message) → no line', { result: lines().length === n + 1 ? 'quiet' : 'logged', message: JSON.stringify(lines().slice(n + 1)) }, 'quiet')
+  run(join(HOOKS, 'session-moments.mjs'), { hook_event_name: 'UserPromptSubmit', session_id: 'fire-bed', prompt: "ok I'm going to bed" })
+  const m = lines().at(-1) || {}
+  expect('session-moments telling Claude (going to bed) → a context line', { result: m.hook === 'session-moments' && m.kind === 'context' && m.event === 'UserPromptSubmit' ? 'logged' : 'missing', message: JSON.stringify(m) }, 'logged')
+  rmSync(repoRoot, { recursive: true, force: true })
+
+  // logging never changes the answer
+  const blocker = join(root, 'a-file'); writeFileSync(blocker, 'not a folder\n')
+  const normal = run(fake, { hook_event_name: 'PreToolUse' }, {}, ['deny', 'same reason'])
+  const broken = run(fake, { hook_event_name: 'PreToolUse' }, { BMUZ_FIRE_LOG: join(blocker, 'logs', 'x.jsonl') }, ['deny', 'same reason'])
+  expect('an unwritable log path → the same answer, exit 0, nothing on stderr', { result: normal.stdout && broken.stdout === normal.stdout && broken.status === 0 && !broken.stderr ? 'same' : 'changed', message: `${broken.status} ${broken.stdout} ${broken.stderr}` }, 'same')
+
+  // the size cap: over ~5 MB → it becomes bmuz-hooks.1.jsonl (replacing the old one) and a fresh file starts
+  mkdirSync(join(root, 'logs'), { recursive: true })
+  writeFileSync(log, `${JSON.stringify({ old: true })}\n`.repeat(400_000))
+  writeFileSync(join(root, 'logs', 'bmuz-hooks.1.jsonl'), `${JSON.stringify({ older: true })}\n`)
+  run(fake, { hook_event_name: 'PreToolUse' }, {}, ['deny', 'after the cap'])
+  const rolled = lines(join(root, 'logs', 'bmuz-hooks.1.jsonl'))
+  expect('a log over 5 MB → renamed to bmuz-hooks.1.jsonl, the new line starts a fresh file', { result: lines().length === 1 && lines()[0].text === 'after the cap' && rolled.length === 400_000 && rolled[0].old ? 'rolled' : 'not', message: `${lines().length} / ${rolled.length}` }, 'rolled')
+
+  // only lib.mjs writes a hook's answer, so every answer is logged in one place
+  const allowed = { // console.log in a person-facing command mode (a report in a terminal, not a hook answer)
+    'plan-lint.mjs': 'node plan-lint.mjs <projectDir> prints its report', 'rule-kind.mjs': 'rule-kind.mjs --all prints its report',
+    'sketch-lint.mjs': 'node sketch-lint.mjs <file> prints its report', 'smoke-pass.mjs': 'a command Claude runs, not a hook',
+  }
+  const direct = []
+  for (const file of readdirSync(HOOKS).filter(f => f.endsWith('.mjs') && f !== 'lib.mjs' && f !== 'test-hooks.mjs')) {
+    readFileSync(join(HOOKS, file), 'utf8').split('\n').forEach((line, i) => {
+      if (/process\.(stdout|stderr)\.write|process\.exit\(2\)/.test(line) || (/console\.(log|error)\(/.test(line) && !allowed[file])) direct.push(`${file}:${i + 1}`)
+    })
+  }
+  expect('no hook writes its answer itself (only lib.mjs does — so the log sees every answer)', { result: direct.length ? 'direct' : 'lib', message: direct.join(', ') }, 'lib')
+  rmSync(root, { recursive: true, force: true })
+}
 const only = process.argv[2]
-const suites = { 'guard-edits-frozen': testFrozenFiles, 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
+const suites = { 'fire-log': testFiringLog, 'guard-edits-frozen': testFrozenFiles, 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)

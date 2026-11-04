@@ -25,7 +25,7 @@
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, relative, isAbsolute } from 'node:path'
-import { readInput, deny, toDir, dropHeredocs, commands } from './lib.mjs'
+import { readInput, deny, say, toDir, dropHeredocs, commands } from './lib.mjs'
 import { readQueue, frozenEntry } from '../scripts/lib.mjs'
 import { processes, shortCommand } from '../templates/ports.mjs'
 
@@ -152,7 +152,7 @@ finish()
 function finish() {
   if (warnings.length) {
     const text = warnings.join('\n')
-    process.stdout.write(JSON.stringify({ systemMessage: text, hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } }))
+    say({ systemMessage: text, hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } })
   }
   process.exit(0)
 }

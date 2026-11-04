@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, dirname, join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { readRoadmap, readSprint, readBugs, isOpenBug } from '../templates/ppp/plan-reader.mjs'
-import { git, readInput, tellClaude, trimLog, LOG_KEEP } from './lib.mjs'
+import { git, readInput, say, tellClaude, trimLog, LOG_KEEP } from './lib.mjs'
 
 const PLAN_FILES = ['ROADMAP.md', 'SPRINT.md', 'BUGS.md', 'STATE.md']
 const LISTING = '.planning/' // texts[LISTING] = the folder's entries (the last commit's, for "new since HEAD")
@@ -65,7 +65,7 @@ if (mine.length) {
   const lines = mine.map(p => `- ${p.file}${p.line ? `:${p.line}` : ''}  ${p.message}`)
   tellClaude(`plan-lint found problems in .planning/${basename(full)} (rules: ~/.claude/config/bmuz/PROJECT-FILES.md) — fix them now:\n${lines.join('\n')}${pppNote}${trimNote ? `\n${trimNote}` : ''}`)
 }
-if (trimNote) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: trimNote } }))
+if (trimNote) say({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: trimNote } })
 process.exit(0)
 
 // Every problem in a project's plan files: { file, line, message }.

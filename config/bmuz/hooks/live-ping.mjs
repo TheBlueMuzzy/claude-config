@@ -8,7 +8,7 @@
 import { lookup } from 'node:dns/promises'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { askAddress, liveUrl, roomsHealthUrl } from './lib.mjs'
+import { askAddress, liveUrl, roomsHealthUrl, tellSession } from './lib.mjs'
 
 const dir = resolve(process.argv[2] || '.')
 let state
@@ -41,5 +41,5 @@ if (down.some(c => typeof c.answer !== 'number' && !/^no such server/.test(c.ans
 for (const c of down) {
   const why = typeof c.answer === 'number' ? `HTTP ${c.answer}` : /^no such server/.test(c.answer) ? c.answer : c.answer === 'ENOTFOUND' ? 'the address no longer exists' : `no answer: ${c.answer}`
   const fix = c.what === 'the room server' ? 'npm run party:deploy, then live-check.mjs' : 'live-check.mjs to look closer · rollback.mjs if the last release broke it'
-  console.log(`⚠ ${c.what.replace(/^t/, 'T')} is DOWN — ${c.url} (${why}). Tell Muzzy first thing; ${fix}.`)
+  tellSession(`⚠ ${c.what.replace(/^t/, 'T')} is DOWN — ${c.url} (${why}). Tell Muzzy first thing; ${fix}.`)
 }

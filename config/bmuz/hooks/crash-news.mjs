@@ -15,6 +15,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { tellSession } from './lib.mjs'
 
 const dir = resolve(process.argv[2] || '.')
 let state
@@ -26,7 +27,7 @@ const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]']
 const url = /^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~/-]*)?$/.test(given) ? given : ''
 const local = url !== '' && LOCAL_HOSTS.includes(new URL(url).hostname)
 if (!url || (!url.startsWith('https://') && !local)) {
-  console.log(`🐞 STATE's Crashes: address isn't one a token may go to (https://, plain letters and digits) — not asked.`)
+  tellSession(`🐞 STATE's Crashes: address isn't one a token may go to (https://, plain letters and digits) — not asked.`)
   process.exit(0)
 }
 const host = new URL(url).host.toLowerCase().replace(':', '_')
@@ -34,7 +35,7 @@ const folder = process.env.BMUZ_CRASHES_DIR || join(homedir(), '.config', 'bmuz'
 const read = (file) => { try { return readFileSync(join(folder, file), 'utf8').trim() } catch { return '' } }
 const token = (local && process.env.CRASHES_TOKEN) || read(`${host}.token`)
 if (!token) {
-  console.log(`🐞 This project has a crash server (${url}) but this machine has no token for it — put it in ${join(folder, `${host}.token`)} (the one given to wrangler secret put CRASHES_TOKEN).`)
+  tellSession(`🐞 This project has a crash server (${url}) but this machine has no token for it — put it in ${join(folder, `${host}.token`)} (the one given to wrangler secret put CRASHES_TOKEN).`)
   process.exit(0)
 }
 const WEEK = 7 * 24 * 3600 * 1000
@@ -49,7 +50,7 @@ try {
     redirect: 'error', // the token never follows a redirect to somewhere else
     signal: AbortSignal.timeout(Number(process.env.BMUZ_PING_MS || 3000)),
   })
-  if (res.status === 404) console.log(`🐞 The crash server at ${url} didn't accept this machine's token (${join(folder, `${host}.token`)}) — check it matches CRASHES_TOKEN.`)
+  if (res.status === 404) tellSession(`🐞 The crash server at ${url} didn't accept this machine's token (${join(folder, `${host}.token`)}) — check it matches CRASHES_TOKEN.`)
   else if (res.ok) answer = await res.json()
   else await res.body?.cancel()
 } catch { /* slow or offline: say nothing */ }
@@ -61,7 +62,7 @@ if (answer && typeof answer === 'object') {
   const parts = []
   if (fresh) parts.push(`${fresh} new error${fresh === 1 ? '' : 's'} from players`)
   if (back) parts.push(`${back} came back`)
-  if (parts.length) console.log(`🐞 ${parts.join(', ')} since last time — \`npm run crashes\` shows them with real file lines. Tell Muzzy first thing.`)
+  if (parts.length) tellSession(`🐞 ${parts.join(', ')} since last time — \`npm run crashes\` shows them with real file lines. Tell Muzzy first thing.`)
   const now = Number.isFinite(answer.now) && answer.now > 0 ? answer.now : Date.now()
   try {
     mkdirSync(folder, { recursive: true })

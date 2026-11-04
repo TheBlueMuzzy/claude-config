@@ -84,6 +84,18 @@ hook looked); the sprint nudge sent Claude looking for SPRINT.md in the wrong fo
 
 **Plan files by hand:** `node ~/.claude/config/bmuz/hooks/plan-lint.mjs <project>` lists every problem (the hook itself only mentions new ones). It only reports — it never trims the Log (a check doesn't edit what it checks); the hook and save.mjs do ① (plan-lint.mjs, save.mjs).
 
+**The firing log (F181):** each time a hook refuses, asks, sends a turn back or tells Claude something, one line ① (lib.say)
+goes into `~/.claude/logs/bmuz-hooks.jsonl` (this machine only, not synced): `{t, hook, event, kind: deny|ask|block|context|stderr,
+project, text (first 300 chars), src: "live"}`. Silent passes aren't logged. It's for the audit and /checkup: which hooks
+fire, how often, and which fire falsely. Every answer goes out through `say()` in hooks/lib.mjs (deny / ask / tellClaude /
+stopVerdict use it; session-start notes use `tellSession()`), so a hook never writes stdout itself ① (test-hooks
+"fire-log" fails on a hook that does). Logging errors are swallowed, so the answer stays the same ① (lib.logFiring); past ~5 MB the file
+becomes `bmuz-hooks.1.jsonl`. Tests send it elsewhere with `BMUZ_FIRE_LOG`.
+**Before the log:** `node ~/.claude/config/bmuz/scripts/hook-history.mjs` reads every past session transcript
+(`~/.claude/projects/`, helpers' too) and writes the same lines with `src: "history"` + the session file to
+`~/.claude/logs/bmuz-hooks-history.jsonl` (rewritten each run), then prints per hook: counts by kind, how many sessions it
+fired in, its 5 most frequent texts. A crashed hook shows as `stderr` there (the live log can't see a crash).
+
 **Switching one off:** delete its block in `~/.claude/settings.json` (hooks 1, 3–13, 15–18, 20–24 — the PreToolUse/PostToolUse/UserPromptSubmit/Stop
 entries; 19 and 25 live in session-start.sh); type `/hooks` to see what's loaded.
 Everything goes to the laptop with /sync.

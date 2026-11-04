@@ -9,6 +9,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const SCRIPTS = dirname(fileURLToPath(import.meta.url))
 let passed = 0
 let failed = 0
+// A hook a script runs logs its answer (hooks/lib.mjs say, F181) — to a throwaway file, never the real ~/.claude/logs
+process.env.BMUZ_FIRE_LOG = join(mkdtempSync(join(tmpdir(), 'bmuz-firelog-')), 'fire-log.jsonl')
 
 // A stand-in for config-sync.sh, so no test ever pulls or pushes the real ~/.claude-config (save.mjs step 7):
 // `status` prints $FAKE_SYNC_STATUS, `push` appends to $FAKE_SYNC_LOG and says PUSHED.
@@ -1720,8 +1722,49 @@ function testFrameworkAround() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// hook-history.mjs (F181): how each kind of hook answer shows up in a transcript → one history line, each answer once
+async function testHookHistory() {
+  console.log('hook-history — past hook answers read back from the transcripts')
+  const { firingsIn, summary } = await import(pathToFileURL(join(SCRIPTS, 'hook-history.mjs')).href)
+  const at = { timestamp: '2026-11-04T01:00:00.000Z', cwd: 'C:\\nowhere\\my-game', sessionId: 's1' }
+  const stop = { ...at, uuid: 'u1', type: 'attachment', attachment: { type: 'hook_blocking_error', hookName: 'Stop', hookEvent: 'Stop', blockingError: { blockingError: 'You did work this turn, so end with the hand-off card', command: 'node "$HOME/.claude/config/bmuz/hooks/handoff-check.mjs"' } } }
+  const one = (entry) => firingsIn(entry).map(f => `${f.hook} ${f.event} ${f.kind} ${f.text.slice(0, 20)}`)
+  const result = (text) => ({ ...at, uuid: 'u2', type: 'user', message: { role: 'user', content: [{ type: 'tool_result', is_error: true, content: text }] } })
+  expect('a Stop send-back → the hook from its command, kind block', one(stop).join() === 'handoff-check Stop block You did work this tu', one(stop))
+  expect('a PreToolUse refusal from Bash → guard-git, kind deny', one(result('PreToolUse:Bash hook error: Blocked: `git reset --hard` throws work away')).join() === 'guard-git PreToolUse deny Blocked: `git reset ', one(result('PreToolUse:Bash hook error: Blocked: x')))
+  expect('…a heredoc refusal → guard-edits (told apart by its words)', one(result('PreToolUse:Bash hook error: Blocked: this writes a code file through a heredoc')).join().startsWith('guard-edits PreToolUse deny'))
+  expect('…a type check refusal → commit-typecheck', one(result('PreToolUse:PowerShell hook error: Blocked: the type check failed in ui-kit')).join().startsWith('commit-typecheck'))
+  expect('…a smoke-pass refusal → live-push', one(result('PreToolUse:Bash hook error: Blocked: pushing `main` (it deploys the live site) puts code live')).join().startsWith('live-push'))
+  expect('…an Edit refusal → guard-edits', one({ ...result('PreToolUse:Edit hook error: Blocked: src/ui/kit/Button.tsx is this game\'s COPY'), uuid: 'u3' }).join().startsWith('guard-edits'))
+  expect('a tool result that only quotes a refusal (not at its start) → nothing', one(result('the log says PreToolUse:Bash hook error: Blocked: x')).length === 0)
+  const context = (hookName, content) => ({ ...at, uuid: 'u4', type: 'attachment', attachment: { type: 'hook_additional_context', hookName, hookEvent: hookName.split(':')[0], toolUseID: 't1', content } })
+  expect('additionalContext on a message → session-moments, kind context, its text', one(context('UserPromptSubmit', ['Muzzy says they are stopping'])).join() === 'session-moments UserPromptSubmit context Muzzy says they are ', one(context('UserPromptSubmit', ['Muzzy says they are stopping'])))
+  expect('…after an Edit → plan-lint (the Log trim note)', one(context('PostToolUse:Edit', ['Moved 1 old Log line(s)'])).join().startsWith('plan-lint PostToolUse context'))
+  expect("…Claude Code's own \"PostToolUse hook modified <file>\" note → nothing", one(context('PostToolUse:Edit', ['PostToolUse hook modified C:\\x\\STATE.md'])).length === 0)
+  const crash = { ...at, uuid: 'u5', type: 'attachment', attachment: { type: 'hook_non_blocking_error', hookName: 'PreToolUse:Edit', hookEvent: 'PreToolUse', stderr: 'Failed with non-blocking status code: ReferenceError: x', command: 'node "$HOME/.claude/config/bmuz/hooks/guard-edits.mjs"' } }
+  expect('a hook that crashed → kind stderr, from its command', one(crash).join() === 'guard-edits PreToolUse stderr ReferenceError: x', one(crash))
+  const start = { ...at, uuid: 'u6', type: 'attachment', attachment: { type: 'hook_success', hookName: 'SessionStart:startup', hookEvent: 'SessionStart', content: '=== BMUZ-2 — g ===\n🐞 1 new error from players since last time\n⚠ The live page is DOWN — https://x (HTTP 500). Tell Muzzy\n\n📅 Sprint 07 · day 9\n  ⚠ Waiting on you: 1 task' } }
+  expect('the session-start notes → crash-news, live-ping, producer-notes (the banner itself isn\'t counted)', firingsIn(start).map(f => f.hook).join() === 'crash-news,live-ping,producer-notes', firingsIn(start))
+  expect('the copies of a send-back (stop_hook_summary, "Stop hook feedback") → nothing', firingsIn({ ...at, type: 'system', subtype: 'stop_hook_summary', hookErrors: ['x'] }).length === 0 && firingsIn({ ...at, type: 'user', message: { role: 'user', content: 'Stop hook feedback:\nx' } }).length === 0)
+
+  // the whole run: transcripts + a helper's, a repeated entry once, the file rewritten each run
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-history-'))
+  const projects = join(root, 'projects')
+  write(join(projects, 'C--game', 's1.jsonl'), [stop, stop, { ...at, type: 'user', message: { content: 'nothing here' } }].map(e => JSON.stringify(e)).join('\n') + '\nnot json but a hook word\n')
+  write(join(projects, 'C--game', 's1', 'subagents', 'agent-a1.jsonl'), JSON.stringify({ ...result('PreToolUse:Bash hook error: Blocked: force-pushing rewrites history'), uuid: 'u9', sessionId: 's1' }) + '\n')
+  const out = join(root, 'history.jsonl')
+  const first = script('hook-history.mjs', [projects], { env: { BMUZ_HISTORY_OUT: out } })
+  script('hook-history.mjs', [projects], { env: { BMUZ_HISTORY_OUT: out } })
+  const lines = readFileSync(out, 'utf8').trim().split('\n').map(l => JSON.parse(l))
+  expect('2 answers (the repeated one once, the helper\'s too), still 2 after a second run (rewritten, not added to)', first.code === 0 && lines.length === 2, `${first.out}\n${lines.length}`)
+  expect('…each in the live log\'s shape with src "history" and the session file', lines.every(l => l.src === 'history' && l.project === 'my-game' && l.t && l.kind && l.text) && lines.map(l => l.session).sort().join() === 'agent-a1.jsonl,s1.jsonl', JSON.stringify(lines))
+  expect('…the summary: hook → kinds, sessions (helper = same session), top texts', /handoff-check\s+1\s+0\s+0\s+1\s+0\s+0\s+1/.test(first.out) && /2 hook answers in 1 sessions/.test(first.out) && /guard-git — most frequent:\n\s+1 {2}Blocked: force-pushing/.test(first.out), first.out)
+  expect('summary() of nothing → just the header', summary([]).split('\n').length === 1)
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList, 'release-crash-maps': testReleaseCrashMaps,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract }
+const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList, 'release-crash-maps': testReleaseCrashMaps,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract, 'hook-history': testHookHistory }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)

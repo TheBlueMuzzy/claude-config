@@ -7,6 +7,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { tellSession } from './lib.mjs'
 import { readRoadmap, readSprint, readBugs } from '../templates/ppp/plan-reader.mjs'
 
 const dir = resolve(process.argv[2] || '.')
@@ -105,7 +106,6 @@ if (bugsText) {
 if (waiting.length) attention.push(`Waiting on you: ${waiting.join(' · ')}`)
 
 if (!out.length && !attention.length) process.exit(0)
-console.log('')
-for (const l of out) console.log(`📅 ${l}`)
-for (const l of attention) console.log(`  ⚠ ${l}`)
-if (attention.length) console.log('  → producer notes: bring the ⚠ lines up with Muzzy in plain words before starting work.')
+const lines = ['', ...out.map(l => `📅 ${l}`), ...attention.map(l => `  ⚠ ${l}`)]
+if (attention.length) lines.push('  → producer notes: bring the ⚠ lines up with Muzzy in plain words before starting work.')
+tellSession(lines.join('\n'))
