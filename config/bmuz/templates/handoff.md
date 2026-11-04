@@ -17,6 +17,9 @@ here and the check follows (it reads every `**Label:**` in the card).
 ```
 A `/command` under **Next** means "type this when you're ready". Never put one there while helpers are still working — Muzzy reads it as his cue and types it again and again (2026-10-30: five `/develop`s during F168).
 
+Questions are only ones a designer can answer from what he sees, plays or wants — never an engineering choice
+(how it's built, where a check runs, which verdict on a code audit): Claude decides those, says so in Done, and logs
+why (Muzzy, 2026-11-04: "remember, i don't really understand this level of technical decisions") ③.
 Questions holds questions only (Muzzy, 2026-10-23: "this didn't seem like a question. it felt like information. this
 section is called Questions: i'm confused by that") — information goes in Done / You'll see, actions in Your to-dos; the
 check sends back a Questions item with no "?". A question about something on screen names it as a player would (the
