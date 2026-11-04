@@ -39,7 +39,30 @@ unapplied() {
   [ -f "$APPLIED" ] || return 0
   local applied; applied=$(cat "$APPLIED")
   git -C "$REPO" cat-file -e "$applied^{commit}" 2>/dev/null || { echo unknown; return 0; }
-  git -C "$REPO" rev-list "$applied..@{u}" 2>/dev/null | head -1
+  local ahead; ahead=$(git -C "$REPO" rev-list "$applied..@{u}" 2>/dev/null)
+  [ -n "$ahead" ] || return 0
+  # F180 — Sync knows its own pushes: commits made straight in the repo ON THIS MACHINE (git's reflog says "commit")
+  # whose files this machine already has are its own work, not incoming — the marker only moves on `push` and
+  # setup.sh, so they stayed "incoming" and blocked the push (2026-11-03: 6 of this PC's own sprint-51 commits).
+  # A commit the other machine made is always incoming.
+  local mine; mine=$(git -C "$REPO" reflog --format='%H %gs' 2>/dev/null | awk '$2 ~ /^commit/ { print $1 }')
+  local c; for c in $ahead; do printf '%s\n' "$mine" | grep -qx "$c" || { echo "$c"; return 0; }; done
+  local f live; while IFS= read -r f; do # …and this machine's copies match them (line endings aside, like setup.sh)
+    case "$f" in HUB.md) live="$HUB" ;; *) live="$LIVE/$f" ;; esac
+    is_synced "$f" || continue # setup.sh, README: they live in the repo only
+    if git -C "$REPO" cat-file -e "@{u}:$f" 2>/dev/null; then
+      cmp -s <(git -C "$REPO" show "@{u}:$f" | tr -d '\r') <(tr -d '\r' < "$live" 2>/dev/null) || { echo "$f"; return 0; }
+    elif [ -e "$live" ]; then echo "$f"; return 0; fi
+  done < <(git -C "$REPO" diff --name-only "$applied" "@{u}")
+  git -C "$REPO" rev-parse "@{u}" > "$APPLIED" # level with it already
+}
+# A repo path that's copied to and from this machine (FILES, DIRS, HUB.md — not the noise)
+is_synced() {
+  [ "$1" = HUB.md ] && return 0
+  printf '%s\n' "$1" | grep -Eq "$NOISE" && return 1
+  local x; for x in $FILES; do [ "$1" = "$x" ] && return 0; done
+  for x in $DIRS; do case "$1" in "$x"/*) return 0 ;; esac; done
+  return 1
 }
 
 case "${1:-status}" in

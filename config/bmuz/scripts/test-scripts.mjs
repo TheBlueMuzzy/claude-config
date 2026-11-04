@@ -531,7 +531,8 @@ function testSave() {
 // F80 review #1: a save on one machine must never push its older setup over the other machine's newer changes
 function testConfigSync() {
   console.log('config-sync — never pushes over the other machine\'s changes')
-  const r = spawnSync('bash', [join(SCRIPTS, 'test-config-sync.sh')], { encoding: 'utf8', timeout: 120_000 })
+  // (~110 s on the PC: ~20 sync runs, each a git pull + a diff over the fake ~/.claude — F180 took it past 120 s)
+  const r = spawnSync('bash', [join(SCRIPTS, 'test-config-sync.sh')], { encoding: 'utf8', timeout: 300_000 })
   const out = `${r.stdout || ''}${r.stderr || ''}`
   expect('the run finished', r.status === 0 && /DONE/.test(out), out)
   expect('the laptop pushed its change', /LAPTOP-PUSH PUSHED/.test(out), out)
@@ -540,6 +541,10 @@ function testConfigSync() {
   expect('PC push → refused (NOT-APPLIED), nothing pushed', /PC-PUSH-2 NOT-APPLIED/.test(out) && !/PC-PUSH-2 PUSHED/.test(out), out)
   expect('…GitHub keeps the laptop\'s version', /REMOTE v2-laptop/.test(out), out)
   expect('after applying it → status quiet', !/STATUS-3/.test(out), out)
+  // F180 — Sync knows its own pushes
+  expect('F180: this machine\'s own commit made straight in the repo (live files match) → not INCOMING', !/STATUS-OWN INCOMING/.test(out), out)
+  expect('F180: …and a push works', /PC-PUSH-OWN PUSHED/.test(out), out)
+  expect('F180: a real change from the other machine still counts → INCOMING', /STATUS-OTHER INCOMING/.test(out), out)
   // F176 — Sync keeps unpushed edits (setup.sh)
   expect('F176: a file edited here, not pushed → kept by setup.sh', /SETUP-A a-local/.test(out), out)
   expect('F176: …and named', /SETUP-OUT .*kept.*skills\/a\/SKILL\.md/i.test(out), out)

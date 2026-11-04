@@ -31,6 +31,21 @@ cp "$T/pc/.claude-config/skills/a/SKILL.md" "$T/pc/.claude/skills/a/SKILL.md"
 git -C "$T/pc/.claude-config" rev-parse HEAD > "$T/pc/.claude/.config-applied"
 HOME="$T/pc" bash "$SYNC" status 2>/dev/null | sed 's/^/STATUS-3 /'
 
+# F180 — Sync knows its own pushes: this machine commits straight in its repo (not through `push`, so the marker
+# stays behind) — a skill file it also has live, and a repo-only file (setup.sh). Its own work isn't "incoming".
+echo v3-pc > "$T/pc/.claude/skills/a/SKILL.md"; cp "$T/pc/.claude/skills/a/SKILL.md" "$T/pc/.claude-config/skills/a/SKILL.md"
+echo "# setup" > "$T/pc/.claude-config/setup.sh"
+git -C "$T/pc/.claude-config" add -A; git -C "$T/pc/.claude-config" commit -qm "pc direct"; git -C "$T/pc/.claude-config" push -q 2>/dev/null
+HOME="$T/pc" bash "$SYNC" status 2>/dev/null | sed 's/^/STATUS-OWN /'
+echo v4-pc > "$T/pc/.claude/skills/a/SKILL.md"
+HOME="$T/pc" bash "$SYNC" push "pc after its own direct commit" 2>/dev/null | sed 's/^/PC-PUSH-OWN /'
+# …while a real change from the other machine still counts: the laptop changes the skill, the PC's live copy differs
+HOME="$T/laptop" bash "$SYNC" status >/dev/null 2>&1; cp "$T/laptop/.claude-config/skills/a/SKILL.md" "$T/laptop/.claude/skills/a/"
+git -C "$T/laptop/.claude-config" rev-parse HEAD > "$T/laptop/.claude/.config-applied"
+echo v5-laptop > "$T/laptop/.claude/skills/a/SKILL.md"
+HOME="$T/laptop" bash "$SYNC" push "laptop again" >/dev/null 2>&1
+HOME="$T/pc" bash "$SYNC" status 2>/dev/null | grep '^INCOMING' | sed 's/^/STATUS-OTHER /'
+
 # F176 — Sync keeps unpushed edits: setup.sh (what /sync runs) must not wipe a file edited here since the last sync.
 # The real setup.sh, copied into a fake machine's repo; plugins off. (2026-11-03: another session's /sync wiped the
 # F172 hook fix at 13:17:59.)
