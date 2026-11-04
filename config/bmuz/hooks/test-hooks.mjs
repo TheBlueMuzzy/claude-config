@@ -617,6 +617,8 @@ function testHandoffCheck() {
   expect('…with the Weighed block → allowed', stop([prompt(decide), say(weighed)]), 'allow')
   const noSource = stop([prompt(decide), say(weighed.replace('BMUZ-PLAN.md calls the framework "the bricks BMUZ lays down"', 'they were always together'))])
   expect('…but "why it\'s this way" with nothing checked (no file, commit or quote) → sent back', noSource, 'block')
+  // its first real use: the Done section said "a short **Weighed:** block…" in a sentence, and the check read that
+  expect('…"**Weighed:**" named in a sentence earlier, the real block later → allowed (the label starts its own line)', stop([prompt(decide), say(`**Done:** answers now carry a short **Weighed:** block.\n\n${weighed}`)]), 'allow')
   expect('a decision question answered with facts only (no pick) → allowed', stop([prompt(decide), say('They live in two folders: ~/.claude and dev/framework.')]), 'allow')
   expect('a pick after a plain request (not a decision question) → no Weighed needed', stop([prompt('list the framework tasks'), say('1. Next sprint?\n   - Small fixes (my pick)')]), 'allow')
   expect('work + plain message → sent back', stop([...work, say('Done! I fixed it.')]), 'block')

@@ -88,7 +88,9 @@ const WEIGHED_PARTS = ["Why it's this way", 'Long term', 'Standards', 'Your goal
 // (a file, a commit, or quoted words). Returns the problem in words, or ''.
 export function weighedProblem(said, answer) {
   if (!DECIDING.test(said || '') || !/my pick|I recommend|my recommendation|recommend(ation)?:/i.test(answer || '')) return ''
-  const block = /\*\*Weighed:?\*\*:?([\s\S]*?)(\n\*\*[A-Z][^*\n]*:?\*\*|$)/.exec(answer)?.[1] || ''
+  // the block = the label at the START of a line (its first real use named "**Weighed:** block" in a Done sentence),
+  // up to the next bold label that starts a line
+  const block = /(?:^|\n)\*\*Weighed:?\*\*:?([\s\S]*?)(?=\n\*\*[A-Z][^*\n]*:?\*\*|$(?![\s\S]))/.exec(answer)?.[1] || ''
   const missing = WEIGHED_PARTS.filter(part => !block.toLowerCase().includes(part.toLowerCase()))
   const why = (/why it'?s this way[^\n]*/i.exec(block) || [''])[0]
   const sourced = /[\w-]+\.(md|mjs|js|ts|tsx|json|sh)\b|\b[0-9a-f]{7,40}\b|["“`]|\bcommit\b|\bsprint \d+/i.test(why)
