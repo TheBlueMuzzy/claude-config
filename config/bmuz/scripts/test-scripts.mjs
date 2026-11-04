@@ -534,24 +534,28 @@ function testConfigSync() {
   // (~110 s on the PC: ~20 sync runs, each a git pull + a diff over the fake ~/.claude — F180 took it past 120 s)
   const r = spawnSync('bash', [join(SCRIPTS, 'test-config-sync.sh')], { encoding: 'utf8', timeout: 300_000 })
   const out = `${r.stdout || ''}${r.stderr || ''}`
-  expect('the run finished', r.status === 0 && /DONE/.test(out), out)
+  // a "this line must NOT appear" check passes on output that was cut short — so each one needs the run to have
+  // finished (v0.36 look-back: an F180 "not INCOMING" showed ✓ because the 120 s limit cut the run before that line)
+  const finished = r.status === 0 && /DONE/.test(out)
+  const absent = (pattern) => finished && !pattern.test(out)
+  expect('the run finished', finished, out)
   expect('the laptop pushed its change', /LAPTOP-PUSH PUSHED/.test(out), out)
   expect('PC 1st status → INCOMING', /STATUS-1 INCOMING/.test(out), out)
   expect('PC 2nd status, still not applied → still INCOMING (the review\'s bug: it went quiet)', /STATUS-2 INCOMING/.test(out), out)
-  expect('PC push → refused (NOT-APPLIED), nothing pushed', /PC-PUSH-2 NOT-APPLIED/.test(out) && !/PC-PUSH-2 PUSHED/.test(out), out)
+  expect('PC push → refused (NOT-APPLIED), nothing pushed', /PC-PUSH-2 NOT-APPLIED/.test(out) && absent(/PC-PUSH-2 PUSHED/), out)
   expect('…GitHub keeps the laptop\'s version', /REMOTE v2-laptop/.test(out), out)
-  expect('after applying it → status quiet', !/STATUS-3/.test(out), out)
+  expect('after applying it → status quiet', absent(/STATUS-3/), out)
   // F180 — Sync knows its own pushes
-  expect('F180: this machine\'s own commit made straight in the repo (live files match) → not INCOMING', !/STATUS-OWN INCOMING/.test(out), out)
+  expect('F180: this machine\'s own commit made straight in the repo (live files match) → not INCOMING', absent(/STATUS-OWN INCOMING/), out)
   expect('F180: …and a push works', /PC-PUSH-OWN PUSHED/.test(out), out)
   expect('F180: a real change from the other machine still counts → INCOMING', /STATUS-OTHER INCOMING/.test(out), out)
   // F176 — Sync keeps unpushed edits (setup.sh)
   expect('F176: a file edited here, not pushed → kept by setup.sh', /SETUP-A a-local/.test(out), out)
   expect('F176: …and named', /SETUP-OUT .*kept.*skills\/a\/SKILL\.md/i.test(out), out)
   expect('F176: a file only the other machine changed → copied in', /SETUP-B b-v2-other/.test(out), out)
-  expect('F176 fix: claude.ai\'s synced skills (machine-made, config-sync\'s noise) are never reported as kept', !/SETUP-OUT .*skills\/synced/.test(out), out)
+  expect('F176 fix: claude.ai\'s synced skills (machine-made, config-sync\'s noise) are never reported as kept', absent(/SETUP-OUT .*skills\/synced/), out)
   expect('F176: changed on both machines → this one kept, said as both', /SETUP-C c-local/.test(out) && /SETUP-OUT .*both.*skills\/c\/SKILL\.md/i.test(out), out)
-  expect('F176: line endings alone are not an edit', !/SETUP-CRLF/.test(out), out)
+  expect('F176: line endings alone are not an edit', absent(/SETUP-CRLF/), out)
 }
 
 // F80: what /save's skill text used to ask Claude to remember — checks, RESUME HERE, planner, setup sync — now the script
