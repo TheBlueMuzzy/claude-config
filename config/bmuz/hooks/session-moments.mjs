@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { readInput, STOPPING, fromMuzzy } from './lib.mjs'
+import { readInput, STOPPING, DECIDING, DECISION_BRIEF, fromMuzzy } from './lib.mjs'
 
 const CTX_DIR = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx') // (tests use their own folder)
 const LEVELS = [90, 80]
@@ -20,6 +20,9 @@ const notes = []
 if (event === 'UserPromptSubmit' && fromMuzzy(input.prompt) && STOPPING.test(input.prompt || '')) {
   notes.push('Muzzy says they are stopping or switching machines. If they asked you to keep working while they are away (autonomous mode), keep going and /save after every feature. Otherwise run /save now and confirm "pushed — safe to switch machines."')
 }
+
+// 3. Muzzy asks a decision question → weigh it from every side before answering (lib.DECISION_BRIEF, 2026-11-04)
+if (event === 'UserPromptSubmit' && fromMuzzy(input.prompt) && DECIDING.test(input.prompt || '')) notes.push(DECISION_BRIEF)
 
 // a commit typed in the shell, or one the BMUZ scripts make inside their own process (saves, releases, merges — the
 // commits autonomous runs make most; audit 2026-10-19)

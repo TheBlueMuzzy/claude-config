@@ -607,6 +607,18 @@ function testHandoffCheck() {
   ].join('\n')
   const work = [prompt('go'), tool('Edit', { file_path: 'a.ts' }), result]
   expect('question only, no work → no card needed', stop([prompt('what does 1 do?'), say('It stops three git commands.')]), 'allow')
+  // Muzzy 2026-11-04: "I don't want you making a decision with only half of a perspective" — Claude recommended
+  // splitting BMUZ from the framework just because Muzzy raised it, and only weighed why they were together when asked
+  const decide = 'should I open a new CLI and have it handle the BMUZ changes, while you take on the framework ones?'
+  const halfLook = stop([prompt(decide), say('Yes — split them.\n\n**Questions:**\n1. Split them?\n   - Yes (my pick)\n   - No')])
+  expect('a decision question + a pick with no Weighed block → sent back', halfLook, 'block')
+  expect('…names the five things to weigh', { result: /Weighed/.test(halfLook.message) && /Why it's this way/.test(halfLook.message) && /Against my pick/.test(halfLook.message) ? 'ok' : 'no', message: halfLook.message }, 'ok')
+  const weighed = '**Weighed:**\n- Why it\'s this way now: BMUZ-PLAN.md calls the framework "the bricks BMUZ lays down"\n- Long term: one plan keeps the checks\n- Standards: ADRs (big studios), a decision log (indie)\n- Your goals: one thing at a time (CLAUDE.md)\n- Against my pick: two sessions would be faster\n\n**Questions:**\n1. Keep one session?\n   - Yes (my pick)'
+  expect('…with the Weighed block → allowed', stop([prompt(decide), say(weighed)]), 'allow')
+  const noSource = stop([prompt(decide), say(weighed.replace('BMUZ-PLAN.md calls the framework "the bricks BMUZ lays down"', 'they were always together'))])
+  expect('…but "why it\'s this way" with nothing checked (no file, commit or quote) → sent back', noSource, 'block')
+  expect('a decision question answered with facts only (no pick) → allowed', stop([prompt(decide), say('They live in two folders: ~/.claude and dev/framework.')]), 'allow')
+  expect('a pick after a plain request (not a decision question) → no Weighed needed', stop([prompt('list the framework tasks'), say('1. Next sprint?\n   - Small fixes (my pick)')]), 'allow')
   expect('work + plain message → sent back', stop([...work, say('Done! I fixed it.')]), 'block')
   expect('work + the card → allowed', stop([...work, say(card)]), 'allow')
   const at = (minutesFromNow) => new Date(Date.now() + minutesFromNow * 60_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -868,6 +880,10 @@ function testSessionMoments() {
   expect('"going to bed" → /save', told(prompt("ok I'm going to bed"), /\/save/), 'told')
   expect('"switching to the laptop" → /save', told(prompt('switching to the laptop now'), /\/save/), 'told')
   expect('normal message → quiet', told(prompt('make the cards bigger'), /\/save/), 'quiet')
+  // a decision question → the brief for weighing it, before Claude answers (Muzzy 2026-11-04)
+  expect('"should I split them?" → the decision brief', told(prompt('should I open a new CLI and have it handle the BMUZ changes?'), /decision/i), 'told')
+  expect('…"is it better to…" too', told(prompt('is it better to keep them together or separate?'), /Why it's this way/), 'told')
+  expect('a plain request → no decision brief', told(prompt('make the cards bigger'), /decision/i), 'quiet')
   expect("a helper's report saying \"going to bed\" → quiet (it's not Muzzy)", told(prompt('<agent-message from="x">done — going to bed</agent-message>'), /\/save/), 'quiet')
   ctx(40)
   expect('context 40% → quiet', told(prompt('go'), /Context is/), 'quiet')

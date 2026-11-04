@@ -68,6 +68,34 @@ export const NEVER_COMMIT = /(^|\/)(\.env(\.(?!example$|sample$|template$)[^/]*)
 // Muzzy is stopping or switching machines (session-moments reminds, stop-unsaved guards — F80).
 export const STOPPING = /\b(going to bed|off to bed|heading to bed|bed ?time|good ?night|switching (machines|computers|to (the|my) (laptop|pc|desktop))|done for (now|today|tonight|the (day|night))|signing off|calling it a (day|night)|that'?s it for (now|today|tonight)|logging off)\b|\bi'?m (done|off|out)( for (now|today|tonight))?[\s.!]*$/i
 
+// Muzzy asks a DECISION question — a structure, process or design choice ("should I…", "is it better…", "split…").
+// Muzzy, 2026-11-04: "I don't want you making a decision with only half of a perspective… challenge your own
+// decisions and think long term, as well as check options against researched standards with big and indie studios,
+// coding goals, and my goals." (Claude recommended splitting BMUZ from the framework just because Muzzy raised it.)
+// session-moments gives the brief before Claude answers; handoff-check wants the Weighed block when Claude picks.
+export const DECIDING = /\b(should (i|we|it|this|that|they)|shall (i|we)|is (it|this|that) (better|worth|smart|wise|a good idea)|would (it|that) be better|better (to|if|off)|worth (it|doing)|what if|instead of|or (should|would|keep|leave)|(split|separate|merge|combine|move) (them|it|this|these)|keep (them|it) (together|separate)|pros and cons|trade-?offs?|which (is better|one|way|approach))\b/i
+export const DECISION_BRIEF = [
+  'This is a DECISION question (Muzzy 2026-11-04: "I don\'t want you making a decision with only half of a perspective"). Before you answer:',
+  '1. Why it\'s this way now: check the record FIRST (STATE Key facts, BMUZ-PLAN.md, TDD Decisions, git log, archived sprints) and cite it — assume there was a reason. Muzzy naming an option is a question, not a direction.',
+  '2. Long term: what this costs or saves in 3 months, across every game and both machines.',
+  '3. Standards: how big studios and indie teams handle it (research when unsure — say what you looked up).',
+  '4. Muzzy\'s goals: CLAUDE.md, BMUZ-PLAN mission, the GDD — focus, one thing at a time, simple over clever.',
+  '5. Against my pick: the strongest case for the other option, then whether it changes the pick.',
+  'If you recommend something, the answer carries a short **Weighed:** block — one bullet each: Why it\'s this way now · Long term · Standards · Your goals · Against my pick (handoff-check sends it back without one).',
+].join('\n')
+const WEIGHED_PARTS = ["Why it's this way", 'Long term', 'Standards', 'Your goals', 'Against my pick']
+// A pick after a decision question needs the Weighed block, and its "why it's this way" names what was checked
+// (a file, a commit, or quoted words). Returns the problem in words, or ''.
+export function weighedProblem(said, answer) {
+  if (!DECIDING.test(said || '') || !/my pick|I recommend|my recommendation|recommend(ation)?:/i.test(answer || '')) return ''
+  const block = /\*\*Weighed:?\*\*:?([\s\S]*?)(\n\*\*[A-Z][^*\n]*:?\*\*|$)/.exec(answer)?.[1] || ''
+  const missing = WEIGHED_PARTS.filter(part => !block.toLowerCase().includes(part.toLowerCase()))
+  const why = (/why it'?s this way[^\n]*/i.exec(block) || [''])[0]
+  const sourced = /[\w-]+\.(md|mjs|js|ts|tsx|json|sh)\b|\b[0-9a-f]{7,40}\b|["“`]|\bcommit\b|\bsprint \d+/i.test(why)
+  if (!missing.length && sourced) return ''
+  return `Muzzy asked a decision question and this answer picks without weighing it (Muzzy, 2026-11-04: "I don't want you making a decision with only half of a perspective"). Add a short **Weighed:** block, one bullet each — ${WEIGHED_PARTS.join(' · ')}${missing.length ? ` (missing: ${missing.join(', ')})` : ''}${sourced ? '' : '; "Why it\'s this way now" names what you checked (a file, a commit or quoted words)'}. Check the record before you write it — if the weighing changes the pick, change the pick.`
+}
+
 // Muzzy's own words — a helper's report or a background-task notice arrives as a "prompt" too (2026-10-18: a review
 // report saying "shutting down" fired the stopping reminder).
 export const fromMuzzy = (text) => !/<(system-reminder|task-notification|agent-message)\b/.test(text || '')

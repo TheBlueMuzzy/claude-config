@@ -12,7 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readInput, readTurn, isCommit, isFileEdit, stopVerdict, git, gitCalls, commitMessage, commands } from './lib.mjs'
+import { readInput, readTurn, isCommit, isFileEdit, stopVerdict, git, gitCalls, commitMessage, commands, weighedProblem } from './lib.mjs'
 import { readRoadmap, readSprint } from '../templates/ppp/plan-reader.mjs'
 
 const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'handoff.md')
@@ -30,6 +30,9 @@ if (worked && !isProgressLine(message)) {
   if (missing.length) problems.push(`You did work this turn, so end with the hand-off card (~/.claude/config/bmuz/templates/handoff.md) — or, if work is still running, the progress line. Missing: ${missing.join('; ')}. Rewrite your final message in that format now (same content, nothing new to do).`)
   else problems.push(...await deeperProblems(message))
 }
+// a decision question answered with a pick → weighed from every side first (lib.weighedProblem, Muzzy 2026-11-04)
+const unweighed = weighedProblem(turn.muzzySaid, message)
+if (unweighed) problems.push(unweighed)
 // only in a game project (PC help like "open your game library in Steam" isn't about Muzzy's game); quoted is fine
 const top = input.cwd && git(input.cwd, 'rev-parse', '--show-toplevel')
 const inProject = top && existsSync(join(top, '.planning'))
