@@ -366,7 +366,10 @@ export function holdCheckLock(root, waitMs) {
   for (;;) {
     try {
       writeFileSync(lock, `${process.pid} ${Date.now()}`, { flag: 'wx' })
-      const release = () => { try { if (readFileSync(lock, 'utf8').startsWith(`${process.pid} `)) unlinkSync(lock) } catch {} }
+      // the check:fast this starts takes the same lock itself (framework F178 — scripts/checkLock.mjs): tell it the
+      // lock is ours, or it waits on us forever
+      process.env.BMUZ_CHECK_LOCK_HELD = String(process.pid)
+      const release = () => { delete process.env.BMUZ_CHECK_LOCK_HELD; try { if (readFileSync(lock, 'utf8').startsWith(`${process.pid} `)) unlinkSync(lock) } catch {} }
       process.on('exit', release)
       return release
     } catch (error) {
