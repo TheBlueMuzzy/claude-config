@@ -2,7 +2,7 @@
 // Each deck has a tiny stub script (see ../stub) that calls this library as `PDS`
 // in development mode, so saving this library updates every deck the next time it opens.
 
-var VERSION = '1.9.0';
+var VERSION = '1.10.1';
 var PREFIX = 'PDS - ';
 var GAME_PAGES = ['PDS - Overview', 'PDS - How to Play', 'PDS - Component Overview'];
 var ARCHIVE = 'PDS - Archive';
@@ -11,6 +11,23 @@ var COMPONENT_SET = ['PDS - Control Drawing', 'PDS - Color & Deco', 'PDS - Textu
 // The page-type chip text on each layout, used to recognise a layout if its name was changed
 var CHIPS = { 'OVERVIEW': 'PDS - Overview', 'HOW TO PLAY': 'PDS - How to Play', 'COMPONENTS': 'PDS - Component Overview', 'CONTROL DRAWING': 'PDS - Control Drawing', 'COLOR & DECO': 'PDS - Color & Deco', 'TEXTURE & FINISH': 'PDS - Texture & Finish', 'PRINTED SHEET': 'PDS - Printed Sheet', 'PACKAGING': 'PDS - Packaging', 'ARCHIVE': 'PDS - Archive' };
 var BLANK_DATE = 'DD Mon YYYY';
+// Text that flows: each page's titles and values live in ONE box, so long text pushes everything below it down (Muzzy, 4 Nov 2026).
+// Each field = [number of the old layout box it came from, title, starter text]. The first field's box is the one kept.
+var FLOW = {
+  'PDS - Overview': [{ x: 938, y: 100, w: 242, h: 600, fields: [[3, 'ITEM DESCRIPTION', '1–3 sentences'], [4, 'AGE GRADE', 'X+'], [5, 'PLAYERS', 'X–X'], [6, 'PLAY TIME', 'XX min'], [7, 'CATEGORY', 'Category'], [8, 'CONTENTS', 'Component · Qty\nComponent · Qty\nInstruction Sheet · 1']] }],
+  'PDS - How to Play': [
+    { x: 30, y: 86, w: 562, h: 628, fields: [[3, 'OBJECTIVE', '1–2 sentences'], [4, 'GAME END / HOW TO WIN', 'How the game ends and who wins'], [5, 'SETUP', '1. Step\n2. Step\n3. Step']] },
+    { x: 632, y: 86, w: 562, h: 628, fields: [[6, 'GAMEPLAY', '1. Step\n2. Step\n3. Step']] }],
+  'PDS - Control Drawing': [
+    { x: 938, y: 100, w: 242, h: 500, fields: [[3, 'QTY PER UNIT', 'X'], [4, 'OVERALL SIZE', 'L × W × H in\nL × W × H mm'], [5, 'MATERIAL', 'e.g. ABS, TPR, PP'], [6, 'PROCESS', 'e.g. Injection molded'], [7, 'SOURCE', 'New tooling / existing tooling (product) / open market']] },
+    { x: 30, y: 636, w: 1164, h: 78, critical: true, fields: [[8, 'CRITICAL', '1 · FIT — one sentence (FIT · FUNCTION · PROCESS · SAFETY · APPEARANCE)']] }],
+  'PDS - Color & Deco': [
+    { x: 30, y: 636, w: 1164, h: 78, critical: true, fields: [[3, 'CRITICAL', '1 · APPEARANCE — one sentence']] }],
+  'PDS - Texture & Finish': [
+    { x: 938, y: 100, w: 242, h: 500, fields: [[3, 'COATING · WHOLE OBJECT', 'e.g. UV, matte lamination, N/A'], [4, 'LEGEND', 'Texture · Gloss · Opacity\nTexture · Gloss · Opacity']] },
+    { x: 30, y: 636, w: 1164, h: 78, critical: true, fields: [[5, 'CRITICAL', '']] }],
+  'PDS - Printed Sheet': [{ x: 938, y: 100, w: 242, h: 600, fields: [[3, 'STOCK', 'e.g. 135gsm C2S'], [4, 'PRINTING', 'e.g. 4c/4c'], [5, 'FLAT SIZE', 'W × H in\nW × H mm'], [6, 'FOLDED SIZE', 'W × H in\nW × H mm'], [7, 'TOTAL SHEETS', 'X'], [8, 'FOLD', 'e.g. Vertical thirds'], [9, 'ARTWORK', 'XXX####_instructions_v1.ai']] }]
+};
 
 // ---------- menu ----------
 
@@ -32,6 +49,8 @@ function onOpen() {
     .addSeparator()
     .addItem('Archive selected pages…', 'pdsMenu4')
     .addItem('Unarchive selected pages', 'pdsMenu5')
+    .addSeparator()
+    .addItem('Update this deck to the newest layout…', 'pdsMenu12')
     .addToUi();
 }
 
@@ -39,7 +58,7 @@ function onOpen() {
 function menu(slot) {
   var actions = { 1: showSetup, 2: showAddPages, 3: markRevisedToday, 4: showArchive, 5: unarchiveSelected,
     6: function () { setStatus_('DRAFT'); }, 7: function () { setStatus_('REVISIONS NEEDED'); }, 8: function () { setStatus_('COMPLETE'); },
-    9: function () { setStatus_('SUPERSEDED'); }, 10: function () { setStatus_('DROPPED'); }, 11: showNewPds };
+    9: function () { setStatus_('SUPERSEDED'); }, 10: function () { setStatus_('DROPPED'); }, 11: showNewPds, 12: updateDeckLayout };
   if (actions[slot]) actions[slot]();
 }
 
@@ -286,6 +305,7 @@ function addPages(d) {
     setText_(f.created, today);
     setText_(f.revised, today);
     setText_(f.status, 'DRAFT');
+    if (isFlowLayout_(layouts[t], t)) seedFlow_(s, t);
     if (t === 'PDS - Color & Deco') addCallout_(s);
     if (!first) first = s;
   });
@@ -543,6 +563,132 @@ function showArchive() {
 
 function showAbout() {
   SlidesApp.getUi().alert('PDS Tools ' + VERSION + '\n\nShared library: updates reach every PDS deck automatically.\nDates use the format ' + today_() + '.');
+}
+
+// ---------- flowing text boxes (see FLOW) ----------
+
+function flowTitles_(kind) {
+  var titles = [];
+  (FLOW[kind] || []).forEach(function (box) { box.fields.forEach(function (f) { titles.push(f[1]); }); });
+  return titles;
+}
+
+// A layout is on the new design once its locked titles are gone
+function isFlowLayout_(layout, kind) {
+  var titles = flowTitles_(kind);
+  return !layout.getShapes().some(function (s) { return titles.indexOf(s.getText().asString().trim()) >= 0; });
+}
+
+// The page's type-in boxes, by the number of the layout box they came from
+function boxesByNumber_(slide) {
+  var found = {};
+  slide.getPlaceholders().forEach(function (pe) {
+    var parent = pe.asShape().getParentPlaceholder();
+    var m = parent ? parent.getObjectId().match(/_ph(\d+)$/) : null;
+    if (m) found[Number(m[1])] = pe.asShape();
+  });
+  return found;
+}
+
+// Blue titles (or the dark CRITICAL title), with a gap above every title but the first
+function styleFlow_(shape, box) {
+  var titles = box.fields.map(function (f) { return f[1]; }), first = true;
+  shape.getText().getParagraphs().forEach(function (p) {
+    var range = p.getRange();
+    // Breathing room: the yellow box has no side panel around it, so its text sits in from the edge
+    if (box.critical) range.getParagraphStyle().setIndentStart(10).setIndentFirstLine(10);
+    if (titles.indexOf(range.asString().trim()) < 0) return;
+    var style = range.getTextStyle().setBold(true);
+    if (box.critical) style.setFontFamily('Poppins').setFontSize(12).setForegroundColor('#1F1F1F');
+    else style.setFontFamily('Inter').setFontSize(10).setForegroundColor('#002EE7');
+    range.getParagraphStyle().setSpaceAbove(first ? 0 : 14);
+    first = false;
+  });
+}
+
+function placeFlow_(shape, box) {
+  shape.setLeft(box.x).setWidth(box.w);
+  // A Critical box someone already dragged taller keeps its size
+  if (box.critical) return;
+  shape.setTop(box.y).setHeight(box.h);
+  shape.setContentAlignment(SlidesApp.ContentAlignment.TOP);
+}
+
+// A new page: titles + starter text
+function seedFlow_(slide, kind) {
+  var found = boxesByNumber_(slide);
+  FLOW[kind].forEach(function (box) {
+    var shape = found[box.fields[0][0]];
+    if (!shape) return;
+    shape.getText().setText(box.fields.map(function (f) { return f[1] + '\n' + f[2]; }).join('\n'));
+    styleFlow_(shape, box);
+  });
+}
+
+// True until the box starts with its title and nothing is left to merge into it, so a second run changes nothing
+function needsMerge_(slide, box) {
+  var found = boxesByNumber_(slide);
+  var target = found[box.fields[0][0]];
+  var leftovers = box.fields.slice(1).some(function (f) { return found[f[0]]; });
+  return leftovers || !target || text_(target).indexOf(box.fields[0][1]) !== 0;
+}
+
+// An existing page: move what's typed into the first box, with its formatting, then remove the emptied boxes
+function mergeFlow_(slide, box) {
+  var found = boxesByNumber_(slide);
+  var first = box.fields[0], rest = box.fields.slice(1);
+  var target = found[first[0]];
+  if (!target) {
+    target = slide.insertTextBox('', box.x, box.y, box.w, box.h);
+    target.getText().getTextStyle().setFontFamily('Inter').setFontSize(13).setForegroundColor('#4A4A4A');
+  }
+  target.getText().insertText(0, first[1] + '\n');
+  rest.forEach(function (f) {
+    target.getText().appendText('\n' + f[1] + '\n');
+    var src = found[f[0]];
+    if (!src) return;
+    var n = src.getText().asString().replace(/\n$/, '').length;
+    if (n) target.getText().appendRange(src.getText().getRange(0, n), true);
+  });
+  rest.forEach(function (f) { if (found[f[0]]) found[f[0]].remove(); });
+  placeFlow_(target, box);
+  styleFlow_(target, box);
+}
+
+// The deck's layouts: locked titles off, the kept boxes resized, the rest removed. Runs after the pages so no page loses its layout box.
+function flowLayout_(layout, kind) {
+  var titles = flowTitles_(kind);
+  layout.getShapes().forEach(function (s) {
+    if (titles.indexOf(s.getText().asString().trim()) >= 0) { s.remove(); return; }
+    var m = s.getObjectId().match(/_ph(\d+)$/);
+    if (!m || Number(m[1]) < 3) return;
+    var box = FLOW[kind].filter(function (b) { return b.fields[0][0] === Number(m[1]); })[0];
+    if (box) placeFlow_(s, box);
+    else s.remove();
+  });
+}
+
+function updateDeckLayout() {
+  var ui = SlidesApp.getUi();
+  var deck = deck_();
+  var layouts = deck.getLayouts().filter(function (l) { return FLOW[layoutKind_(l)]; });
+  if (!layouts.length) { ui.alert('This deck wasn\'t made from the PDS template, so there\'s nothing to update. Nothing was changed.'); return; }
+  var oldLayouts = layouts.filter(function (l) { return !isFlowLayout_(l, layoutKind_(l)); });
+  var oldPages = deck.getSlides().filter(function (s) {
+    var kind = slideKind_(s);
+    return FLOW[kind] && FLOW[kind].some(function (box) { return needsMerge_(s, box); });
+  });
+  if (!oldLayouts.length && !oldPages.length) { ui.alert('This deck is already on the newest layout.'); return; }
+  var ok = ui.alert('Update this deck?', 'Every page\'s titles and text move into one box, so long text pushes the rest down. Everything you typed is kept.\n\nA backup copy is saved to your My Drive first.', ui.ButtonSet.YES_NO);
+  if (ok !== ui.Button.YES) return;
+  var file = DriveApp.getFileById(deck.getId());
+  var backup = 'BACKUP before layout update - ' + file.getName();
+  file.makeCopy(backup, DriveApp.getRootFolder());
+  oldPages.forEach(function (s) {
+    FLOW[slideKind_(s)].forEach(function (box) { if (needsMerge_(s, box)) mergeFlow_(s, box); });
+  });
+  oldLayouts.forEach(function (l) { flowLayout_(l, layoutKind_(l)); });
+  ui.alert('Updated ' + oldPages.length + ' page' + (oldPages.length === 1 ? '' : 's') + '. Backup in your My Drive: "' + backup + '".\n\nReload this browser tab to see the changes.');
 }
 
 // ---------- little HTML helpers ----------
