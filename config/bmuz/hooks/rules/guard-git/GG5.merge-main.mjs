@@ -7,6 +7,7 @@ export default {
   what: 'Refuses merging a work branch into main, and running merge.mjs / rollback.mjs, unless /deliver is running',
   why: 'Main only changes through /deliver, after its smoke test and checks (F67, F80)',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-git-safety',
   check({ calls, index, call, words }, { deny, input }) {

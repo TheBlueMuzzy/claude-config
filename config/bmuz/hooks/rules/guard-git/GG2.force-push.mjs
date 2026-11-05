@@ -4,6 +4,7 @@ export default {
   what: 'Refuses any force-push (--force, -f, --force-with-lease, --mirror, +branch)',
   why: 'Muzzy\'s "never" rules: a force-push rewrites history on GitHub — push a new commit instead',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-git',
   check({ call }, { deny }) {

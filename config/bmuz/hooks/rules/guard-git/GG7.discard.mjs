@@ -6,6 +6,7 @@ export default {
   what: 'Refuses `git checkout -- <file>`, `git checkout .`, `git checkout <branch> -- <file>`, `checkout -f`, `switch -f`, `git restore <file>` over uncommitted changes — names the files and the `git stash push` that keeps a copy. Branch switches, `checkout -b`, `restore --staged` pass',
   why: 'Uncommitted work thrown away can\'t come back (Goops F17 lost cracks.ts this way). A refusal, not a question, so an unattended run never stops on a prompt (Muzzy, 2026-10-27: "i want you to be in full auto mode, but these kinds of messages are still showing up")',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-git-safety',
   // returns the reason (the hook refuses once every call on the line is checked, naming every lost file at once)

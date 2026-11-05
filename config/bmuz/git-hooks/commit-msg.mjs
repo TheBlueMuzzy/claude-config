@@ -1,4 +1,4 @@
-// git's commit-msg step in a BMUZ project (F184): the commit rules (guard-git's GG4, GG6, GG8–GG13 and
+// git's commit-msg step in a BMUZ project (F184): the commit rules (guard-git's GG4, GG6, GG8–GG13, GG15 and
 // commit-typecheck's CT1, CT2) run on the commit as git really makes it — the staged files and the real message — so an
 // edit and a commit on one command line, or a commit made inside a script, are checked at the real moment.
 // A refusal: the reason on stderr, exit 1 → git stops the commit. A rule that crashes: said, the commit goes on.
@@ -21,7 +21,9 @@ try {
 let message = ''
 try { message = readFileSync(process.argv[2], 'utf8').split(/\r?\n/).filter(l => !l.startsWith('#')).join('\n').trim() } catch {}
 
-const result = await checkCommit(stagedCommit(root, message))
+// rule ids after the message file run just those (config-sync push: `commit-msg.mjs <file> GG15`, F187)
+const only = process.argv.slice(3)
+const result = await checkCommit(stagedCommit(root, message), only.length ? only : null)
 for (const line of result.crashes) say(line)
 if (result.refusal) {
   say(`BMUZ commit check ${result.rule} (git's commit step) — ${result.refusal}`)

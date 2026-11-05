@@ -8,6 +8,7 @@ export default {
   what: 'Refuses going live while BUGS.md has an open P0',
   why: 'A P0 (crash / can\'t continue / live broken) blocks every release (F67)',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'live-push',
   check({ root, what }, { deny }) {

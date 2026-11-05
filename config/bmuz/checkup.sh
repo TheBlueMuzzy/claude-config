@@ -131,4 +131,9 @@ for g in "$HOME"/Documents/dev/games/*/ "$HOME"/Documents/dev/framework/ "$HOME"
     })' "$name" "$outdated" "$npmrc"
 done
 
+
+echo; echo "== 9. Removal pass — hook rules that could go (F187; proposals only, from the firing log + its history)"
+# the bloat test's other half: never fired in 60 days (rare guards left out), mostly cried wolf, switched off.
+# (hook-history.mjs isn't rerun here: it rebuilds the history from transcripts, which only keep ~30 days.)
+node "$C/config/bmuz/scripts/removal-pass.mjs" | sed 's/^/  /'
 echo; echo "== Last checkup: $(cat config/bmuz/last-checkup 2>/dev/null || echo never)"

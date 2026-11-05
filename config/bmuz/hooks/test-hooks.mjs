@@ -1357,6 +1357,56 @@ function testGuardGitSafety() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// F187: the bloat test both ways — a commit ADDING a hook rule file or a framework module folder says what it replaces
+function testReplacesLine() {
+  console.log('guard-git — a new rule file / module folder needs "Replaces: …" (F187)')
+  const { root, repo } = makeRepo()
+  const g = cmd => runHook('guard-git.mjs', bash(repo, cmd))
+  sh(repo, 'checkout', '-q', 'dev/open')
+  const rules = join(repo, 'config', 'bmuz', 'hooks', 'rules', 'guard-git')
+  mkdirSync(rules, { recursive: true })
+  writeFileSync(join(rules, 'GG1.reset-hard.mjs'), 'export default {}\n'); writeFileSync(join(rules, '_hook.mjs'), 'export default {}\n')
+  mkdirSync(join(repo, 'ui-kit', 'kit'), { recursive: true }); writeFileSync(join(repo, 'ui-kit', 'kit', 'a.ts'), 'a\n')
+  sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'start')
+  // a new rule file
+  writeFileSync(join(rules, 'GG99.new-rule.mjs'), 'export default {}\n')
+  const bare = g('git add -A && git commit -m "add a rule"')
+  expect('a commit adding a new rule file with no "Replaces:" line → blocked', bare, 'deny')
+  expect('…the refusal names the file and the line to add', { result: /GG99\.new-rule\.mjs/.test(bare.message) && /Replaces: nothing —/.test(bare.message) ? 'ok' : 'no', message: bare.message }, 'ok')
+  expect('…with -m "Replaces: GE3 + GE6 (one rule now)" → allowed', g('git add -A && git commit -m "add a rule" -m "Replaces: GE3 + GE6 (one rule now)"'), 'allow')
+  expect('…"Replaces: nothing — <why>" in a heredoc message → allowed', g("git add -A && git commit -F - <<'EOF'\nadd a rule\n\nReplaces: nothing — a new guard for X\nEOF"), 'allow')
+  sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'rule', '-m', 'Replaces: nothing — test')
+  // everyday commits are untouched
+  writeFileSync(join(rules, 'GG99.new-rule.mjs'), 'export default { on: true }\n')
+  expect('an edit to an EXISTING rule file → allowed without the line', g('git add -A && git commit -m "fix GG99"'), 'allow')
+  writeFileSync(join(rules, '_helpers.mjs'), 'export const x = 1\n')
+  expect('a new shared helper (_file, not a rule) → allowed', g('git add -A && git commit -m "helper"'), 'allow')
+  writeFileSync(join(repo, 'ui-kit', 'kit', 'b.ts'), 'b\n')
+  expect('a new file inside an EXISTING module folder → allowed', g('git add -A && git commit -m "ui-kit: b"'), 'allow')
+  writeFileSync(join(repo, 'notes.md'), 'n\n')
+  expect('an everyday commit → allowed', g('git add -A && git commit -m "notes"'), 'allow')
+  sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'everyday')
+  // a new framework module folder
+  mkdirSync(join(repo, 'dice', 'kit'), { recursive: true }); writeFileSync(join(repo, 'dice', 'kit', 'index.ts'), 'd\n')
+  expect('a new top-level module folder (dice/kit/) with no "Replaces:" → blocked', g('git add -A && git commit -m "dice module"'), 'deny')
+  expect('…with "Replaces: nothing — Roll Better and Goops both roll dice" → allowed', g('git add -A && git commit -m "dice module" -m "Replaces: nothing — Roll Better and Goops both roll dice"'), 'allow')
+  rmSync(join(repo, 'dice'), { recursive: true, force: true })
+  mkdirSync(join(repo, 'docs')); writeFileSync(join(repo, 'docs', 'x.md'), 'x\n')
+  expect('a new top-level folder that isn\'t a module (no kit/ or VERSION) → allowed', g('git add -A && git commit -m "docs"'), 'allow')
+  sh(repo, 'add', '-A'); sh(repo, 'commit', '-q', '-m', 'docs')
+  // git's own commit step (core.hooksPath → the BMUZ git-hooks): the real staged files and message
+  sh(repo, 'config', 'core.hooksPath', join(HOOKS, '..', 'git-hooks'))
+  const commit = (...m) => spawnSync('git', ['-C', repo, 'commit', '-q', ...m.flatMap(x => ['-m', x])], { encoding: 'utf8' })
+  writeFileSync(join(rules, 'GG98.other.mjs'), 'export default {}\n'); sh(repo, 'add', '-A')
+  const refused = commit('another rule')
+  expect('git\'s commit step: a new rule file, no "Replaces:" → the commit is refused', { result: refused.status === 1 && /GG15/.test(refused.stderr) ? 'ok' : 'no', message: refused.stderr || '' }, 'ok')
+  const through = commit('another rule', 'Replaces: nothing — test')
+  expect('…the same commit with "Replaces:" in the message body → made', { result: through.status === 0 && sh(repo, 'log', '-1', '--format=%s') === 'another rule' ? 'ok' : 'no', message: through.stderr || '' }, 'ok')
+  writeFileSync(join(repo, 'notes.md'), 'm\n'); sh(repo, 'add', '-A')
+  expect('…an everyday commit through git\'s step → made', { result: commit('notes again').status === 0 ? 'ok' : 'no', message: '' }, 'ok')
+  rmSync(root, { recursive: true, force: true })
+}
+
 // F78: the end-of-turn cleanup deletes .playwright-mcp/ and nothing else
 function testStopCleanup() {
   console.log('stop-cleanup — Playwright leftovers go at the end of a turn')
@@ -1965,6 +2015,20 @@ function testFiringLog() {
   run(join(HOOKS, 'session-moments.mjs'), { hook_event_name: 'UserPromptSubmit', session_id: 'fire-bed', prompt: "ok I'm going to bed" })
   const m = lines().at(-1) || {}
   expect('session-moments telling Claude (going to bed) → a context line', { result: m.hook === 'session-moments' && m.kind === 'context' && m.event === 'UserPromptSubmit' ? 'logged' : 'missing', message: JSON.stringify(m) }, 'logged')
+  // F187: a refusal whose SAME tool call then goes through within 2 minutes → a "waved" line (the removal pass's
+  // "cried wolf" measure): GG13 refuses a stage commit without STATE; STATE staged elsewhere, the same command passes
+  mkdirSync(join(repo, '.planning')); writeFileSync(join(repo, '.planning', 'STATE.md'), 'x\n'); sh(repo, 'add', '.'); sh(repo, 'commit', '-q', '-m', 'plan')
+  const stage = { cwd: repo, session_id: 'fire-wave', hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git commit -m "GDD: discover"' } }
+  run(join(HOOKS, 'guard-git.mjs'), { ...stage, session_id: 'fire-other' }) // another session's refusal …
+  run(join(HOOKS, 'guard-git.mjs'), stage)
+  writeFileSync(join(repo, '.planning', 'STATE.md'), 'y\n'); sh(repo, 'add', '.')
+  const w = lines().length
+  run(join(HOOKS, 'guard-git.mjs'), { ...stage, tool_input: { command: 'git status' } }) // … and a different call don't count
+  run(join(HOOKS, 'guard-git.mjs'), stage)
+  const waved = lines().slice(w)
+  expect('F187: GG13 refused a call, the same call then passed → one "waved" line naming GG13', { result: waved.length === 1 && waved[0].kind === 'waved' && waved[0].rule === 'GG13' ? 'logged' : 'missing', message: JSON.stringify(waved) }, 'logged')
+  run(join(HOOKS, 'guard-git.mjs'), stage)
+  expect('…passing again → no second line', { result: lines().length === w + 1 ? 'quiet' : 'logged', message: JSON.stringify(lines().slice(w + 1)) }, 'quiet')
   rmSync(repoRoot, { recursive: true, force: true })
 
   // logging never changes the answer
@@ -2006,7 +2070,7 @@ function testRunner() {
 }
 
 const only = process.argv[2]
-const suites = { runner: testRunner, 'fire-log': testFiringLog, 'guard-edits-frozen': testFrozenFiles, 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
+const suites = { runner: testRunner, 'fire-log': testFiringLog, 'guard-edits-frozen': testFrozenFiles, 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'guard-git-replaces': testReplacesLine,'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)

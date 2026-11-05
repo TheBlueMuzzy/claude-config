@@ -34,6 +34,7 @@ Run `bash ~/.claude/config/bmuz/checkup.sh` (read-only; takes about a minute) �
   - "not installed on this machine" / "security not checked (offline?)" → say it plainly, no fix needed ③.
 - **Skill tests (F71):** read `~/.claude/config/bmuz/last-skill-tests.json` (date, Claude Code version, result). Offer a run — never start one unasked (Muzzy, 2026-10-19: "A") — when a skill that has an `evals/` folder changed after that date, or `claude --version` / the model differs. Say the cost first: about $0.20 a case (`ls ~/.claude/skills/*/evals` counts them). On yes: `node ~/.claude/config/bmuz/scripts/test-skills.mjs --muzzy-said-yes` ② (the script refuses without it); a red case → read its failed checks and fix the skill (or the case) the same session ③.
 - **Unmarked rules:** `node ~/.claude/config/bmuz/hooks/rule-kind.mjs --all` lists every rule line in the skills and BMUZ docs that doesn't say how it happens ①. Offer to convert the ones in BMUZ's own skills (a hook or script step, or a ①/②/③ mark).
+- **Removal pass** (section 9, F187 — gathered by `scripts/removal-pass.mjs` ①; judging ③): the bloat test's other half — a cut needs a reason (consolidating, efficiency, never fired, cried wolf), never just to shrink. For each proposal, say in one line why it may have gone quiet or noisy (another rule covers it? the habit it guarded is gone? its refusals were fixed elsewhere — a gate working — or by nothing?) and offer: cut · merge into another rule · mark `rare: true` · keep. "Silent so far" isn't a proposal yet — just say when the real list starts.
 - **Scan for news (quick):** in the Anthropic plugin marketplace and in the repos in `sources.json`, look for new skills in the areas BMUZ-PLAN cares about. Mention at most 3.
 
 ## 3. Report (one screen, plain English)
@@ -43,6 +44,7 @@ Healthy: <n> skills current and wired
 Updates ready: <skill — what's new — copy or borrow idea>
 Needs a re-check: <card — what I verified/changed>
 Maybe retire: <skill — why (job never comes up / duplicate)>
+Hook rules that could go: <rule/hook — silent 60 days / cried wolf / off — cut · merge · rare · keep> (or "none yet")
 Fixes: <wiring, sync, broken MCP>
 Packages: <per game: ✓ fine / what's risky, outdated count — or "all fine">
 Skill tests: <last run date + result> · <run now? n cases ≈ $x — why (skills changed / new model)>, or "up to date"

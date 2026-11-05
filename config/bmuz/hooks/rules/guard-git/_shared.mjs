@@ -20,11 +20,13 @@ export function gitStepChecks(dir) {
 // The commit a rule checks, the same shape from both places it's checked:
 //   - a `git commit` Claude typed (PreToolUse — read before the command line runs): commandCommit
 //   - git's own commit-msg step, with the real staged files and message (git-hooks/commit-msg, F184): stagedCommit
-// { dir, message (first line), files(root) → paths relative to the repo root, branch() → the branch it lands on }
+// { dir, message (first line), text (the whole message — for a typed commit the whole command line, which holds its
+//   -m body or heredoc), files(root) → paths relative to the repo root, branch() → the branch it lands on }
 export function commandCommit(calls, index, raw) {
   return {
     dir: calls[index].dir,
     message: commitMessage(raw, calls[index].args),
+    text: String(raw || ''),
     files: (root) => commitFiles(calls, index, root),
     branch: () => branchAt(calls, index),
   }
@@ -33,6 +35,7 @@ export function stagedCommit(root, message) {
   return {
     dir: root,
     message: String(message || '').split(/\r?\n/)[0],
+    text: String(message || ''),
     files: () => (git(root, 'diff', '--cached', '--name-only', '--diff-filter=ACMR') || '').split('\n').filter(Boolean),
     branch: () => git(root, 'rev-parse', '--abbrev-ref', 'HEAD'),
   }

@@ -11,6 +11,7 @@ export default {
   what: 'Refuses going live (a push to a branch a deploy workflow publishes, or npm run deploy / gh-pages / party:deploy / wrangler deploy / butler push) unless `.planning/smoke-pass` names a commit and only docs changed since (.planning/, *.md, crash maps)',
   why: 'Nothing untested reaches players (F68). It finds by itself which branch publishes each project',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'live-push',
   check({ root, commit, what, checkUncommitted }, { deny }) {

@@ -46,6 +46,14 @@ echo v5-laptop > "$T/laptop/.claude/skills/a/SKILL.md"
 HOME="$T/laptop" bash "$SYNC" push "laptop again" >/dev/null 2>&1
 HOME="$T/pc" bash "$SYNC" status 2>/dev/null | grep '^INCOMING' | sed 's/^/STATUS-OTHER /'
 
+# F187 — the bloat test both ways: a push adding a hook rule file needs "Replaces: …" (guard-git GG15)
+mkdir -p "$T/laptop/.claude/config/bmuz/hooks/rules/guard-git"
+echo "export default {}" > "$T/laptop/.claude/config/bmuz/hooks/rules/guard-git/GG99.new.mjs"
+HOME="$T/laptop" bash "$SYNC" push "add a rule" 2>/dev/null | head -1 | cut -c1-60 | sed 's/^/REPLACES-NONE /'
+HOME="$T/laptop" bash "$SYNC" push "add a rule — Replaces: nothing — a test guard" 2>/dev/null | sed 's/^/REPLACES-SAID /'
+echo "export default { on: true }" > "$T/laptop/.claude/config/bmuz/hooks/rules/guard-git/GG99.new.mjs"
+HOME="$T/laptop" bash "$SYNC" push "edit the rule" 2>/dev/null | sed 's/^/REPLACES-EDIT /'
+
 # F176 — Sync keeps unpushed edits: setup.sh (what /sync runs) must not wipe a file edited here since the last sync.
 # The real setup.sh, copied into a fake machine's repo; plugins off. (2026-11-03: another session's /sync wiped the
 # F172 hook fix at 13:17:59.)

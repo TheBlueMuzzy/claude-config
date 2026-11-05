@@ -8,6 +8,8 @@
 //   on    — false switches the rule off · mode — block | warn | action | log (what kind of answer it gives; log = the
 //           firing log only, nothing said — ctx.log, F185)
 //   tests — the test-hooks.mjs suite that proves it
+//   rare  — (optional) true = a guard meant to almost never fire; the /checkup removal pass never proposes cutting it
+//           for silence (F187)
 //   check — returns what it found (a message, a list, …) for the hook's steps to use, or answers itself:
 //           ctx.deny(text) / ctx.ask(text) / ctx.tell(text) stop the hook right there, like the old deny() did
 //
@@ -19,7 +21,7 @@
 import { readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { readInput, say, stopVerdict, logFiring, setFiringRule } from './lib.mjs'
+import { readInput, say, stopVerdict, logFiring, setFiringRule, noteRefusal } from './lib.mjs'
 
 export const RULES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'rules')
 
@@ -77,6 +79,7 @@ export async function main(hook) {
       logFiring('crash', `${c.id}: ${firstLine(c.error)}`, event)
     }
     setFiringRule(answer?.rule || (!answer && pending?.rule) || spoke.join(','))
+    if (event === 'PreToolUse') noteRefusal(hook, ctx.input, answer) // F187: a refusal, then the same call going through
     answerOnce({ hook, event, input: ctx.input, answer, pending, note: crashNote(hook, crashes) })
   } catch (error) {
     error.bmuzInput = ctx.input // stdin is already read: the fallback answers from this
@@ -88,14 +91,15 @@ export async function main(hook) {
 // git's own commit step (git-hooks/commit-msg, F184): the commit rules of guard-git and commit-typecheck — each
 // _hook.mjs lists them as `commit` — on the commit as git really makes it (staged files, the real message).
 // Returns { refusal: text or '', rule, crashes: [lines] }. Nothing is written to stdout here (git-hooks/ says it).
-export async function checkCommit(commit) {
+// `only` (a list of ids) runs just those — config-sync push runs GG15 alone on ~/.claude-config (F187).
+export async function checkCommit(commit, only = null) {
   const crashLines = []
   for (const hook of ['guard-git', 'commit-typecheck']) {
     const loaded = await loadHook(hook)
     const { ctx, crashes } = makeRun(hook, loaded)
     ctx.input = { cwd: commit.dir, hook_event_name: 'git commit-msg' }
     try {
-      for (const id of loaded.spec.commit || []) await ctx.rule(id, { commit })
+      for (const id of loaded.spec.commit || []) if (!only || only.includes(id)) await ctx.rule(id, { commit })
     } catch (error) {
       if (!(error instanceof Answer)) throw error
       if (error.kind === 'deny') {

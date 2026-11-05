@@ -9,6 +9,7 @@ export default {
   what: 'A release tag (any vX.Y.Z) made this turn in a BMUZ project → .planning/live-pass names it (scripts/live-check.mjs writes it); a tag not on GitHub yet whose hand-back names a deploy Muzzy runs may wait',
   why: '"Is it really live?" is checked, not assumed (F80); Glyphtender v0.13.0 looped 6 turns waiting on Muzzy\'s deploy (F173)',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'stop-plan-check',
   check({ root, name, turn, lastSaid }) {

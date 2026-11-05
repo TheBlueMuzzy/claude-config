@@ -3,7 +3,7 @@ import { gitCalls, commands } from '../../lib.mjs'
 import { commandCommit, gitStepChecks } from './_shared.mjs'
 
 // The rules checked on each git call, in this order (the first refusal wins — as in the old guard-git.mjs)
-const EACH_CALL = ['GG14', 'GG6', 'GG7', 'GG4', 'GG8', 'GG9', 'GG10', 'GG11', 'GG12', 'GG13', 'GG5', 'GG1', 'GG2', 'GG3']
+const EACH_CALL = ['GG14', 'GG6', 'GG7', 'GG4', 'GG8', 'GG9', 'GG10', 'GG11', 'GG12', 'GG13', 'GG15', 'GG5', 'GG1', 'GG2', 'GG3']
 
 export default {
   hook: 'guard-git',
@@ -13,7 +13,7 @@ export default {
   order: EACH_CALL,
   // the commit rules git's own commit step runs too (git-hooks/commit-msg) — with the real staged files and message.
   // In a repo whose git runs them (gitStepChecks) they're checked only there (F185).
-  commit: ['GG6', 'GG4', 'GG8', 'GG9', 'GG10', 'GG11', 'GG12', 'GG13'],
+  commit: ['GG6', 'GG4', 'GG8', 'GG9', 'GG10', 'GG11', 'GG12', 'GG13', 'GG15'],
 
   // These checks read the files BEFORE the command runs, so a plan edit earlier on the same line as the commit isn't
   // seen yet — say so in every refusal on such a line (Claude hit it 3 times on 2026-10-19: done, done, Sprint NN)

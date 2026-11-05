@@ -6,6 +6,7 @@ export default {
   what: 'Refuses deleting a branch (local `branch -D`, or on GitHub) whose work isn\'t merged yet — a fully merged one may go',
   why: 'Muzzy\'s "never" rules: only fully merged branches get deleted, so no work is lost',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-git',
   check({ call }, { deny }) {

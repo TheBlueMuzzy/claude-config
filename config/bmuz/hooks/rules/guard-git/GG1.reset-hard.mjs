@@ -4,6 +4,7 @@ export default {
   what: 'Refuses `git reset --hard` — undo with `git revert`',
   why: 'Muzzy\'s "never" rules for undo: reset --hard throws work away for good',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-git',
   check({ call }, { deny }) {

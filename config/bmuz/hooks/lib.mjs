@@ -62,12 +62,38 @@ let firingRule = ''
 export function setFiringRule(id) { firingRule = id || '' }
 export function logFiring(kind, text, event, dir) {
   try {
-    const file = process.env.BMUZ_FIRE_LOG || join(homedir(), '.claude', 'logs', 'bmuz-hooks.jsonl')
+    const file = fireLogFile()
     const hook = basename(process.argv[1] || 'unknown').replace(/\.mjs$/, '')
     const line = { t: new Date().toISOString(), hook, rule: firingRule, event: given.hook_event_name || event || '', kind, project: projectName(dir || given.cwd || process.cwd()), text: String(text).slice(0, 300), src: 'live' }
     mkdirSync(dirname(file), { recursive: true })
     try { if (statSync(file).size > FIRE_LOG_MAX) renameSync(file, file.replace(/\.jsonl$/, '.1.jsonl')) } catch {}
     appendFileSync(file, JSON.stringify(line) + '\n')
+  } catch {}
+}
+const fireLogFile = () => process.env.BMUZ_FIRE_LOG || join(homedir(), '.claude', 'logs', 'bmuz-hooks.jsonl')
+
+// F187 — did a refusal change anything? The runner calls this after every PreToolUse answer. A refusal is noted (one
+// small file per hook beside the log); when the SAME tool call (word for word, same session) then goes through within
+// 2 minutes, a "waved" line names the rule. The /checkup removal pass counts them: a rule whose refusals are mostly
+// waved through either had its fix made elsewhere (a gate doing its job) or changed nothing (crying wolf) — a
+// proposal for Muzzy, never a cut by itself. Like the log, it never changes an answer.
+export function noteRefusal(hook, input, answer) {
+  try {
+    const file = join(dirname(fireLogFile()), `bmuz-refused-${hook}.json`)
+    const act = createHash('sha1').update(`${input.tool_name}|${JSON.stringify(input.tool_input || {})}`).digest('hex').slice(0, 12)
+    const session = input.session_id || ''
+    if (answer?.kind === 'deny') {
+      mkdirSync(dirname(file), { recursive: true })
+      return writeFileSync(file, JSON.stringify({ t: Date.now(), session, act, rule: answer.rule || '' }))
+    }
+    if (answer || !existsSync(file)) return
+    const last = JSON.parse(readFileSync(file, 'utf8'))
+    if (last.session !== session || last.act !== act) return
+    unlinkSync(file)
+    const after = Math.round((Date.now() - last.t) / 1000)
+    if (after > 120) return
+    setFiringRule(last.rule)
+    logFiring('waved', `the same ${input.tool_name} call went through ${after} s after ${last.rule} refused it`, 'PreToolUse', input.cwd)
   } catch {}
 }
 

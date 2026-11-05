@@ -12,6 +12,7 @@ export default {
   what: 'Refuses editing a game\'s copy of a framework module (src/ui/kit/, src/devkit/, src/audio/… or any src/<x>/ or src/<x>/kit/ holding a VERSION file) — by the edit tools or a shell write',
   why: 'A copy edited in the game is lost at the next install and never reaches the other games — change it in the framework, then reinstall (F67)',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-edits',
   check({ path }, { deny }) {

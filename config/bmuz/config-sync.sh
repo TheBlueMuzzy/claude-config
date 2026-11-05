@@ -93,6 +93,17 @@ case "${1:-status}" in
     [ -f "$HUB" ] && cp "$HUB" "$REPO/HUB.md"
     git -C "$REPO" add -A
     if git -C "$REPO" diff --cached --quiet; then echo "NOTHING-TO-PUSH"; exit 0; fi
+    # F187 — the bloat test both ways: a push ADDING a hook rule file needs "Replaces: …" in its message (guard-git GG15).
+    # Only that rule — the repo has no core.hooksPath on purpose: GG4 would refuse every "F187: …" push on main.
+    check="$(cd "$(dirname "$0")" && pwd)/git-hooks/commit-msg.mjs"
+    if [ -f "$check" ]; then
+      msgfile=$(mktemp); printf '%s\n' "$msg" > "$msgfile"
+      if ! why=$(cd "$REPO" && node "$check" "$msgfile" GG15 2>&1); then
+        rm -f "$msgfile"; git -C "$REPO" reset -q
+        echo "REFUSED: $why"; exit 1
+      fi
+      rm -f "$msgfile"
+    fi
     git -C "$REPO" commit -qm "$msg"
     git -C "$REPO" push -q && git -C "$REPO" rev-parse HEAD > "$APPLIED" && echo "PUSHED: $(git -C "$REPO" log --format='%h %s' -1)"
     ;;

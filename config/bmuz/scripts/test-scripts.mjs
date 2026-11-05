@@ -551,6 +551,10 @@ function testConfigSync() {
   expect('F180: this machine\'s own commit made straight in the repo (live files match) → not INCOMING', absent(/STATUS-OWN INCOMING/), out)
   expect('F180: …and a push works', /PC-PUSH-OWN PUSHED/.test(out), out)
   expect('F180: a real change from the other machine still counts → INCOMING', /STATUS-OTHER INCOMING/.test(out), out)
+  // F187 — a push adding a hook rule file says what it replaces (GG15, the same rule git's commit step runs)
+  expect('F187: a push adding a rule file with no "Replaces:" → refused, nothing pushed', /REPLACES-NONE REFUSED/.test(out) && /GG15/.test(out), out)
+  expect('F187: …the same push with "Replaces: nothing — <why>" → pushed', /REPLACES-SAID PUSHED/.test(out), out)
+  expect('F187: an edit to that rule later (nothing added) → pushed without the line', /REPLACES-EDIT PUSHED/.test(out), out)
   // F176 — Sync keeps unpushed edits (setup.sh)
   expect('F176: a file edited here, not pushed → kept by setup.sh', /SETUP-A a-local/.test(out), out)
   expect('F176: …and named', /SETUP-OUT .*kept.*skills\/a\/SKILL\.md/i.test(out), out)
@@ -1722,6 +1726,35 @@ function testFrameworkAround() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// removal-pass.mjs (F187): the /checkup proposals from the firing log — never fired, cried wolf, switched off
+function testRemovalPass() {
+  console.log('removal-pass — proposed cuts from the firing log (proposals only)')
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-removal-'))
+  const log = join(root, 'log.jsonl')
+  const history = join(root, 'history.jsonl')
+  const now = Date.parse('2026-11-05T12:00:00Z')
+  const at = (daysAgo) => new Date(now - daysAgo * 86_400_000).toISOString()
+  const line = (hook, rule, kind, daysAgo) => JSON.stringify({ t: at(daysAgo), hook, rule, kind, event: 'PreToolUse', project: 'g', text: 'x', src: 'live' })
+  // every hook with a rule folder spoke in the history, except stop-unsaved
+  const hooks = ['check-ui-edit', 'commit-typecheck', 'guard-edits', 'guard-git', 'handoff-check', 'lint-edit', 'live-push', 'plan-lint', 'rule-kind', 'session-moments', 'sketch-lint', 'stop-check-fast', 'stop-cleanup', 'stop-plan-check']
+  write(history, hooks.map(h => JSON.stringify({ t: at(5), hook: h, kind: 'block', text: 'x', src: 'history' })).join('\n') + '\n')
+  const run = (lines) => { write(log, lines.join('\n') + '\n'); return script('removal-pass.mjs', ['--now', at(0)], { env: { BMUZ_FIRE_LOG: log, BMUZ_HISTORY_OUT: history } }) }
+  // a short log (rules named for 3 days): silence is "so far", not a proposal; a wolf is still a wolf
+  const short = run([line('guard-git', 'GG13', 'deny', 3), line('guard-git', 'GG13', 'waved', 3), line('guard-git', 'GG13', 'deny', 2), line('guard-git', 'GG13', 'waved', 2), line('guard-git', 'GG13', 'deny', 1), line('guard-git', 'GG8', 'deny', 1)])
+  expect('runs, says it changes nothing', short.code === 0 && /proposals only/.test(short.out) && /nothing is changed/.test(short.out), short.out)
+  expect('a hook silent for 60 days in log + history (stop-unsaved) → proposed', /- stop-unsaved — cut it/.test(short.out) && !/- guard-git — cut it/.test(short.out), short.out)
+  expect('rules named in the log for only 3 days → "silent so far", with the date a real list starts', /Rules silent so far/.test(short.out) && /a real list from 2027-01-01/.test(short.out) && !/Rules that never fired/.test(short.out), short.out)
+  expect('GG13: 3 refusals, 2 waved through → cried wolf', /- GG13 commit\.stage-has-state — 2 of 3 refusals waved through/.test(short.out), short.out)
+  expect('GG8: 1 refusal → not enough to call it', !/- GG8 .*waved/.test(short.out), short.out)
+  // a log covering the window: silence is a proposal — but never for a rare guard or an action rule
+  const full = run([line('guard-git', 'GG8', 'deny', 70), line('guard-git', 'GG13', 'deny', 1)])
+  expect('a log older than 60 days → "Rules that never fired" proposals', /Rules that never fired in 60 days/.test(full.out), full.out)
+  expect('…GG8 fired 70 days ago only → proposed', /- GG8 commit\.done-roadmap/.test(full.out), full.out)
+  expect('…GG13 fired yesterday → not proposed', !/- GG13 /.test(full.out), full.out)
+  expect('…GG1 (rare: reset --hard) and CL1 (an action rule) are never proposed for silence', !/- GG1 /.test(full.out) && !/- CL1 /.test(full.out) && /rare guards left out: .*GG1/.test(full.out), full.out)
+  rmSync(root, { recursive: true, force: true })
+}
+
 // hook-history.mjs (F181): how each kind of hook answer shows up in a transcript → one history line, each answer once
 async function testHookHistory() {
   console.log('hook-history — past hook answers read back from the transcripts')
@@ -1764,7 +1797,7 @@ async function testHookHistory() {
 }
 
 const only = process.argv[2]
-const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList, 'release-crash-maps': testReleaseCrashMaps,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract, 'hook-history': testHookHistory }
+const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList, 'release-crash-maps': testReleaseCrashMaps,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract, 'hook-history': testHookHistory, 'removal-pass': testRemovalPass }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)

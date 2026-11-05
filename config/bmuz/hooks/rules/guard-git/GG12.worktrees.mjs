@@ -6,6 +6,7 @@ export default {
   what: 'Refuses a commit that would include `.claude/worktrees/` (a helper\'s workspace) — add the ignore line first',
   why: 'Helpers\' worktrees became broken embedded repos (Goops 2026-10-17); save.mjs adds the ignore line, but helpers can start before the first save (F80)',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-git-safety',
   check({ commit }, { deny }) {

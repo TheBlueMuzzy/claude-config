@@ -7,6 +7,7 @@ export default {
   what: 'Refuses a commit holding a `.env` (not .env.example), a key (*.pem, *.key), credentials.json, client_secret*.json, secrets.json, .dev.vars or .playwright-mcp/ — also when added on the same line. The same list /save refuses (lib NEVER_COMMIT)',
   why: 'Once pushed, a secret is on GitHub for good (F78)',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'guard-git-safety',
   check({ commit }, { deny }) {

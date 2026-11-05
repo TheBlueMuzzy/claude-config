@@ -8,6 +8,7 @@ export default {
   what: 'Refuses `git commit --no-verify` / `-n`, `git merge --no-verify`, and `git -c core.hooksPath=…` on a commit or merge — they skip git\'s own commit step, where the BMUZ commit checks run',
   why: 'The commit checks moved into git\'s own commit step (F184, Muzzy 2026-11-04: "yes", per project) — skipping that step would skip every one of them. Muzzy can still run it himself with `! git commit --no-verify …`',
   on: true,
+  rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
   tests: 'runner',
   check({ call, command }, { deny }) {
