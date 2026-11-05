@@ -133,9 +133,14 @@ export function weighedProblem(said, answer) {
   if (!DECIDING.test(said || '') || !/my pick|I recommend|my recommendation|recommend(ation)?:/i.test(answer || '')) return ''
   // the block = the label at the START of a line (its first real use named "**Weighed:** block" in a Done sentence),
   // up to the next bold label that starts a line
-  const block = /(?:^|\n)\*\*Weighed:?\*\*:?([\s\S]*?)(?=\n\*\*[A-Z][^*\n]*:?\*\*|$(?![\s\S]))/.exec(answer)?.[1] || ''
+  const block = (/(?:^|\n)\*\*Weighed:?\*\*:?([\s\S]*?)(?=\n\*\*[A-Z][^*\n]*:?\*\*|$(?![\s\S]))/.exec(answer)?.[1] || '').replace(/[’‘]/g, "'")
   const missing = WEIGHED_PARTS.filter(part => !block.toLowerCase().includes(part.toLowerCase()))
-  const why = (/why it'?s this way[^\n]*/i.exec(block) || [''])[0]
+  // the "why" bullet with its sub-lines — up to the next part's line (F185: a source named on an indented line under
+  // "Why it's this way now" was missed, because only the first line was read)
+  const lines = block.split('\n')
+  const at = lines.findIndex(line => /why it'?s this way/i.test(line))
+  const next = lines.findIndex((line, i) => i > at && WEIGHED_PARTS.slice(1).some(part => line.toLowerCase().includes(part.toLowerCase())))
+  const why = at < 0 ? '' : lines.slice(at, next < 0 ? undefined : next).join('\n')
   const sourced = /[\w-]+\.(md|mjs|js|ts|tsx|json|sh)\b|\b[0-9a-f]{7,40}\b|["“`]|\bcommit\b|\bsprint \d+/i.test(why)
   if (!missing.length && sourced) return ''
   return `Muzzy asked a decision question and this answer picks without weighing it (Muzzy, 2026-11-04: "I don't want you making a decision with only half of a perspective"). Add a short **Weighed:** block, one bullet each — ${WEIGHED_PARTS.join(' · ')}${missing.length ? ` (missing: ${missing.join(', ')})` : ''}${sourced ? '' : '; "Why it\'s this way now" names what you checked (a file, a commit or quoted words)'}. Check the record before you write it — if the weighing changes the pick, change the pick.`
@@ -144,6 +149,24 @@ export function weighedProblem(said, answer) {
 // Muzzy's own words — a helper's report or a background-task notice arrives as a "prompt" too (2026-10-18: a review
 // report saying "shutting down" fired the stopping reminder).
 export const fromMuzzy = (text) => !/<(system-reminder|task-notification|agent-message)\b/.test(text || '')
+
+// --- report-only mode (F185, audit §5 #1) ----------------------------------------
+// Muzzy, 2026-11-01: "assess / analyze / tell me what's going on" = report only — read, reproduce, report with options;
+// no edits, no commits, no publishing until he picks. session-moments (SM4) sets the flag when his message asks that way;
+// guard-edits (GE10) refuses edits outside the scratch folders, commits, pushes and deploys while it's set; his next
+// message decides again. The word list is kept tight on purpose: a false alarm here would stop real work.
+export const REPORT_ONLY = /\b(assess|analy[sz]e)\b|\btell me what'?s (going on|happening|wrong)\b|\bwhat'?s going on\b|\bwhat is going on\b|\bwhat do you think\b|\breport only\b|\bjust (report|look|tell me)\b|\bdon'?t (change|edit|fix|touch) anything\b/i
+// …unless the same message also says to act ("analyze it and fix it", "what do you think? go ahead")
+export const GO_AHEAD = /\b(fix|fixes|build (it|this|that)|implement|go ahead|do it|go for it|make it|change it|update it|apply|commit|ship|deploy|approved?|proceed|just go)\b/i
+export function asksReportOnly(prompt) {
+  const text = String(prompt || '').replace(/<command-[a-z]+>[\s\S]*?<\/command-[a-z]+>/g, '') // a /skill's own text isn't his ask
+  if (!fromMuzzy(prompt) || /<command-name>/.test(prompt || '')) return false
+  return REPORT_ONLY.test(text) && !GO_AHEAD.test(text.replace(/\bdon'?t (change|edit|fix|touch) anything\b/gi, ''))
+}
+export function reportOnlyFlag(session) {
+  const dir = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx') // (tests use their own folder)
+  return join(dir, `${session || 'session'}.report-only`)
+}
 
 // What Claude did since the last message: { startedAt, tools: [{ name, input, cwd }], lastText, muzzySaid } —
 // muzzySaid = the text of Muzzy's own latest message (helper reports skipped), even from an earlier turn.
@@ -192,6 +215,21 @@ function isPrompt(entry) {
 // Did a tool call change files or commit?
 export const isCommit = (tool) => (tool.name === 'Bash' || tool.name === 'PowerShell') && /\bgit\b[^\n]*\bcommit\b/.test(tool.input.command || '')
 export const isFileEdit = (tool) => ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(tool.name)
+
+// Did the turn do real work (F185 — hand-off card rule HC1)? A file edit that isn't throwaway (the session scratchpad,
+// ~/Documents/dev/.scratch, Claude's memory folder), or a real `git commit` (read with the command parser — the word
+// "commit" in a grep or a message isn't one), or a BMUZ script that commits (save / release / merge / archive-sprint).
+// Audit 2026-11: 16 of HC1's 220 send-backs came from scratchpad-only writes or "commit" in a search.
+const NOT_WORK = /[\\/](scratchpad|\.scratch|memory)([\\/]|$)/i
+export function didWork(turn) {
+  return turn.tools.some(tool => {
+    if (isFileEdit(tool)) return !NOT_WORK.test(tool.input.file_path || tool.input.notebook_path || '')
+    if (tool.name !== 'Bash' && tool.name !== 'PowerShell') return false
+    const command = tool.input.command || ''
+    if (gitCalls(command, tool.cwd).some(c => c.sub === 'commit' && !c.args.includes('--dry-run'))) return true
+    return commands(command, tool.cwd).some(({ words }) => /^node(\.exe)?$/i.test(words[0] || '') && words.some(w => /(^|[\\/])(save|release|merge|archive-sprint)\.mjs$/.test(w)))
+  })
+}
 
 // --- reading a shell command --------------------------------------------------
 
@@ -246,7 +284,9 @@ export function tokenize(raw) {
 }
 
 const SEPARATORS = new Set(['&&', '||', ';'])
-const PREFIXES = new Set(['command', 'sudo', 'exec', 'time', 'nohup', 'env', '$']) // words that just run the next one
+// words that just run the next one — and bash's loop / if keywords (`for b in x; do git branch -D $b; done` hid the git
+// call behind "do" — F185)
+const PREFIXES = new Set(['command', 'sudo', 'exec', 'time', 'nohup', 'env', '$', 'do', 'then', 'else', 'elif', 'if', 'while', 'until', '!'])
 
 // Each simple command in a command line, with the folder it runs in: [{ dir, words }].
 // Follows `cd x &&` / `Set-Location x;`, skips `FOO=bar` and `sudo`/`command` in front.

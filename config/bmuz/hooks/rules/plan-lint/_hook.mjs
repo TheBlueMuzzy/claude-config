@@ -6,7 +6,7 @@
 // rewrites a file (a check that edits would change the files it's checking).
 import { basename, dirname, resolve } from 'node:path'
 import { git } from '../../lib.mjs'
-import { PLAN_FILES, LISTING, LINT_RULES, lintProject } from './_lint.mjs'
+import { PLAN_FILES, LISTING, LINT_RULES, TURN_END, lintProject } from './_lint.mjs'
 
 export default {
   hook: 'plan-lint',
@@ -37,7 +37,8 @@ export default {
     before[LISTING] = (git(project, 'ls-tree', '--name-only', 'HEAD', '.planning/') || '').split('\n').filter(Boolean).map(p => basename(p))
     const old = new Set((await lintProject(ctx, project, before)).map(p => `${p.file} ${p.message}`))
     // problems with the .planning folder itself show on any plan edit
-    const mine = (await lintProject(ctx, project)).filter(p => (p.file === basename(full) || p.file === '.planning/') && !old.has(`${p.file} ${p.message}`))
+    // (the two-file rules wait for the turn's end — stop-plan-check PL32, F185)
+    const mine = (await lintProject(ctx, project)).filter(p => (p.file === basename(full) || p.file === '.planning/') && !old.has(`${p.file} ${p.message}`) && !TURN_END.includes(p.rule))
     const pppNote = (await ctx.rule('PL31', { project })) || ''
     if (mine.length) {
       const lines = mine.map(p => `- ${p.file}${p.line ? `:${p.line}` : ''}  ${p.message}`)

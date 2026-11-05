@@ -5,7 +5,8 @@
 // A rule file:  export default { id, name, what, why, on, mode, tests, check(args, ctx) }
 //   id    — the short id the audit and the firing log use (GG2, HC1…) · name — a readable one ("git.no-force-push")
 //   what  — what it does, one line · why — the reason, with Muzzy's words + date where there are some
-//   on    — false switches the rule off · mode — block | warn | action (what kind of answer it gives)
+//   on    — false switches the rule off · mode — block | warn | action | log (what kind of answer it gives; log = the
+//           firing log only, nothing said — ctx.log, F185)
 //   tests — the test-hooks.mjs suite that proves it
 //   check — returns what it found (a message, a list, …) for the hook's steps to use, or answers itself:
 //           ctx.deny(text) / ctx.ask(text) / ctx.tell(text) stop the hook right there, like the old deny() did
@@ -110,6 +111,14 @@ export async function checkCommit(commit) {
   return { refusal: '', rule: '', crashes: crashLines }
 }
 
+// Another hook's rules, run from inside a rule (F185: stop-plan-check's PL32 runs plan-lint's two-file rules at turn
+// end). Returns that hook's ctx — a crash in one of its rules is caught and skipped like any other.
+export async function rulesOf(hook, input = {}) {
+  const { ctx } = makeRun(hook, await loadHook(hook))
+  ctx.input = input
+  return ctx
+}
+
 // One hook's run: the ctx its steps and rules get, and what they found. (main and checkCommit share it.)
 function makeRun(hook, { spec, rules, broken }) {
   const crashes = [] // { id, file, error }
@@ -149,6 +158,8 @@ function makeRun(hook, { spec, rules, broken }) {
     exit() { throw new Answer('none') }, // nothing to say — the hook is done
     say(answer, rule) { pending = { kind: 'say', answer, rule } }, // any other answer (a context note, a warning); the hook goes on
     stop(problems, rule) { pending = { kind: 'stop', problems, rule } }, // a Stop hook's send-back, counted (lib.stopVerdict)
+    // mode "log" (F185): written to the firing log only — Claude and Muzzy see nothing; for measuring a rule before it speaks
+    log(text, rule) { setFiringRule(rule || current); logFiring('log', text, ctx.input.hook_event_name, ctx.input.cwd); setFiringRule('') },
     // the crashes so far, as report lines (command mode prints them — there's no hook answer to carry them)
     crashLines: () => crashes.map(c => crashLine(hook, c)),
   }

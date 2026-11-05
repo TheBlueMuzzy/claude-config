@@ -1,7 +1,21 @@
 // Helpers several guard-git rules share (F184 — moved out of guard-git.mjs unchanged).
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { git, commitFiles, commitMessage } from '../../lib.mjs'
+
+// Does git's own commit step in this repo run the BMUZ commit checks (core.hooksPath → this BMUZ git-hooks folder,
+// set per project by save.mjs — F184)? Then those checks see the real staged files at the real moment, and the
+// command-line copies (which read the files BEFORE the line runs, so "edit STATE && git commit" was refused — GG13 95 %
+// false, GG8 96 % false, audit 2026-11) step aside (F185). A repo without it keeps the command-line checks.
+export const GIT_HOOKS = resolve(import.meta.dirname, '..', '..', '..', 'git-hooks')
+export function gitStepChecks(dir) {
+  const set = git(dir, 'config', '--get', 'core.hooksPath')
+  if (!set) return false
+  const at = resolve(dir, set.replace(/^~(?=[\\/])/, homedir()))
+  const same = (p) => p.split('\\').join('/').replace(/\/+$/, '').toLowerCase()
+  return same(at) === same(GIT_HOOKS) && existsSync(join(GIT_HOOKS, 'commit-msg'))
+}
 
 // The commit a rule checks, the same shape from both places it's checked:
 //   - a `git commit` Claude typed (PreToolUse — read before the command line runs): commandCommit

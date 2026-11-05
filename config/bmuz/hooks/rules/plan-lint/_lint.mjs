@@ -14,6 +14,10 @@ const SPRINT_RULES = ['PL16', 'PL4', 'PL3', 'PL12', 'PL2', 'PL22', 'PL9', 'PL23'
 const BUG_RULES = ['PL11', 'PL24', 'PL25', 'PL26', 'PL27', 'PL10']
 const STATE_RULES = ['PL28', 'PL8', 'PL29', 'PL30', 'PL7']
 export const LINT_RULES = [...new Set([...ROADMAP_RULES, ...SPRINT_RULES, ...BUG_RULES, ...STATE_RULES, 'PL19'])]
+// Checked once when the turn ends (stop-plan-check's PL32), not after each edit: the rules comparing SPRINT with ROADMAP
+// and the ones a run of ROADMAP edits passes through on the way (states, needs, the graph). Mid-edit they fired before
+// the second file's edit landed — PL2 ~75 % noise, PL4 mostly (audit 2026-11; F185)
+export const TURN_END = ['PL2', 'PL4', 'PL5', 'PL6', 'PL14']
 
 // Every problem in a project's plan files: { file, line, message, rule }.
 // `texts` replaces files' contents (name → text, or null = no such file) — used for the last commit's version.

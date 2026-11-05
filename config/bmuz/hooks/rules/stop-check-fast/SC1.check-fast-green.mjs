@@ -8,7 +8,7 @@ export default {
   id: 'SC1',
   name: 'check.fast-green',
   what: 'A turn that did work (edited or committed) in a project whose code changed since the last green `npm run check:fast` runs it (max 5 min; one run at a time per project, sharing /save\'s green record). Red → Claude keeps going to fix it or says plainly what\'s broken. Over 5 minutes → SC2: say so plainly',
-  why: 'Never "done" on broken code (F68). Goops 2026-10-19: two runs both building into dist/ broke each other — so one at a time',
+  why: 'Never "done" on broken code (F68). Goops 2026-10-19: two runs both building into dist/ broke each other — so one at a time. While a game\'s full check / screenshot run holds e2e-shots/.check-lock it isn\'t started at all (audit 2026-11: ~40 % of its send-backs were timeouts on a PC busy with a screenshot run — F185)',
   on: true,
   mode: 'block',
   tests: 'stop-check-fast',
@@ -39,6 +39,10 @@ export default {
     const isGreen = () => existsSync(recordFile) && readFileSync(recordFile, 'utf8').trim() === fingerprint
     if (isGreen()) return
 
+    // a full check / screenshot run going on here (a game's check:full holds e2e-shots/.check-lock) → don't start a
+    // second heavy run beside it: it loads the PC and the fast check times out (audit 2026-11: ~40 % of SC1's send-backs
+    // were timeouts under a screenshot run). That run checks the code itself; the next hand-back checks again. (F185)
+    if (fullRunGoing(root)) return
     // another check:fast in this project (another session, a save) → wait for it (the hook's 360 s budget allows ~50 s),
     // then reuse its result if it passed this exact code; still busy → leave it, the next hand-back checks (Goops 2026-10-19)
     const release = holdCheckLock(root, 50_000)
@@ -49,6 +53,7 @@ export default {
       writeFileSync(recordFile, fingerprint + '\n')
       return
     }
+    if (fullRunGoing(root)) return // a full run started meanwhile — this red may be the load, not the code (F185)
     const tail = output.trim().split('\n').slice(-40).join('\n')
     const reason = timedOut
       ? `npm run check:fast ran over ${TIME_LIMIT_MS / 60000} minutes, so the code wasn't confirmed. Say so plainly in your report (and why it's slow, if you can tell).`
@@ -56,4 +61,15 @@ export default {
     say({ decision: 'block', reason })
     return reason
   },
+}
+
+// A game's check:full / area run holds e2e-shots/.check-lock ("<pid> <time>") while it runs (scripts/check-all.mjs)
+function fullRunGoing(root) {
+  try {
+    const pid = Number(readFileSync(join(root, 'e2e-shots', '.check-lock'), 'utf8').split(' ')[0])
+    if (!pid || pid === process.pid) return false
+    try { process.kill(pid, 0); return true } catch (error) { return error.code === 'EPERM' }
+  } catch {
+    return false // no lock file
+  }
 }

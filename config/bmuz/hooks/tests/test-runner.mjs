@@ -164,6 +164,19 @@ function testGitCommitStep() {
   const logged = logLines().filter(l => l.event === 'git commit-msg')
   expect('git\'s refusals are in the firing log with their rule ids', logged.some(l => l.rule === 'CT1') && logged.some(l => l.rule === 'GG8'), JSON.stringify(logged.slice(-2)))
 
+  // F185: where git's own step runs the commit rules, guard-git leaves them to it — an edit and a commit on one line
+  // (the audit's GG8 / GG13 false alarms: the check read STATE / ROADMAP before the line had edited them) passes
+  const pre = (command) => run(HOOKS, 'guard-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command } })
+  writeFileSync(join(repo, '.planning', 'SPRINT.md'), '# Sprint 04 — fan\n'); sh(repo, 'add', '.planning/SPRINT.md')
+  const sameLine = pre('sed -i "s/F08 done/sprint 04/" .planning/STATE.md && git add -A && git commit -m "Sprint 04: fan"')
+  expect('F185: "edit STATE && git commit -m \'Sprint 04: …\'" → not refused before the line runs (git\'s step checks it)', !sameLine.json?.hookSpecificOutput?.permissionDecision, sameLine.stdout)
+  expect('F185: …and "edit ROADMAP && git commit -m \'F08: done\'" → not refused either', !pre('sed -i "s/🔨 F08/✅ F08/" .planning/ROADMAP.md && git add -A && git commit -m "F08: done"').json?.hookSpecificOutput?.permissionDecision)
+  expect('F185: …the never-rules still run there (a force-push → refused)', pre('git commit -m "x" && git push --force').json?.hookSpecificOutput?.permissionDecision === 'deny')
+  sh(repo, 'reset', '-q'); sh(repo, 'add', '.planning/SPRINT.md')
+  const noState = commit('Sprint 04: fan')
+  expect('F185: …a stage commit WITHOUT STATE staged → refused by git itself (GG13 still catches it)', noState.status !== 0 && /GG13/.test(noState.stderr), noState.stderr)
+  sh(repo, 'reset', '-q')
+
   // save.mjs points a BMUZ project at it, leaves a non-BMUZ repo and a repo with its own hooks alone
   // (stand-ins for cleanup.sh and config-sync.sh — a test save never touches ~/.claude-config)
   const save = (dir) => spawnSync(process.execPath, [join(BMUZ, 'scripts', 'save.mjs'), 'a save'], { cwd: dir, encoding: 'utf8', env: { ...env, BMUZ_CLEANUP: join(ROOT, 'no-op.sh'), BMUZ_CONFIG_SYNC: join(ROOT, 'no-op.sh') }, timeout: 300_000 })

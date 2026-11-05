@@ -5,21 +5,21 @@
 // labels are read from the template, so editing the template changes the check.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { readTurn, isCommit, isFileEdit, git } from '../../lib.mjs'
+import { readTurn, didWork, git } from '../../lib.mjs'
 import { isProgressLine } from './_shared.mjs'
 
 export default {
   hook: 'handoff-check',
   event: 'Stop',
   when: 'When Claude finishes a turn',
-  order: ['HC1', 'HC5', 'HC6', 'HC7', 'HC3', 'HC9', 'HC8', 'HC2', 'HC4', 'HC10'],
+  order: ['HC1', 'HC5', 'HC6', 'HC7', 'HC3', 'HC9', 'HC8', 'HC2', 'HC4', 'HC10', 'HC11', 'HC12', 'HC13', 'HC14'],
 
   async run(ctx) {
     const { input } = ctx
     if (!input.transcript_path || !existsSync(input.transcript_path)) ctx.exit()
     const turn = readTurn(input.transcript_path)
     const message = (input.last_assistant_message ?? turn.lastText ?? '').trim()
-    const worked = turn.tools.some(tool => isFileEdit(tool) || isCommit(tool))
+    const worked = didWork(turn) // a real edit (not the scratchpad / .scratch / memory) or a real commit (F185)
     const args = { turn, message }
     const problems = []
     const add = (found) => { if (Array.isArray(found)) problems.push(...found); else if (found) problems.push(found) }
@@ -39,6 +39,9 @@ export default {
     }
     add(await ctx.rule('HC4', args))
     add(await ctx.rule('HC10', args)) // a waiting progress line has a wake-up running (2026-11-04)
+    // judgement rules that became hooks (F185): an idea / a lesson really landed, questions numbered everywhere,
+    // and long paragraphs — that one only logged while it's measured
+    for (const id of ['HC11', 'HC12', 'HC13', 'HC14']) add(await ctx.rule(id, args))
     ctx.stop(problems.length && problems.join('\n\n'))
   },
 }

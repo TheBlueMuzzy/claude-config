@@ -5,7 +5,7 @@ import { basename, resolve } from 'node:path'
 import { readTurn, isCommit, gitCalls, git, commitMessage } from '../../lib.mjs'
 import { MILESTONE_TAG } from './_shared.mjs'
 
-const ORDER = ['SP1', 'SP3', 'SP8', 'SP4', 'SP5', 'SP6', 'SP7', 'SP2']
+const ORDER = ['SP1', 'PL32','SP3', 'SP8', 'SP4', 'SP5', 'SP6', 'SP7', 'SP2']
 
 export default {
   hook: 'stop-plan-check',
@@ -42,7 +42,7 @@ function scanTurn(turn) {
     const top = dir && git(dir, 'rev-parse', '--show-toplevel')
     if (!top) return null
     const root = resolve(top)
-    if (!projects.has(root)) projects.set(root, { committed: false, touchedSprint: false, published: false, milestone: false, done: false, lookbacks: new Set(), sketches: new Set(), sentFiles: [] })
+    if (!projects.has(root)) projects.set(root, { committed: false, messages: [], touchedPlan: false, touchedSprint: false, published: false, milestone: false, done: false, lookbacks: new Set(), sketches: new Set(), sentFiles: [] })
     return projects.get(root)
   }
   for (const tool of turn.tools) {
@@ -53,7 +53,9 @@ function scanTurn(turn) {
         const p = project(call.dir)
         if (!p) continue
         p.committed = true
-        if (/^F\d+[a-z]?: done\b/.test(commitMessage(tool.input.command, call.args))) p.done = true
+        const message = commitMessage(tool.input.command, call.args)
+        p.messages.push(message) // (SP1 asks only about commits that name a sprint feature — F185)
+        if (/^F\d+[a-z]?: done\b/.test(message)) p.done = true
       }
     }
     // the release scripts commit + tag inside their own process (git calls the shell never shows): note the project,
@@ -68,7 +70,9 @@ function scanTurn(turn) {
       }
     }
     if (/[\\/]\.planning[\\/]archive[\\/]lookbacks[\\/][^\\/]+\.md$/.test(file)) { const p = project(resolve(file, '..')); if (p) p.lookbacks.add(file) }
-    if (/[\\/]\.planning[\\/][^\\/]+\.md$/.test(file)) project(resolve(file, '..')) // any plan edit: the planner may need republishing
+    // any plan edit: the planner may need republishing, and the plan rules that compare two files run once now (PL32)
+    if (/[\\/]\.planning[\\/][^\\/]+\.md$/.test(file)) { const p = project(resolve(file, '..')); if (p) p.touchedPlan = true }
+    if ((tool.name === 'Bash' || tool.name === 'PowerShell') && /(ROADMAP|SPRINT)\.md/.test(tool.input.command || '')) { const p = project(tool.cwd); if (p) p.touchedPlan = true }
     if (/[\\/]\.planning[\\/]SPRINT\.md$/.test(file)) { const p = project(resolve(file, '..')); if (p) p.touchedSprint = true }
     if ((tool.name === 'Bash' || tool.name === 'PowerShell') && /SPRINT\.md/.test(tool.input.command || '')) { const p = project(tool.cwd); if (p) p.touchedSprint = true }
     if (tool.name === 'Artifact' && /ppp\.html$/.test(file)) {

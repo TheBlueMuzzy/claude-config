@@ -8,12 +8,29 @@ export const CODE_FILE = /\.(m?[jt]sx?|c[jt]s|css|py|ps1|sh)\b/
 // it's set (`p = 'src/a.ts'`, `p='SPRINT.md'`). Not "any quoted text ending in .mjs": a quoted span inside a long
 // note that happened to end in ".mjs" blocked a script writing SPRINT.md (found in use, 2026-10-19).
 export function writesCodeFile(s) {
+  return codeFilesWritten(s).length > 0
+}
+
+// The code files a script (or a shell line) writes — the paths, so GE3 can tell a throwaway folder from the game.
+export function codeFilesWritten(s) {
   const literal = [...writeTargets(s), ...[...s.matchAll(/Path\(\s*r?(['"])([^'"]+)\1\s*\)\s*\.\s*write_text/g)].map(m => m[2])]
-  if (literal.some(t => CODE_FILE.test(t))) return true
   // (no early "false" on other literals: a `=>` or `<Tag />` in the script's text reads as a shell `> word` target and
   // hid `open(p, 'w')` with p = '….test.mjs' — a test's backslash-n became real line breaks, framework F102 2026-10-20)
   const vars = [...s.matchAll(/(?:open|Path|writeFileSync|writeFile)\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)].map(m => m[1])
-  return vars.some(v => [...s.matchAll(new RegExp(`(?:^|[\\s;(])${v}\\s*=\\s*(['"])([^'"\\n]+)\\1`, 'gm'))].some(m => CODE_FILE.test(m[2]) && !/[*?]/.test(m[2])))
+  const held = vars.flatMap(v => [...s.matchAll(new RegExp(`(?:^|[\\s;(])${v}\\s*=\\s*(['"])([^'"\\n]+)\\1`, 'gm'))].map(m => m[2]).filter(p => !/[*?]/.test(p)))
+  return [...literal, ...held].filter(t => CODE_FILE.test(t))
+}
+
+// A throwaway place: the dev .scratch folder, Claude's session scratchpad (…\Temp\claude\…\scratchpad), /tmp (F185 —
+// audit 2026-11: 155 GE3 refusals were scripts writing throwaway files there; nothing is lost if one goes wrong).
+// Not the whole Temp folder: the hook tests build their throwaway games there, and must still see real refusals.
+export const THROWAWAY = /[\\/]\.scratch([\\/]|$)|[\\/]scratchpad([\\/]|$)|^\/tmp(\/|$)/i
+
+// The replacement halves of the `s/old/new/` edits in a sed / perl line (any delimiter, quoted or not)
+export function sedReplacements(text) {
+  const out = []
+  for (const m of text.matchAll(/(?:^|[\s'";])s([^\w\s\\])((?:\\.|(?!\1)[^\n])*)\1((?:\\.|(?!\1)[^\n])*)\1/g)) out.push(m[3])
+  return out
 }
 
 // Paths a shell command writes to.
@@ -36,16 +53,23 @@ export function writeTargets(text) {
 
 // Text inside heredocs: `<<'EOF'` … `EOF`
 export function heredocBodies(text) {
+  return heredocs(text).map(h => h.body)
+}
+
+// Each heredoc: its body, whether its tag was quoted (`<<'EOF'` / `<<"EOF"` — bash then keeps every byte: no `\`, `$`
+// or backtick is touched), and the line that opens it (`cat > a.ts <<'EOF'`).
+export function heredocs(text) {
   const lines = text.split('\n')
-  const bodies = []
+  const found = []
   for (let i = 0; i < lines.length; i++) {
-    for (const m of lines[i].matchAll(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/g)) {
+    const opener = lines[i]
+    for (const m of opener.matchAll(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/g)) {
       const body = []
       while (i + 1 < lines.length && lines[i + 1].trim() !== m[2]) body.push(lines[++i])
-      bodies.push(body.join('\n'))
+      found.push({ body: body.join('\n'), quoted: Boolean(m[1]), opener })
     }
   }
-  return bodies
+  return found
 }
 
 // The script in `python -c "…"` / `node -e '…'`

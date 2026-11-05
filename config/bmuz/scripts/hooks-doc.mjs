@@ -11,7 +11,7 @@ import { loadHook, RULES_DIR } from '../hooks/runner.mjs'
 const DOC = join(import.meta.dirname, '..', 'HOOKS.md')
 export const START = '<!-- rule table: made by scripts/hooks-doc.mjs from hooks/rules/ — edit the rule files, not this table -->'
 export const END = '<!-- end of rule table -->'
-const MODE = { block: '', warn: ' (warns, never refuses)', action: ' (does it itself)' }
+const MODE = { block: '', warn: ' (warns, never refuses)', action: ' (does it itself)', log: ' (only logged — says nothing yet)' }
 const cell = (text) => String(text || '').replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ')
 
 export async function ruleTable() {

@@ -3,7 +3,7 @@ import { templateLabels, section, escape } from './_shared.mjs'
 export default {
   id: 'HC1',
   name: 'card.format',
-  what: 'A turn that did work (edited or committed) ends with the hand-off card (templates/handoff.md: Done · You\'ll see · Try it · Proof · Your to-dos · Questions · Next `/command` — what it covers) or the progress line; Try it has links, Questions are numbered real questions — sent back up to 3 times in a row',
+  what: 'A turn that did work (a real edit — not the scratchpad, .scratch or memory — or a real git commit / save, F185) ends with the hand-off card (templates/handoff.md: Done · You\'ll see · Try it · Proof · Your to-dos · Questions · Next `/command` — what it covers) or the progress line; Try it has links, Questions are numbered real questions — sent back up to 3 times in a row',
   why: 'Every hand-off looks the same (Muzzy, 2026-10-18: "I never want to see it any other way going forward!")',
   on: true,
   mode: 'block',

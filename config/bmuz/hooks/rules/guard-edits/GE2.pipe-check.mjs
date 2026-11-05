@@ -5,19 +5,18 @@ const HIDES = /^\s*(tail|head|grep|Select-Object|Select-String|findstr|sort|wc|t
 export default {
   id: 'GE2',
   name: 'shell.pipefail',
-  what: 'Refuses piping a check (npm test, check:*, tsc, eslint, vitest…) into tail / grep / Select-Object… unless the line sets pipefail',
-  why: '`npm test | tail` reports tail\'s exit code (0), so a failed check looks green (Goops 2026-10-17 shipped a kit change that broke the kit\'s own rules that way)',
+  what: 'A bash line piping a check (npm test, check:*, tsc, eslint, vitest…) into tail / grep / head… gets `set -o pipefail;` added in front, so a failed check still fails the line — nothing is refused. PowerShell is left alone (it already keeps the check\'s failure)',
+  why: '`npm test | tail` reports tail\'s exit code (0), so a failed check looks green (Goops 2026-10-17 shipped a kit change that broke the kit\'s own rules that way). Refusing it cost 215 retries in 17 days, 96 % of them harmless (audit 2026-11, F185) — so the hook now fixes the line itself (Claude Code 2.1.318 lets a hook rewrite a command: proved live 2026-11-04). PowerShell 7 already exits with the check\'s code and stops `&&` when a piped check fails (tried 2026-11-04)',
   on: true,
-  mode: 'block',
+  mode: 'action',
   tests: 'guard-edits',
-  check({ tool, command, unquoted }, { deny }) {
+  // returns the rewritten command (guard-edits passes it to Claude Code as updatedInput), or nothing
+  check({ tool, command, unquoted }) {
+    if (tool !== 'Bash' || /pipefail|PIPESTATUS/.test(command)) return undefined
     for (const segment of unquoted.split(/&&|\|\||;|\n/)) { // "a | tail" stays one segment
       const [first, ...piped] = segment.split(/\|(?!\|)/)
-      if (piped.length && CHECK.test(first) && HIDES.test(piped[0]) && !/pipefail|PIPESTATUS/.test(command)) {
-        deny(tool === 'PowerShell'
-          ? 'Blocked: this pipes a check into another command, so $LASTEXITCODE reads the last command, not the check — a failed check can look green. Send the output to a file and read the check\'s own code: `npm test *> out.txt; $code = $LASTEXITCODE; Get-Content out.txt -Tail 30; "exit $code"`.'
-          : 'Blocked: this pipes a check into another command, so the exit code is the last command\'s, not the check\'s — a failed check can look green. Start the line with `set -o pipefail;` (then a failure still shows), or run it to a file: `npm test > out.txt 2>&1; echo "exit $?"; tail -30 out.txt`.')
-      }
+      if (piped.length && CHECK.test(first) && HIDES.test(piped[0])) return `set -o pipefail; ${command}`
     }
+    return undefined
   },
 }

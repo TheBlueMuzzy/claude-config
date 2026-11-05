@@ -9,10 +9,20 @@ export default {
   mode: 'block',
   tests: 'guard-git',
   check({ call }, { deny }) {
-    if (call?.sub === 'push') checkRemoteDeletes(call.dir, call.args, deny)
-    if (call?.sub === 'branch') checkLocalDeletes(call.dir, call.args, deny)
+    if (call?.sub === 'push') checkRemoteDeletes(call.dir, branchArgs(call.args), deny)
+    if (call?.sub === 'branch') checkLocalDeletes(call.dir, branchArgs(call.args, true), deny)
   },
 }
+
+// The words that can be branch names: everything before a redirect (`2>&1`, `> /dev/null` — `2>` was read as a
+// branch, 2026-10-27 + 2026-11-01), and no shell variable (`origin/$b` in a `for b in …` loop that checked merge-base
+// itself, 2026-10-26 — its value isn't known before the line runs). (F185) A local force-delete of a variable keeps
+// it, so checkLocalDeletes can point at `-d` (git refuses unmerged work there itself).
+function branchArgs(args, keepVariables = false) {
+  const end = args.findIndex(a => /^\d*>/.test(a) || /^&>/.test(a))
+  return (end < 0 ? args : args.slice(0, end)).filter(a => keepVariables || !VARIABLE.test(a))
+}
+const VARIABLE = /[$%`]/
 
 // `git branch -D x` (or -d with --force): only when x is already fully merged.
 // Plain `git branch -d x` is left alone — git itself refuses it when x has unmerged work.
@@ -23,6 +33,7 @@ function checkLocalDeletes(dir, args, deny) {
   if (!forceDelete) return
   const target = defaultBranch(dir)
   for (const name of args.filter(a => !a.startsWith('-'))) {
+    if (VARIABLE.test(name)) deny(`Blocked: \`git branch -D ${name}\` force-deletes a branch named by a shell variable, so whether its work is merged can't be checked before the line runs. Use \`git branch -d\` (git itself refuses a branch with unmerged work), or name the branches.`)
     if (target && (isMergedInto(dir, name, target) || isMergedInto(dir, name, `origin/${target}`))) continue
     deny(`Blocked: branch \`${name}\` has work that isn't merged into ${target || 'main'} yet, so deleting it would lose that work. Muzzy's rule: only fully merged branches get deleted. Merge it first (that's /deliver's job), or ask Muzzy.`)
   }

@@ -7,11 +7,11 @@ export default {
   id: 'SP2',
   name: 'plan.ppp-published',
   what: 'The plan files changed (plan-lint rebuilt .planning/ppp.html) in a project with a published planner page (STATE "Planner (PPP):" link), but it wasn\'t republished → republish it. Any publish counts whose page has the same bytes as the project\'s ppp.html (a scratchpad copy, or publish_version content — F172)',
-  why: 'Every request shows up in the planner Muzzy looks at (F67)',
+  why: 'Every request shows up in the planner Muzzy looks at (F67). Asked only when the turn ends with the hand-off card — not on progress-line turns mid-run, where it asked on every tick (audit 2026-11: ~40 % of its 90 send-backs; F185)',
   on: true,
   mode: 'block',
   tests: 'stop-plan-check',
-  check({ root, p, name, sentPages }) {
+  check({ root, p, name, sentPages, lastSaid }) {
     const gitDir = git(root, 'rev-parse', '--absolute-git-dir')
     const rebuilt = gitDir && join(gitDir, 'bmuz-ppp-rebuilt')
     const link = plannerLink(root)
@@ -20,6 +20,8 @@ export default {
     const copy = !p.published && sentSamePage(join(root, '.planning', 'ppp.html'), sentPages)
     if (copy) { p.published = true; p.sentFiles.push(...copy.files.flatMap(f => [f.as, f.path]).filter(Boolean)) }
     if (p.published) { writeFileSync(published, new Date().toISOString()); return }
+    // asked only at a hand-off card (its first and last labels) — a progress line or a mid-run note waits for it (F185)
+    if (!/\*\*Done:?\*\*/i.test(lastSaid || '') || !/\*\*Next:?\*\*/i.test(lastSaid || '')) return
     if (!existsSync(published) || statSync(published).mtimeMs < statSync(rebuilt).mtimeMs) {
       return `${name}: the plan files changed, so the planner page was rebuilt (.planning/ppp.html) — republish it to ${link} with the Artifact tool (url = that link), or claude-artifacts publish_files with files: [{ as: 'index.html', path: '<project>/.planning/ppp.html' }] (get_artifact on the link gives slug + base_version).`
     }

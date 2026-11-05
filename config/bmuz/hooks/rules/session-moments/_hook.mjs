@@ -6,12 +6,12 @@ export default {
   event: ['UserPromptSubmit', 'PostToolUse'],
   matcher: 'Bash|PowerShell (PostToolUse)',
   when: 'When Muzzy sends a message, and after each commit',
-  order: ['SM1', 'SM3', 'SM2'],
+  order: ['SM4', 'SM1', 'SM3', 'SM2'],
 
   async run(ctx) {
     const event = ctx.input.hook_event_name
     const notes = []
-    for (const id of ['SM1', 'SM3', 'SM2']) {
+    for (const id of ['SM4', 'SM1', 'SM3', 'SM2']) {
       const note = await ctx.rule(id, { event })
       if (note) notes.push(note)
     }

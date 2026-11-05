@@ -3,13 +3,15 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const CTX_DIR = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx') // (tests use their own folder)
-const LEVELS = [90, 80]
+// Sessions auto-compact at ~60 % on the status line (13 compactions seen, the highest status file 60 % — audit 2026-11),
+// so the old 80 / 90 never fired. 45 ≈ three quarters of the way there, 55 = the last call. (F185)
+const LEVELS = [55, 45]
 
 export default {
   id: 'SM2',
   name: 'moments.context-checkpoint',
-  what: 'Context 80% / 90% full (the status line writes ~/.claude/ctx/<session>.txt) → finish what\'s in hand, write what a fresh Claude would need into the plan files, /save, keep going. Said once per level per session, on Muzzy\'s messages and after commits (typed, or made by save / release / merge / archive-sprint)',
-  why: 'Nothing lives only in Claude\'s memory (F67, F80)',
+  what: 'Context 45% / 55% full on the status line (sessions compact at ~60 %; the status line writes ~/.claude/ctx/<session>.txt) → finish what\'s in hand, write what a fresh Claude would need into the plan files, /save, keep going. Said once per level per session, on Muzzy\'s messages and after commits (typed, or made by save / release / merge / archive-sprint)',
+  why: 'Nothing lives only in Claude\'s memory (F67, F80). The levels were 80 / 90, which a session never reaches before it compacts at ~60 % — so it never fired (audit 2026-11; F185)',
   on: true,
   mode: 'warn',
   tests: 'session-moments',
@@ -20,7 +22,7 @@ export default {
     if (event !== 'UserPromptSubmit' && !isCommit) return
     const level = contextLevel(input.session_id)
     if (level) {
-      return `Context is ${level.pct}% full (checkpoint at ${level.at}%). Finish and commit what's in hand, then a quick sweep: anything a fresh Claude would get wrong or have to re-ask Muzzy (an unrecorded decision, Muzzy's exact words on a taste call, an open question, the in-flight plan) goes into SPRINT Notes / STATE / GDD / TDD within their size limits — then /save and keep going. Never rely on remembering something that isn't written down.`
+      return `Context is ${level.pct}% full (checkpoint at ${level.at}%; sessions compact at about 60%). Finish and commit what's in hand, then a quick sweep: anything a fresh Claude would get wrong or have to re-ask Muzzy (an unrecorded decision, Muzzy's exact words on a taste call, an open question, the in-flight plan) goes into SPRINT Notes / STATE / GDD / TDD within their size limits — then /save and keep going. Never rely on remembering something that isn't written down.`
     }
   },
 }
