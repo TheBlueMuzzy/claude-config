@@ -12,12 +12,13 @@
 //   3. STATE Log keeps 10 entries; older ones move to .planning/archive/log.md (newest first)
 //   4. commit everything — after asking the same commit hooks a typed `git commit` gets (secrets, F08 code on main,
 //      `F08: done` without STATE / review / full check, type errors) (F80) — push the branch (upstream the first time)
+//   4b. a BMUZ project's git runs the same commit checks in its own commit step (core.hooksPath, per project) (F184)
 //   5. checks GitHub really has this commit — only then says "safe to switch machines"
 //   5b. warns when the branch's last finished GitHub Checks run is red (never refuses)
 //   6. rebuilds the planner page (STATE has a `Planner (PPP):` link) — the Stop hook then asks Claude to republish (F80)
 //   7. syncs the shared setup (~/.claude ↔ ~/.claude-config, PC ↔ laptop): this machine's changes pushed, the other
 //      machine's incoming changes named (applying them is Claude's job — they may clash) (F80)
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { git, gh, hasChecksWorkflow, run, say, ok, refuse, tail, readJson, writeJson, args, projectDir, changedFiles, NEVER_COMMIT, cleanup, fastChecks, greenRecord, guardCommit } from './lib.mjs'
@@ -130,6 +131,8 @@ if (staged) {
   if (commit.code !== 0) { putBack(); refuse(`the commit failed (a hook or a type error?) — the build number and Log are put back:\n${commit.out.trim()}`, 'fix what it names, then save again') }
   if (green) writeFileSync(greenRecord(root), codeFingerprint(root) + '\n')
 }
+const hooksNote = useGitCommitStep(root)
+if (hooksNote) say(hooksNote)
 const branch = git(root, 'rev-parse', '--abbrev-ref', 'HEAD')
 const where = `${label ? `${label}, ` : ''}branch ${branch}${moved ? `, ${moved} old Log line(s) → archive/log.md` : ''}${ignoreAdded.length ? `, .gitignore now ignores ${ignoreAdded.join(' + ')}` : ''}`
 if (!git(root, 'remote')) {
@@ -146,6 +149,27 @@ if (git(root, 'rev-parse', 'HEAD') !== git(root, 'rev-parse', `origin/${branch}`
 afterSave()
 ok(`Saved + pushed (${where}) — safe to switch machines.`)
 lastChecksWarning()
+
+// 4b. The commit checks also run in git's own commit step (F184): a BMUZ project's local git config points
+//     core.hooksPath at ~/.claude/config/bmuz/git-hooks — per project, never --global (Muzzy 2026-11-04: collabs like
+//     Sherman's joust-because aren't touched). A repo with its own hooks (core.hooksPath already set, husky, lefthook,
+//     simple-git-hooks, or real files in .git/hooks) is left alone and named. Set after this save's commit, so the save
+//     isn't checked twice (guardCommit already asked); every commit after it is checked by git itself.
+function useGitCommitStep(dir) {
+  if (!existsSync(join(dir, '.planning', 'STATE.md'))) return '' // not a BMUZ project
+  if (/[\\/]collabs[\\/]/i.test(dir)) return '' // someone else's repo
+  const ours = resolve(import.meta.dirname, '..', 'git-hooks').split('\\').join('/')
+  const set = git(dir, 'config', '--local', '--get', 'core.hooksPath')
+  if (set && resolve(set.replace(/^~(?=[\\/])/, homedir())).split('\\').join('/').toLowerCase() === ours.toLowerCase()) return ''
+  const own = set ? `core.hooksPath is already ${set}`
+    : existsSync(join(dir, '.husky')) ? 'it uses husky (.husky/)'
+    : existsSync(join(dir, 'lefthook.yml')) ? 'it uses lefthook'
+    : readJson(join(dir, 'package.json'))?.['simple-git-hooks'] ? 'it uses simple-git-hooks'
+    : (() => { try { const hooks = resolve(dir, git(dir, 'rev-parse', '--git-path', 'hooks') || '.git/hooks'); return readdirSync(hooks).some(f => !f.endsWith('.sample')) ? `it has its own hooks in ${hooks}` : '' } catch { return '' } })()
+  if (own) return `⚠ git's own commit step isn't running the BMUZ commit checks here — ${own}, so it's left alone (the Claude Code hooks still check typed commits)`
+  if (git(dir, 'config', '--local', 'core.hooksPath', ours) === null) return '⚠ couldn\'t point git\'s commit step at the BMUZ commit checks (git config failed)'
+  return `✓ git's own commit step now runs the BMUZ commit checks here (core.hooksPath → ${ours})`
+}
 
 // 5b. The branch's last FINISHED GitHub Checks run (this push's own run has only just started). Red is said at every
 // save until it's fixed — framework v0.21: the branch went red at 8 AM on a font difference and nobody saw it until

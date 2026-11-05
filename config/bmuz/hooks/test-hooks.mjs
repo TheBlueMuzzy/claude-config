@@ -1806,8 +1806,18 @@ function testFiringLog() {
   expect('no hook writes its answer itself (only lib.mjs does — so the log sees every answer)', { result: direct.length ? 'direct' : 'lib', message: direct.join(', ') }, 'lib')
   rmSync(root, { recursive: true, force: true })
 }
+// The rule runner's own tests (F184 — crash = loud, broken shared files, rule ids, --no-verify, git's commit step):
+// tests/test-runner.mjs, run here so the whole suite covers them; its counts join this file's.
+function testRunner() {
+  const out = spawnSync('node', [join(HOOKS, 'tests', 'test-runner.mjs')], { encoding: 'utf8', timeout: 900_000 })
+  process.stdout.write(out.stdout.replace(/\n\d+ passed, \d+ failed\n?$/, '\n'))
+  const [, ok = '0', bad = '1'] = out.stdout.match(/(\d+) passed, (\d+) failed\s*$/) || []
+  passed += Number(ok); failed += Number(bad)
+  if (out.status && bad === '0') { failed++; console.log(`  ✗ tests/test-runner.mjs ended with ${out.status}: ${out.stderr.slice(0, 300)}`) }
+}
+
 const only = process.argv[2]
-const suites = { 'fire-log': testFiringLog, 'guard-edits-frozen': testFrozenFiles, 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
+const suites = { runner: testRunner, 'fire-log': testFiringLog, 'guard-edits-frozen': testFrozenFiles, 'live-ping': testLivePing, 'crash-news': testCrashNews,'guard-git': testGuardGit, 'guard-git-safety': testGuardGitSafety, 'stop-cleanup': testStopCleanup, 'session-start': testSessionStartUpdates, 'commit-typecheck': testCommitTypecheck, 'live-push': testLivePush, 'stop-check-fast': testStopCheckFast, 'check-ui-edit': testCheckUiEdit, 'lint-edit': testLintEdit, 'handoff-check': testHandoffCheck, 'plan-lint': testPlanLint, 'session-moments': testSessionMoments, 'guard-edits': testGuardEdits, 'stop-plan-check': testStopPlanCheck, 'stop-unsaved': testStopUnsaved, 'rule-kind': testRuleKind, 'sketch-lint': testSketchLint, 'session-start-notices': testSessionStartNotices, 'session-start-producer': testSessionStartProducer, 'checkup-done': testCheckupDone, 'qa-routine': testQaRoutine }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) run()
 console.log(`\n${passed} passed, ${failed} failed`)

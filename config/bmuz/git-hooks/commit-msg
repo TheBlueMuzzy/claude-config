@@ -1,0 +1,8 @@
+#!/bin/sh
+# BMUZ commit checks inside git's own commit step (F184). Set per BMUZ project — never globally — by save.mjs:
+#   git config core.hooksPath ~/.claude/config/bmuz/git-hooks
+# It runs the same commit rules as the Claude Code hooks (type check, no secrets, F08: done gates, stage commit carries
+# STATE, …) on the commit as git really makes it, so a commit from any tool or script is checked too. The repo's own
+# .git/hooks/commit-msg, if it has one, runs first (_chain.sh).
+. "$(dirname "$0")/_chain.sh"
+exec node "$(dirname "$0")/commit-msg.mjs" "$@"

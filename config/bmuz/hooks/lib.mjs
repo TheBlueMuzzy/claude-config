@@ -56,12 +56,15 @@ export function tellSession(text) {
 // One JSON line per answer in ~/.claude/logs/bmuz-hooks.jsonl (BMUZ_FIRE_LOG = tests), for the audit and /checkup:
 // which hook spoke, how, where, and what it said. Silent passes aren't logged. Past ~5 MB the file becomes
 // bmuz-hooks.1.jsonl (the one before is dropped). Logging must never change an answer: any error is swallowed.
+// `rule` = the rule id(s) that answered (F184 — the runner sets it; "GG2", or "HC1,HC2" for one combined answer).
 export const FIRE_LOG_MAX = 5_000_000
+let firingRule = ''
+export function setFiringRule(id) { firingRule = id || '' }
 export function logFiring(kind, text, event, dir) {
   try {
     const file = process.env.BMUZ_FIRE_LOG || join(homedir(), '.claude', 'logs', 'bmuz-hooks.jsonl')
     const hook = basename(process.argv[1] || 'unknown').replace(/\.mjs$/, '')
-    const line = { t: new Date().toISOString(), hook, event: given.hook_event_name || event || '', kind, project: projectName(dir || given.cwd || process.cwd()), text: String(text).slice(0, 300), src: 'live' }
+    const line = { t: new Date().toISOString(), hook, rule: firingRule, event: given.hook_event_name || event || '', kind, project: projectName(dir || given.cwd || process.cwd()), text: String(text).slice(0, 300), src: 'live' }
     mkdirSync(dirname(file), { recursive: true })
     try { if (statSync(file).size > FIRE_LOG_MAX) renameSync(file, file.replace(/\.jsonl$/, '.1.jsonl')) } catch {}
     appendFileSync(file, JSON.stringify(line) + '\n')
