@@ -84,7 +84,7 @@ Catalog of every screen: `ui-kit/CATALOG.md`. Live gallery: `npm run dev` in `ui
    Then the game's tests + build.
 8. **Improvements flow back:** anything learned (a fix, a new part, a better default) goes into the
    framework kit with a VERSION bump and its checks (`npm test`, `npm run build`, `npm run check-ui`,
-   `npm run shoot`), so the next game starts better. Commit in the framework repo too.
+   `npm run shoot` — the styles games use; `npm run shoot:all` for all seven before a kit release), so the next game starts better. Commit in the framework repo too.
 
 ## How a game uses it
 Start-up (`src/main.tsx`):

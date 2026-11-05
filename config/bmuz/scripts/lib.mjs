@@ -351,7 +351,7 @@ export function guardCommit(root, message) {
 // game's eslint.config ignores every module folder. Where each installer copies a module's code in a game:
 export const MODULE_FOLDERS = {
   devkit: ['src/devkit', 'vite-plugins/devkit'], 'ui-kit': ['src/ui/kit'], audio: ['src/audio'], table: ['src/table'], ai: ['src/ai/kit'],
-  rooms: ['src/rooms'], saves: ['src/saves'], version: ['src/version'], crashes: ['src/crashes'], emotes: ['src/emotes'],
+  rooms: ['src/rooms'], saves: ['src/saves'], version: ['src/version'], crashes: ['src/crashes'],
 }
 // A module born from the extraction queue (F114) isn't in that list: it names its folders in its own package.json,
 // "bmuz": { "folders": ["src/rng"], "check": "rng" } (check = its check:framework id, when it has promise checks).

@@ -12,7 +12,7 @@ export default {
   hook: 'handoff-check',
   event: 'Stop',
   when: 'When Claude finishes a turn',
-  order: ['HC1', 'HC5', 'HC6', 'HC7', 'HC3', 'HC9', 'HC8', 'HC2', 'HC4'],
+  order: ['HC1', 'HC5', 'HC6', 'HC7', 'HC3', 'HC9', 'HC8', 'HC2', 'HC4', 'HC10'],
 
   async run(ctx) {
     const { input } = ctx
@@ -38,6 +38,7 @@ export default {
       add(await ctx.rule('HC2', { ...args, top }))
     }
     add(await ctx.rule('HC4', args))
+    add(await ctx.rule('HC10', args)) // a waiting progress line has a wake-up running (2026-11-04)
     ctx.stop(problems.length && problems.join('\n\n'))
   },
 }

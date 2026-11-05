@@ -1,6 +1,6 @@
 // Install or update one framework module in a game — the one safe way (F69).
 //   node ~/.claude/config/bmuz/scripts/install-module.mjs <module> [game-folder] [--dry-run] [extra installer args]
-//   modules: devkit · ui-kit · audio · table · ai · rooms · saves · version · crashes · emotes     e.g.  install-module.mjs ui-kit . cozy
+//   modules: devkit · ui-kit · audio · table · ai · rooms · saves · version · crashes     e.g.  install-module.mjs ui-kit . cozy
 //   (+ any module born from the extraction queue, F114: kit/VERSION + "bmuz": { "folders" } in its package.json)
 // Steps, stopping at the first problem:
 //   0. the module's UPGRADES.md (F168): refused when it says "Needs Dev Kit: X" and the game's Dev Kit is older (the
@@ -19,7 +19,7 @@ import { join } from 'node:path'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { FRAMEWORK, run, say, ok, refuse, tail, readJson, args, projectDir, exists, moduleFolders, ESLINT_CONFIGS, addEslintIgnores } from './lib.mjs'
 
-const CHECK_ID = { devkit: 'devkit', 'ui-kit': 'ui', audio: 'audio', table: 'table', ai: 'ai', rooms: 'rooms', saves: 'saves', version: 'version', crashes: 'crashes', emotes: 'emotes' }
+const CHECK_ID = { devkit: 'devkit', 'ui-kit': 'ui', audio: 'audio', table: 'table', ai: 'ai', rooms: 'rooms', saves: 'saves', version: 'version', crashes: 'crashes' } // emotes archived 2026-11-04 (framework tag archive/emotes-0.4.2)
 const { words, flags } = args()
 const [module, gameArg, ...words2] = words
 const extra = [...words2, ...[...flags].filter(f => f !== '--dry-run')] // the installer's own options (a style, --force…) go through

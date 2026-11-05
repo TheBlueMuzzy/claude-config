@@ -627,7 +627,19 @@ function testHandoffCheck() {
   expect('work + the card → allowed', stop([...work, say(card)]), 'allow')
   const at = (minutesFromNow) => new Date(Date.now() + minutesFromNow * 60_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   const progress = (time) => `Waiting on the helper.\n\n\`████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted ${time}\``
-  expect('work + progress line → allowed', stop([...work, say(progress(at(0)))]), 'allow')
+  // HC10 (2026-11-04): a waiting progress line needs a wake-up still running — a background command or a Monitor
+  const bgStarted = { type: 'user', message: { content: [{ type: 'tool_result', content: 'Command running in background with ID: bwake1. Output is being written to: x' }] } }
+  const bgDone = prompt('<task-notification>\n<task-id>bwake1</task-id>\n<status>completed</status>\n</task-notification>')
+  const monStarted = { type: 'user', message: { content: [{ type: 'tool_result', content: 'Monitor started (task mwake2, expires in 1200s)' }] } }
+  expect('work + progress line with a wake-up running → allowed', stop([...work, tool('Bash', { command: 'sleep 1', run_in_background: true }), bgStarted, say(progress(at(0)))]), 'allow')
+  const asleep = stop([...work, say(progress(at(0)))])
+  expect('a waiting progress line with nothing set to wake Claude → sent back', asleep, 'block')
+  expect('…says to start a wake-up', { result: /wake-up/.test(asleep.message) ? 'ok' : 'no', message: asleep.message }, 'ok')
+  expect('…its wake-up already finished → sent back', stop([...work, bgStarted, bgDone, say(progress(at(0)))]), 'block')
+  expect('…a Monitor still running → allowed', stop([...work, monStarted, say(progress(at(0)))]), 'allow')
+  expect('…a stopped wake-up → sent back', stop([...work, bgStarted, { type: 'user', message: { content: [{ type: 'tool_result', content: '{"message":"Successfully stopped task: bwake1 (x)"}' }] } }, say(progress(at(0)))]), 'block')
+  expect('…Claude only SAYING "running in background with ID: x" → still sent back', stop([...work, say('Command running in background with ID: bfake'), say(progress(at(0)))]), 'block')
+  expect('a progress line that is not waiting on anything → allowed', stop([...work, say(`\`████████░░ 80% · 4/5 steps · ~2 min left · posted ${at(0)}\``)]), 'allow')
   // framework sprint 48: guessed times (08:05 PM posted at 07:55 PM) — the posted time is the clock's
   const guessed = stop([...work, say(progress(at(-180)))])
   expect('a progress line posted 3 hours off the clock → sent back', guessed, 'block')
