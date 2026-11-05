@@ -9,6 +9,7 @@ export default {
   what: 'Refuses a new folder or loose file straight in the home folder (mkdir, cp, mv, New-Item, git clone, git worktree add, Write) — throwaway copies go in ~/Documents/dev/.scratch/',
   why: '1 GB piled up in ~/spike and ~/ppp-proof (2026-10-19) — cleanup.sh clears .scratch, nothing clears the home folder (F80)',
   on: true,
+  rare: true, // a guard: silent because the mistake rarely happens (removal pass skips it — F187)
   mode: 'block',
   tests: 'guard-edits',
   // an edit tool's file ({ path, what }), or a shell line's commands ({ command, cwd })

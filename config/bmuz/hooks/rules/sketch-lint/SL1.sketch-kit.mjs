@@ -8,6 +8,7 @@ export default {
   what: 'After a sketch is written or edited: tells Claude what\'s missing from the sketch kit — a real <title> and description (not the starter\'s), "Copy values for Claude", presets, a help line per knob, a typeable number box beside each slider',
   why: 'The planner\'s Sketches tab and Muzzy\'s tuning loop depend on them (F80); Muzzy types the value he wants (2026-10-24)',
   on: true,
+  rare: true, // a guard: silent because the mistake rarely happens (removal pass skips it — F187)
   mode: 'block',
   tests: 'sketch-lint',
   // a hook call (the edited file), or the command's { html } → returns the problems

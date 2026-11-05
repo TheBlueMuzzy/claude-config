@@ -8,6 +8,7 @@ export default {
   what: 'Muzzy\'s latest message says he\'s stopping ("going to bed", "switching to the laptop", "done for now"…) and the project — the session\'s folder, or any repo this turn worked in — has uncommitted files, commits GitHub doesn\'t have, or a branch never pushed → sent back to /save (up to 3 times, then it lets go: an offline push mustn\'t trap the session). A repo with no remote only needs committing',
   why: 'It was only a reminder; now walking away with unsaved work can\'t happen quietly (F80)',
   on: true,
+  rare: true, // a guard: silent because the mistake rarely happens (removal pass skips it — F187)
   mode: 'block',
   tests: 'stop-unsaved',
   // returns the send-back text, or nothing

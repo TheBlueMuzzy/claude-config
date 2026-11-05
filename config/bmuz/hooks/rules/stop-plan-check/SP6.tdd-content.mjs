@@ -8,6 +8,7 @@ export default {
   what: 'A new data file under content/ this turn that TDD.md doesn\'t mention (by its path, folder or name) → add it to the TDD\'s data-files list',
   why: 'The data files Muzzy can edit are listed in the TDD, so the next session knows they\'re there (/develop "A new data file → update TDD §1/§3", F80)',
   on: true,
+  rare: true, // a guard: silent because the mistake rarely happens (removal pass skips it — F187)
   mode: 'block',
   tests: 'stop-plan-check',
   check({ root, name, turn }) {
