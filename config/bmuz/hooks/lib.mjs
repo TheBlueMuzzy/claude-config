@@ -157,10 +157,13 @@ export const fromMuzzy = (text) => !/<(system-reminder|task-notification|agent-m
 // message decides again. The word list is kept tight on purpose: a false alarm here would stop real work.
 export const REPORT_ONLY = /\b(assess|analy[sz]e)\b|\btell me what'?s (going on|happening|wrong)\b|\bwhat'?s going on\b|\bwhat is going on\b|\bwhat do you think\b|\breport only\b|\bjust (report|look|tell me)\b|\bdon'?t (change|edit|fix|touch) anything\b/i
 // …unless the same message also says to act ("analyze it and fix it", "what do you think? go ahead")
-export const GO_AHEAD = /\b(fix|fixes|build (it|this|that)|implement|go ahead|do it|go for it|make it|change it|update it|apply|commit|ship|deploy|approved?|proceed|just go)\b/i
+export const GO_AHEAD = /\b(fix|fixes|build (it|this|that)|implement|go ahead|do it|go for it|make it|change it|update it|add it|let'?s go|lets go|apply|commit|ship|deploy|approved?|proceed|just go)\b/i
 export function asksReportOnly(prompt) {
   const text = String(prompt || '').replace(/<command-[a-z]+>[\s\S]*?<\/command-[a-z]+>/g, '') // a /skill's own text isn't his ask
   if (!fromMuzzy(prompt) || /<command-name>/.test(prompt || '')) return false
+  // a long message is a brief (a helper's task, a pasted plan), not a quick "assess this" — measured on 822 past
+  // messages: each long one that matched was a helper's brief that went on to build (F185)
+  if (text.length > 600) return false
   return REPORT_ONLY.test(text) && !GO_AHEAD.test(text.replace(/\bdon'?t (change|edit|fix|touch) anything\b/gi, ''))
 }
 export function reportOnlyFlag(session) {

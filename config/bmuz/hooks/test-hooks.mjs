@@ -1075,7 +1075,7 @@ function testSessionMoments() {
   for (const ask of ['analyze why the build is slow', 'tell me what\'s going on with the save button', 'what do you think of the new colours?', 'just report, don\'t change anything']) {
     expect(`F185: "${ask}" → report-only`, report(ask), 'told')
   }
-  for (const go of ['go', 'fix the lobby bug', 'analyze the crash and fix it', 'make the cards bigger', 'what do you think? go ahead and build it', 'can you review the PR', '<agent-message from="x">analyze done</agent-message>', '<command-message>develop</command-message> <command-name>/develop</command-name>']) {
+  for (const go of [`You are building F185. ${'Read the audit and assess each rule. '.repeat(20)}`, 'ok. lets go with your recco. analyze the old upgrades first', 'go', 'fix the lobby bug', 'analyze the crash and fix it', 'make the cards bigger', 'what do you think? go ahead and build it', 'can you review the PR', '<agent-message from="x">analyze done</agent-message>', '<command-message>develop</command-message> <command-name>/develop</command-name>']) {
     expect(`F185: "${go.slice(0, 50)}" → not report-only (normal work goes on)`, report(go), 'quiet')
   }
   prompt('go', 'r1')

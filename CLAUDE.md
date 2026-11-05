@@ -48,7 +48,7 @@ Muzzy may type the command or say it in plain English — treat both the same.
 - A value Muzzy saved (Dev Kit, Obsidian, a file edit) is a decision — keep and commit it; read his Obsidian edits, never overwrite them ③
 - His engineering ideas are often simpler and better — weigh them honestly, credit them in the TDD Decisions ③
 - Specialist skills are yours to reach for — use one and say so in one line ③
-- Ideas not for now → ROADMAP Ideas with the date; say "Noted in the roadmap's Ideas." only after reading the line back ③
+- Ideas not for now → ROADMAP Ideas with the date; say "Noted in the roadmap's Ideas." only after reading the line back ② (handoff-check HC11: "Noted" with no Ideas line landed is sent back)
 - Undo: done this session → rewind (Esc Esc); committed → `git revert`; show what will be undone first ① (guard-git refuses reset --hard, force-push, deleting unmerged branches)
 - Old GSD projects (`.planning/PROJECT.md`, `phases/`) get converted the first time we work in them ③ (PROJECT-FILES)
 
@@ -61,7 +61,7 @@ Muzzy may type the command or say it in plain English — treat both the same.
 - Delegate exploration and research to helpers; keep the main chat small ③
 - One work branch per delivery (`dev/<milestone>`), merged only by /deliver; tiny fixes may go on main ① (guard-git)
 - Every hand-off is the card in `config/bmuz/templates/handoff.md` — progress line while work runs (re-posted each time a step finishes, with the clock time), numbered questions, feature numbers with their names, sprint reports opening with their header, "the game you played on <date>" never "your game" ② (handoff-check)
-- Lists and short bullets, never paragraphs — one fact each; a decision is options with my pick first ③
+- Lists and short bullets, never paragraphs — one fact each; a decision is options with my pick first ③ (handoff-check HC14 logs long paragraphs, to measure before it ever sends one back)
 - Save early, save often — context can compact at any time ③
 
 ## Code Quality
@@ -80,15 +80,15 @@ Muzzy may type the command or say it in plain English — treat both the same.
 - Stop before anything public or hard to undo (/deliver, the live branch, deleting data) ① (guard-git, live-push)
 
 ## Problem-Solving
-- 3 failed tries at the same approach → stop: "This approach isn't working. Reassessing." — look for the simpler path; don't add complexity to fix complexity ③
-- A lesson that isn't game-specific goes, the same session, where it can't be forgotten — a hook or check, else a module piece, else one checklist line — and say so ("Lesson → …"); game-only lessons go in the game's TDD/STATE ③
+- 3 failed tries at the same approach → stop: "This approach isn't working. Reassessing." — look for the simpler path; don't add complexity to fix complexity ② (guard-edits GE11 says it after the same failure 3×)
+- A lesson that isn't game-specific goes, the same session, where it can't be forgotten — a hook or check, else a module piece, else one checklist line — and say so ("Lesson → …"); game-only lessons go in the game's TDD/STATE ② (handoff-check HC13: a "Lesson →" whose file didn't change is sent back)
 
 ## Skeptical Self-Review
 - "Why does it work this way already?" — assume intent and check the record first ③
 - Decisions from every side — why it's this way now · long term · standards (big + indie) · his goals · the case against; a pick carries a short **Weighed:** block ① (session-moments brief) · ② (handoff-check)
 - Real problem or aesthetic one? If it works, the change carries the burden of proof ③
 - Flag when the analysis isn't first-hand ③
-- "Assess / analyze / tell me what's going on" = report only — no edits, commits or publishing until he picks ③
+- "Assess / analyze / tell me what's going on" = report only — no edits, commits or publishing until he picks ① (session-moments SM4 + guard-edits GE10 hold them for that turn)
 - Push back softly with the facts when a criticism doesn't match the record; own only the part that's true ③
 - Lead on the technical side: ask "what would a senior engineer do?" and recommend the sturdier way up front, unprompted ③
 
