@@ -397,6 +397,14 @@ function testCommitTypecheck() {
   expect('`git commit -m x src/ok.ts` → blocked (paths on the commit line)', f('git commit -m "x" src/ok.ts'), 'deny')
   expect('`git stage -A && git commit` → blocked', f('git stage -A && git commit -m "x"'), 'deny')
   expect('the type check leaves no files behind (no .tsbuildinfo, no .js)', { result: sh(fresh.repo, 'status', '--porcelain', '--ignored').split('\n').some(l => /tsbuildinfo|\.js$/.test(l)) ? 'no' : 'ok', message: sh(fresh.repo, 'status', '--porcelain', '--ignored') }, 'ok')
+  // a starter whose module copies aren't installed (gitignored since F186): the refusal names the one command
+  writeFileSync(join(fresh.repo, 'src', 'ok.ts'), 'export const n: number = 2\n'); rmSync(join(fresh.repo, 'src', 'later.ts'))
+  mkdirSync(join(fresh.repo, 'scripts'), { recursive: true }); writeFileSync(join(fresh.repo, 'scripts', 'install-modules.mjs'), '// fills the module copies\n')
+  writeFileSync(join(fresh.repo, 'src', 'online.ts'), "import { room } from './rooms/server/roomServer'\nexport const r = room\n")
+  const missing = f('git add -A && git commit -m "x"')
+  expect('module copies missing → blocked, and says `npm run install-modules`', { result: missing.result === 'deny' && /npm run install-modules/.test(missing.message) ? 'deny' : 'allow', message: missing.message }, 'deny')
+  rmSync(join(fresh.repo, 'scripts'), { recursive: true, force: true })
+  expect('…the same missing import in a project with no install-modules script → no hint', { result: /install-modules/.test(f('git add -A && git commit -m "x"').message) ? 'hint' : 'none', message: '' }, 'none')
   rmSync(fresh.root, { recursive: true, force: true })
 
   // F80: a bug fix commit needs the whole suite green (/bug "verify")

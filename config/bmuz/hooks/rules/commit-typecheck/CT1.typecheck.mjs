@@ -25,9 +25,18 @@ export default {
       const where = project === root ? 'the project' : project.slice(root.length + 1)
       deny(result.timedOut
         ? `Blocked: the type check in ${where} took over ${TIME_LIMIT_MS / 1000} s, so this commit can't be confirmed safe. Run \`npx tsc -b\` there yourself and look at why it's slow.`
-        : `Blocked: the type check failed in ${where}, so this commit would break the build. Fix these first, then commit again:\n\n${result.output}`)
+        : `Blocked: the type check failed in ${where}, so this commit would break the build. Fix these first, then commit again:\n\n${result.output}${modulesMissing(project, result.output)}`)
     }
   },
+}
+
+// A starter keeps its module copies out of git (F186), so a fresh clone or a merge that untracked them leaves the
+// imports pointing at nothing — say the one command that puts them back (framework v0.39 look-back: the release
+// merge stopped here and the cause wasn't in the message).
+function modulesMissing(project, output) {
+  if (!existsSync(join(project, 'scripts', 'install-modules.mjs'))) return ''
+  if (!/TS2307: Cannot find module '(?:[^']*\/)?(ui\/kit|devkit|audio|table|ai\/kit|rooms|saves|version|crashes|lint)\//.test(output)) return ''
+  return '\n\n→ The missing files are framework module copies, which this project installs instead of committing. Run `npm run install-modules` in it, then commit again.'
 }
 
 // The folders holding the nearest tsconfig.json for each file (one type check per project, not per file).
