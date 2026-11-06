@@ -1735,14 +1735,16 @@ function testRemovalPass() {
   const now = Date.parse('2026-11-05T12:00:00Z')
   const at = (daysAgo) => new Date(now - daysAgo * 86_400_000).toISOString()
   const line = (hook, rule, kind, daysAgo) => JSON.stringify({ t: at(daysAgo), hook, rule, kind, event: 'PreToolUse', project: 'g', text: 'x', src: 'live' })
-  // every hook with a rule folder spoke in the history, except stop-unsaved
-  const hooks = ['check-ui-edit', 'commit-typecheck', 'guard-edits', 'guard-git', 'handoff-check', 'lint-edit', 'live-push', 'plan-lint', 'rule-kind', 'session-moments', 'sketch-lint', 'stop-check-fast', 'stop-cleanup', 'stop-plan-check']
+  // every hook with a rule folder spoke in the history, except check-ui-edit (ordinary rules) and stop-unsaved
+  // (its one rule, SU1, is a rare guard — silence is its job, so it is never proposed)
+  const hooks = ['commit-typecheck', 'guard-edits', 'guard-git', 'handoff-check', 'lint-edit', 'live-push', 'plan-lint', 'rule-kind', 'session-moments', 'sketch-lint', 'stop-check-fast', 'stop-cleanup', 'stop-plan-check']
   write(history, hooks.map(h => JSON.stringify({ t: at(5), hook: h, kind: 'block', text: 'x', src: 'history' })).join('\n') + '\n')
   const run = (lines) => { write(log, lines.join('\n') + '\n'); return script('removal-pass.mjs', ['--now', at(0)], { env: { BMUZ_FIRE_LOG: log, BMUZ_HISTORY_OUT: history } }) }
   // a short log (rules named for 3 days): silence is "so far", not a proposal; a wolf is still a wolf
   const short = run([line('guard-git', 'GG13', 'deny', 3), line('guard-git', 'GG13', 'waved', 3), line('guard-git', 'GG13', 'deny', 2), line('guard-git', 'GG13', 'waved', 2), line('guard-git', 'GG13', 'deny', 1), line('guard-git', 'GG8', 'deny', 1)])
   expect('runs, says it changes nothing', short.code === 0 && /proposals only/.test(short.out) && /nothing is changed/.test(short.out), short.out)
-  expect('a hook silent for 60 days in log + history (stop-unsaved) → proposed', /- stop-unsaved — cut it/.test(short.out) && !/- guard-git — cut it/.test(short.out), short.out)
+  expect('a hook silent for 60 days in log + history (check-ui-edit) → proposed', /- check-ui-edit — cut it/.test(short.out) && !/- guard-git — cut it/.test(short.out), short.out)
+  expect('…a silent hook whose rules are all rare guards (stop-unsaved) → never proposed', !/- stop-unsaved — cut it/.test(short.out), short.out)
   expect('rules named in the log for only 3 days → "silent so far", with the date a real list starts', /Rules silent so far/.test(short.out) && /a real list from 2027-01-01/.test(short.out) && !/Rules that never fired/.test(short.out), short.out)
   expect('GG13: 3 refusals, 2 waved through → cried wolf', /- GG13 commit\.stage-has-state — 2 of 3 refusals waved through/.test(short.out), short.out)
   expect('GG8: 1 refusal → not enough to call it', !/- GG8 .*waved/.test(short.out), short.out)
