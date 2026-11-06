@@ -32,11 +32,15 @@ export default {
 
 // A starter keeps its module copies out of git (F186), so a fresh clone or a merge that untracked them leaves the
 // imports pointing at nothing — say the one command that puts them back (framework v0.39 look-back: the release
-// merge stopped here and the cause wasn't in the message).
+// merge stopped here and the cause wasn't in the message). The same for copies that are there but OLDER than the code
+// that uses them (TS2305 "has no exported member" — sprint 60: F191's merge stopped on the starter's old UI kit copy).
 function modulesMissing(project, output) {
   if (!existsSync(join(project, 'scripts', 'install-modules.mjs'))) return ''
-  if (!/TS2307: Cannot find module '(?:[^']*\/)?(ui\/kit|devkit|audio|table|ai\/kit|rooms|saves|version|crashes|lint)\//.test(output)) return ''
-  return '\n\n→ The missing files are framework module copies, which this project installs instead of committing. Run `npm run install-modules` in it, then commit again.'
+  const modules = '(ui\\/kit|devkit|audio|table|ai\\/kit|rooms|saves|version|crashes|lint)'
+  const missing = new RegExp(`TS2307: Cannot find module '(?:[^']*\\/)?${modules}\\/`).test(output)
+  const stale = new RegExp(`TS2305: Module '"(?:[^"]*\\/)?${modules}(?:\\/[^"]*)?"' has no exported member`).test(output)
+  if (!missing && !stale) return ''
+  return '\n\n→ These are framework module copies, which this project installs instead of committing — missing or older than the code that uses them. Run `npm run install-modules -- --all` in it, then commit again.'
 }
 
 // The folders holding the nearest tsconfig.json for each file (one type check per project, not per file).
