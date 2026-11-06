@@ -676,7 +676,13 @@ function testHandoffCheck() {
     const path = join(root, `t${n++}.jsonl`)
     writeFileSync(path, entries.map(e => JSON.stringify(e)).join('\n'))
     const last = [...entries].reverse().find(e => e.type === 'assistant' && e.message.content[0].type === 'text')
-    return runHook('handoff-check.mjs', { hook_event_name: 'Stop', transcript_path: path, session_id: `hand${n}`, stop_hook_active: false, last_assistant_message: last?.message.content[0].text, ...extra })
+    const session = extra.session_id || `hand${n}`
+    const note = join(process.env.BMUZ_CTX_DIR, `${session}.wording-slips`)
+    rmSync(note, { force: true })
+    const out = runHook('handoff-check.mjs', { hook_event_name: 'Stop', transcript_path: path, session_id: session, stop_hook_active: false, last_assistant_message: last?.message.content[0].text, ...extra })
+    // a wording slip isn't sent back (2026-11-06): it's let through and noted for Claude's next turn (SM5)
+    if (out.result === 'allow' && existsSync(note)) return { result: 'noted', message: readFileSync(note, 'utf8') }
+    return out
   }
   const card = [
     '## F73 Standard hand-off card — ready for you to check',
@@ -711,9 +717,9 @@ function testHandoffCheck() {
   // F185 (HC1): "did work" = a real edit or a real commit
   expect('F185: only scratchpad / .scratch / memory files written → no card needed (was sent back)', stop([prompt('go'), tool('Write', { file_path: 'C:\\Users\\x\\AppData\\Local\\Temp\\claude\\p\\s\\scratchpad\\notes.md' }), result, tool('Write', { file_path: 'C:/Users/x/Documents/dev/.scratch/t/a.mjs' }), result, tool('Edit', { file_path: 'C:\\Users\\x\\.claude\\projects\\p\\memory\\a.md' }), result, say('Here is what I found.')]), 'allow')
   expect('F185: "commit" only inside a grep → no card needed (was sent back)', stop([prompt('go'), tool('Bash', { command: 'git log --oneline | grep commit; grep -rn "git commit" scripts' }), result, say('Here is what I found.')]), 'allow')
-  expect('F185: a real git commit (even with no file edit) → card needed', stop([prompt('go'), tool('Bash', { command: 'cd ~/x && git add -A && git commit -m "fix"' }), result, say('Done! committed.')]), 'block')
-  expect('F185: a save (save.mjs commits) → card needed', stop([prompt('go'), tool('Bash', { command: 'node ~/.claude/config/bmuz/scripts/save.mjs "x"' }), result, say('Saved.')]), 'block')
-  expect('work + plain message → sent back', stop([...work, say('Done! I fixed it.')]), 'block')
+  expect('F185: a real git commit (even with no file edit) → card needed', stop([prompt('go'), tool('Bash', { command: 'cd ~/x && git add -A && git commit -m "fix"' }), result, say('Done! committed.')]), 'noted')
+  expect('F185: a save (save.mjs commits) → card needed', stop([prompt('go'), tool('Bash', { command: 'node ~/.claude/config/bmuz/scripts/save.mjs "x"' }), result, say('Saved.')]), 'noted')
+  expect('work + plain message → sent back', stop([...work, say('Done! I fixed it.')]), 'noted')
   expect('work + the card → allowed', stop([...work, say(card)]), 'allow')
   const at = (minutesFromNow) => new Date(Date.now() + minutesFromNow * 60_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   const progress = (time) => `Waiting on the helper.\n\n\`████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted ${time}\``
@@ -735,28 +741,33 @@ function testHandoffCheck() {
   expect('a progress line posted 3 hours off the clock → sent back', guessed, 'block')
   expect('…says the real time and how to read it', { result: /but the clock says/.test(guessed.message) && /date/.test(guessed.message) ? 'ok' : 'no', message: guessed.message }, 'ok')
   const noNextCover = stop([...work, say(card.replace('`/develop` — continues F67, the lesson audit', '`/develop`'))])
-  expect('card whose Next has no "— what it covers" → sent back', noNextCover, 'block')
+  expect('card whose Next has no "— what it covers" → sent back', noNextCover, 'noted')
   const noLinks = stop([...work, say(card.replace('nothing to try: it shows up at the next hand-off', 'open the game'))])
-  expect('Try it without links or "nothing to try" → sent back', noLinks, 'block')
+  expect('Try it without links or "nothing to try" → sent back', noLinks, 'noted')
   expect('…and the message names what is missing', { result: /Try it/.test(noLinks.message) ? 'ok' : 'no', message: noLinks.message }, 'ok')
   // Questions holds only questions (Muzzy, 2026-10-23)
   const asking = (q) => stop([...work, say(card.replace('**Questions:** none', `**Questions:**\n${q}`))])
   expect('Questions: real questions (numbered, with options under one) → allowed', asking('1. **Ship it?** My pick: yes.\n2. Bubble colour — which?\n   - a) blue\n   - b) red'), 'allow')
   const info = asking('1. Ship it? My pick: yes.\n2. 3 yeses are waiting in the framework window.')
-  expect('Questions: an item that is information, not a question → sent back', info, 'block')
+  expect('Questions: an item that is information, not a question → sent back', info, 'noted')
   expect('…names the item and where it goes', { result: /3 yeses/.test(info.message) && /Your to-dos/.test(info.message) ? 'ok' : 'no', message: info.message }, 'ok')
   expect('Questions: "none" → allowed', asking('none'), 'allow')
-  expect('Questions: unnumbered bullets → sent back (Muzzy 2026-10-26: "always number your questions")', asking('- Ship it?\n- Which colour?'), 'block')
-  expect('Questions: one question, unnumbered → sent back too', asking('Ship it?'), 'block')
-  expect('a card with no Your to-dos → sent back', stop([...work, say(card.replace('**Your to-dos:** none\n', ''))]), 'block')
-  expect('a commit counts as work',stop([prompt('go'), tool('Bash', { command: 'git add -A && git commit -m x' }), result, say('committed')]), 'block')
+  expect('Questions: unnumbered bullets → sent back (Muzzy 2026-10-26: "always number your questions")', asking('- Ship it?\n- Which colour?'), 'noted')
+  expect('Questions: one question, unnumbered → sent back too', asking('Ship it?'), 'noted')
+  expect('a card with no Your to-dos → sent back', stop([...work, say(card.replace('**Your to-dos:** none\n', ''))]), 'noted')
+  expect('a commit counts as work',stop([prompt('go'), tool('Bash', { command: 'git add -A && git commit -m x' }), result, say('committed')]), 'noted')
   expect('work in an EARLIER turn only → no card needed now', stop([...work, say(card), prompt('thanks, what next?'), say('F67.')]), 'allow')
   // F80: sent back until it's fixed (it used to give up after once), but never forever
   const loop = { session_id: 'loop', stop_hook_active: true }
-  expect('F80: still no card after being sent back → sent back again (2nd)', (stop([...work, say('Done!')], { session_id: 'loop' }), stop([...work, say('Done!')], loop)), 'block')
-  expect('…3rd time', stop([...work, say('Done!')], loop), 'block')
-  expect('…then lets the turn end (no endless loop)', stop([...work, say('Done!')], loop), 'allow')
-  expect('…and the count starts over afterwards', stop([...work, say('Done!')], { session_id: 'loop' }), 'block')
+  // (a substance problem — a waiting line with no wake-up — since wording slips aren't sent back any more, 2026-11-06)
+  const asleepAgain = [...work, say(progress(at(0)))]
+  expect('F80: still not fixed after being sent back → sent back again (2nd)', (stop(asleepAgain, { session_id: 'loop' }), stop(asleepAgain, loop)), 'block')
+  expect('…3rd time', stop(asleepAgain, loop), 'block')
+  expect('…then lets the turn end (no endless loop)', stop(asleepAgain, loop), 'allow')
+  expect('…and the count starts over afterwards', stop(asleepAgain, { session_id: 'loop' }), 'block')
+  // wording slips (2026-11-06: "why do I get double messages like this?"): let through once, noted for the next turn
+  expect('no card at all after work → not sent back, noted for the next turn', stop([...work, say('Done!')]), 'noted')
+  expect('…a wording slip WITH a substance problem → sent back, both named', { result: (() => { const both = stop([...work, say(progress(at(0)) + ' F151')]); return both.result === 'block' && /wake-up/.test(both.message) ? 'ok' : 'no' })(), message: '' }, 'ok')
 
   // F80: what the card promises is checked too
   const withLinks = (links) => card.replace('nothing to try: it shows up at the next hand-off', links)
@@ -792,27 +803,27 @@ function testHandoffCheck() {
   rmSync(gameRoot, { recursive: true, force: true })
   // the sprint report header
   const archive = [prompt('go'), tool('Bash', { command: 'node ~/.claude/config/bmuz/scripts/archive-sprint.mjs' }), result, tool('Edit', { file_path: 'a.ts' }), result]
-  expect('F80: a sprint archived, report without "Sprint NN — <goal>" → sent back', stop([...archive, say(card)]), 'block')
+  expect('F80: a sprint archived, report without "Sprint NN — <goal>" → sent back', stop([...archive, say(card)]), 'noted')
   expect('…with the header line → allowed', stop([...archive, say(card.replace('## F73', 'Sprint 04 — a fanned hand you can play from\n\n## F73'))]), 'allow')
   expect('F185: …the header after the turn\'s other news ("**Sprint 04: …**" a few lines down) → allowed (was sent back)', stop([...archive, say(card.replace('**Done:**', '**Sprint 04: a fanned hand you can play from**\n- F08: cards spread\n\n**Done:**'))]), 'allow')
   expect('F185: …"## Sprint 04 approved, archived — ready for you to check" → allowed', stop([...archive, say(card.replace('## F73 Standard hand-off card', '## Sprint 04 approved, archived'))]), 'allow')
-  expect('F185: …a header only far below (line 16+) → sent back', stop([...archive, say(`${card}\n${'\n'.repeat(10)}Sprint 04 — a fanned hand`)]), 'block')
+  expect('F185: …a header only far below (line 16+) → sent back', stop([...archive, say(`${card}\n${'\n'.repeat(10)}Sprint 04 — a fanned hand`)]), 'noted')
   const noteOnly = [prompt('go'), tool('Bash', { command: "cat >> .planning/SPRINT.md <<'EOF'\n- Proposed: archive-sprint.mjs names the carry-over option\nEOF" }), result]
   expect('F80: text that merely NAMES archive-sprint.mjs (a Notes line) is not an archive → allowed (found in use)', stop([...noteOnly, say(card)]), 'allow')
   // never "your game"
   const { root: projRoot, repo: proj } = makeRepo() // "your game" counts in a game project only
   mkdirSync(join(proj, '.planning'))
-  expect('F80: "your game" in any answer, in a game project → sent back', stop([prompt('how is it?'), say('Your game looks great on the phone.')], { cwd: proj }), 'block')
+  expect('F80: "your game" in any answer, in a game project → sent back', stop([prompt('how is it?'), say('Your game looks great on the phone.')], { cwd: proj }), 'noted')
   expect('…quoting the rule ("your game") → allowed', stop([prompt('what is the rule?'), say('Never say "your game" — it is his game.')], { cwd: proj }), 'allow')
   expect('…in backticks (`your game`) → allowed', stop([prompt('what is the rule?'), say('The check looks for `your game` in the card.')], { cwd: proj }), 'allow')
   expect('…outside a game project (PC help: "your game library in Steam") → allowed', stop([prompt('steam?'), say('Open your game library in Steam.')], { cwd: root }), 'allow')
   // a feature number always comes with its name (Muzzy, 2026-10-26)
   writeFileSync(join(proj, '.planning', 'ROADMAP.md'), '# G — Roadmap\n## v0.1 — Start  ← current\n- 🟢 F151 🧱 Turn-based starter — a tiny game with every module — should\n- ⏳ F65 🔧 Framework test game: the starters run every check — should · needs: F151\n')
   const ask = text => stop([prompt('what is left?'), say(text)], { cwd: proj })
-  expect('names: a bare "F151" in an answer → sent back', ask('F151 is next, then F65.'), 'block')
+  expect('names: a bare "F151" in an answer → sent back', ask('F151 is next, then F65.'), 'noted')
   expect('names: "F151 — Turn-based starter" → allowed', ask('F151 — Turn-based starter is next, then F65 – Framework test game.'), 'allow')
   expect('names: the roadmap way "F151 🧱 Turn-based starter" → allowed', ask('🟢 F151 🧱 Turn-based starter'), 'allow')
-  expect('names: a range "F151–F65" → sent back', ask('F151–F65 are left.'), 'block')
+  expect('names: a range "F151–F65" → sent back', ask('F151–F65 are left.'), 'noted')
   expect('names: in `inline code` (a commit prefix) → allowed', ask('Commits start `F151: done`.'), 'allow')
   expect('names: an id the roadmap lacks ("press F12") → allowed', ask('Press F12 to open the console.'), 'allow')
   expect('names: a name starting with a digit ("F65 — 3D test game") → allowed (found in use: "F57 — 3D picker")', ask('F65 — 3D test game is next.'), 'allow')
@@ -835,7 +846,7 @@ function testHandoffCheck() {
   expect('F185 HC11: …today\'s line under another heading (missed its spot) → sent back', stop([prompt('idea'), say(noted)], { cwd: idea.repo }), 'block')
   rmSync(idea.root, { recursive: true, force: true })
   const bulletQs = 'Two things to settle:\n- Should cards tilt on hover?\n- Is blue the right colour?'
-  expect('F185 HC12: 2 bulleted questions outside a card → sent back to number them', stop([prompt('what next?'), say(bulletQs)]), 'block')
+  expect('F185 HC12: 2 bulleted questions outside a card → noted to number them next turn', stop([prompt('what next?'), say(bulletQs)]), 'noted')
   expect('F185 HC12: …numbered → allowed', stop([prompt('what next?'), say('Two things to settle:\n1. Should cards tilt on hover?\n2. Is blue the right colour?')]), 'allow')
   expect('F185 HC12: one bulleted question → allowed', stop([prompt('what next?'), say('One thing:\n- Should cards tilt on hover?')]), 'allow')
   expect('F185 HC12: bullets of facts that mention "?" mid-line → allowed', stop([prompt('what next?'), say('- the `?` key opens help\n- query strings like ?a=1 work')]), 'allow')
@@ -1046,6 +1057,12 @@ function testSessionMoments() {
   expect('"going to bed" → /save', told(prompt("ok I'm going to bed"), /\/save/), 'told')
   expect('"switching to the laptop" → /save', told(prompt('switching to the laptop now'), /\/save/), 'told')
   expect('normal message → quiet', told(prompt('make the cards bigger'), /\/save/), 'quiet')
+  // SM5 (2026-11-06): a wording slip handoff-check let through reaches Claude with Muzzy's next message, once
+  writeFileSync(join(root, 'slip.wording-slips'), 'Your last hand-off slipped on wording: name F190.')
+  expect('SM5: a wording note waiting → Muzzy\'s next message carries it', told(prompt('ok', 'slip'), /slipped on wording/), 'told')
+  expect('…only once (the note is used up)', told(prompt('ok', 'slip'), /slipped on wording/), 'quiet')
+  writeFileSync(join(root, 'slip2.wording-slips'), 'Your last hand-off slipped on wording: name F190.')
+  expect('…a helper\'s report isn\'t the next message (note kept)', (prompt('<agent-message from="x">done</agent-message>', 'slip2'), existsSync(join(root, 'slip2.wording-slips')) ? { result: 'kept', message: '' } : { result: 'gone', message: '' }), 'kept')
   // a decision question → the brief for weighing it, before Claude answers (Muzzy 2026-11-04)
   expect('"should I split them?" → the decision brief', told(prompt('should I open a new CLI and have it handle the BMUZ changes?'), /decision/i), 'told')
   expect('…"is it better to…" too', told(prompt('is it better to keep them together or separate?'), /Why it's this way/), 'told')

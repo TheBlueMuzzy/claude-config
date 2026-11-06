@@ -197,6 +197,14 @@ export function reportOnlyFlag(session) {
   return join(dir, `${session || 'session'}.report-only`)
 }
 
+// Wording slips in a hand-off (handoff-check's wording rules) aren't sent back — that showed Muzzy the same message
+// twice (2026-11-06: "why do I get double messages like this?"). They wait here and reach Claude with Muzzy's next
+// message (session-moments SM5), so the next hand-off is right.
+export function wordingNoteFile(session) {
+  const dir = process.env.BMUZ_CTX_DIR || join(homedir(), '.claude', 'ctx')
+  return join(dir, `${session || 'session'}.wording-slips`)
+}
+
 // What Claude did since the last message: { startedAt, tools: [{ name, input, cwd }], lastText, muzzySaid } —
 // muzzySaid = the text of Muzzy's own latest message (helper reports skipped), even from an earlier turn.
 export function readTurn(path) {
