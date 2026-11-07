@@ -165,7 +165,8 @@ Made from `~/.claude/config/bmuz/templates/release-check.md` by `node ~/.claude/
 Learned in Glyphtender v0.6 (13 sprints in a night): the time went into running the SAME slow checks twice (helper, then
 Claude after the merge) and running every e2e script one at a time. Three tiers, one command each (a web game has
 `npm run check:fast` / `npm run check:full` — template `templates/check-all.mjs`; e2e scripts each get their own port so
-they run side by side, 3 at a time). Hooks enforce parts of this (`HOOKS.md`): type check before every commit, check:fast
+they run side by side, 3 at a time). A game's copy of a template keeps its first line, `template: <name> <N>` — the
+session start names a copy that's behind (F203, `templates/TEMPLATES.md` lists them and what each version added). Hooks enforce parts of this (`HOOKS.md`): type check before every commit, check:fast
 before /develop hands back, a smoke pass before anything goes live:
 | Tier | What | When | Time (Glyphtender) |
 |---|---|---|---|

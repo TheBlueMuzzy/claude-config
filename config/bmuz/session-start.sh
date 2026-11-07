@@ -105,6 +105,13 @@ if [ -f package.json ] && [ -d "$FW" ]; then
   [ -n "$UPDATES" ] && echo "Framework updates available: $UPDATES — say 'update the framework pieces' and Claude installs them with install-module."
 fi
 
+# Test scripts copied from the BMUZ templates behind them? (framework F203) Each copy's `template: <name> <N>` line vs
+# templates/TEMPLATES.md — one line per copy that's behind or has no version line; all current → quiet. ~0.2 s, local only.
+if [ -f package.json ]; then
+  if command -v timeout >/dev/null 2>&1; then timeout 5 node "$(dirname "$0")/scripts/templates-check.mjs" . --session 2>/dev/null
+  else node "$(dirname "$0")/scripts/templates-check.mjs" . --session 2>/dev/null; fi
+fi
+
 STATE=.planning/STATE.md
 if [ -f "$STATE" ]; then
   if grep -q "RESUME HERE" "$STATE"; then

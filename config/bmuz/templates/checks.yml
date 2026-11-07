@@ -1,3 +1,4 @@
+# template: checks.yml 2 (2026-10-27) — keep this line: the session start compares it with templates/TEMPLATES.md (F203)
 # CHECKS — GitHub re-runs the game's checks on every push (BMUZ "Checks", F70, 2026-10-19).
 #
 # What it does, in plain words:

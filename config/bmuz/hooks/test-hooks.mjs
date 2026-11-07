@@ -1490,6 +1490,27 @@ function testSessionStartUpdates() {
   expect('no framework folder on this machine → quiet', start(join(root, 'nope')), 'quiet')
   rmSync(join(game, 'package.json'))
   expect('not a game (no package.json) → quiet', start(fw), 'quiet')
+
+  // F203: template copies behind (the real templates, the real TEMPLATES.md) → one line each; all current → nothing
+  put(join(game, 'package.json'), '{}')
+  const templates = (env = {}) => {
+    const r = spawnSync('bash', [join(HOOKS, '..', 'session-start.sh')], { input: '{"source":"startup"}', encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: game, BMUZ_NO_PULL: '1', BMUZ_FRAMEWORK: join(root, 'nope'), ...env }, timeout: 60_000 })
+    const out = r.stdout || ''
+    const at = out.split('\n').findIndex(l => l.startsWith('Test scripts behind the BMUZ templates'))
+    const lines = at < 0 ? [] : out.split('\n').slice(at + 1).filter(l => /^ {2}\S/.test(l))
+    return { result: at < 0 ? 'quiet' : `${lines.length} named`, message: at < 0 ? out : lines.join('\n') }
+  }
+  const real = join(HOOKS, '..', 'templates')
+  put(join(game, 'scripts', 'ports.mjs'), '// template: ports.mjs 1 (2026-10-24)\nexport {}\n')
+  put(join(game, 'scripts', 'check-all.mjs'), '// CHECK EVERYTHING, SIDE BY SIDE — made before version lines\n')
+  const stale = templates()
+  expect('an old ports.mjs (1) + a check-all.mjs with no version line → one line each', stale, '2 named')
+  expect('…with what\'s new and the template to copy / merge from', { result: /ports\.mjs 1 → \d+ \(scripts\/ports\.mjs\): .+ — copy ~\/\.claude\/config\/bmuz\/templates\/ports\.mjs over it/.test(stale.message) && /check-all\.mjs \(scripts\/check-all\.mjs\) has no version line.*merge in .*keep its FAST, E2E/.test(stale.message) ? 'ok' : 'no', message: stale.message }, 'ok')
+  writeFileSync(join(game, 'scripts', 'ports.mjs'), readFileSync(join(real, 'ports.mjs')))
+  writeFileSync(join(game, 'scripts', 'check-all.mjs'), readFileSync(join(real, 'check-all.mjs')))
+  expect('every copy current → nothing said', templates(), 'quiet')
+  writeFileSync(join(game, 'scripts', 'ports.mjs'), '// template: ports.mjs 1\n')
+  expect('the check itself broken (no TEMPLATES.md) → nothing said, the session start goes on', templates({ BMUZ_TEMPLATES: join(root, 'nope') }), 'quiet')
   rmSync(root, { recursive: true, force: true })
 }
 

@@ -11,7 +11,7 @@
 //   - additionalContext → an attachment "hook_additional_context" / "hook_system_message" with only the event name;
 //     one hook speaks that way per event (CONTEXT_BY_EVENT) → kind context
 //   - a hook that crashed → "hook_non_blocking_error" with the command and its stderr → kind stderr
-//   - the session-start notes (crash-news 🐞, live-ping "⚠ … is DOWN", producer-notes 📅) → lines inside the
+//   - the session-start notes (crash-news 🐞, live-ping "⚠ … is DOWN", producer-notes 📅, templates-check) → lines inside the
 //     SessionStart "hook_success" text (a long one is only a 2 KB preview, so a note past it is missed)
 // Not counted: "ask" answers (the transcript shows only Muzzy's choice, if anything), the stop_hook_summary and "Stop hook
 // feedback" copies of a send-back, and Claude Code's own "PostToolUse hook modified <file>" note.
@@ -59,6 +59,7 @@ export function firingsIn(entry) {
       for (const l of lines) {
         if (/^🐞 /.test(l)) add('crash-news', event, 'context', l, `c${l}`)
         if (/^⚠ .* is DOWN — /.test(l)) add('live-ping', event, 'context', l, `l${l}`)
+        if (/^Test scripts behind the BMUZ templates/.test(l)) add('templates-check', event, 'context', l, 't')
       }
       if (producer.length) add('producer-notes', event, 'context', producer.join('\n'), 'p')
     }

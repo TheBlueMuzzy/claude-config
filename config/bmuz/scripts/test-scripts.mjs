@@ -1821,8 +1821,74 @@ async function testHookHistory() {
   rmSync(root, { recursive: true, force: true })
 }
 
+// templates-check.mjs (framework F203): a game's copies of the BMUZ templates — behind, no version line, current
+function testTemplates() {
+  console.log('templates — a game\'s template copies against the templates')
+  // the real templates: each one's version line matches the top line of its list in TEMPLATES.md
+  const real = join(SCRIPTS, '..', 'templates')
+  const list = readFileSync(join(real, 'TEMPLATES.md'), 'utf8')
+  const heads = [...list.matchAll(/^## (\S+) → (\S+)[^\n]*\n- (\d+) \(/gm)]
+  expect('TEMPLATES.md lists the 5 copied templates', heads.map(h => h[1]).sort().join() === 'check-all.mjs,checks.yml,ports.mjs,shots.mjs,slow-tests.mjs', heads.map(h => h[1]))
+  for (const [, name, , n] of heads) {
+    const first = readFileSync(join(real, name), 'utf8').split('\n')[0]
+    expect(`…${name}'s first line is "template: ${name} ${n}"`, new RegExp(`^(//|#) template: ${name.replace('.', '\\.')} ${n} \\(\\d{4}-\\d\\d-\\d\\d\\)`).test(first), first)
+  }
+
+  // a scratch templates folder + game
+  const root = mkdtempSync(join(tmpdir(), 'bmuz-templates-'))
+  const tpl = join(root, 'templates')
+  const game = join(root, 'game')
+  write(join(tpl, 'TEMPLATES.md'), [
+    '# Templates', '',
+    '## ports.mjs → scripts/ports.mjs · copy',
+    '- 3 (2026-11-05, F9): knocks on the port', '- 2 (2026-11-01, F8): time limits', '- 1 (2026-10-24, F7): the old lookup', '',
+    '## check-all.mjs → scripts/check-all.mjs · merge (keep: FAST, E2E)', '- 2 (2026-11-03, F6): slow tests', '- 1 (2026-10-04): tiers', '',
+    '## checks.yml → .github/workflows/checks.yml · copy', '- 1 (2026-10-19, F70): GitHub checks', '',
+    '## evil.mjs → ../outside.mjs · copy', '- 1 (2026-11-01): a path outside the game', '',
+  ].join('\n'))
+  write(join(tpl, 'ports.mjs'), '// template: ports.mjs 3 (2026-11-05) — keep this line\nexport const x = 1\n')
+  write(join(tpl, 'check-all.mjs'), '// template: check-all.mjs 2 (2026-11-03) — keep this line\n// CHECK EVERYTHING, SIDE BY SIDE — the tiers\nconst FAST = []\n')
+  write(join(tpl, 'checks.yml'), '# template: checks.yml 1 (2026-10-19) — keep this line\nname: Checks\n')
+  write(join(tpl, 'evil.mjs'), '// template: evil.mjs 1 (2026-11-01)\n')
+  write(join(game, 'package.json'), '{}')
+  write(join(game, 'scripts', 'ports.mjs'), '// template: ports.mjs 1 (2026-10-24) — keep this line\nexport const x = 0\n')
+  write(join(game, 'scripts', 'check-all.mjs'), '// CHECK EVERYTHING, SIDE BY SIDE — an old copy\nconst FAST = [1]\n')
+  write(join(game, '.github', 'workflows', 'checks.yml'), '# template: checks.yml 1 (2026-10-19)\r\nname: Checks\r\n')
+  write(join(root, 'outside.mjs'), '// template: evil.mjs 0\n')
+  const env = { BMUZ_TEMPLATES: tpl }
+
+  const full = script('templates-check.mjs', [game], { env })
+  expect('the full list runs (exit 0)', full.code === 0, full.out)
+  expect('…ports.mjs 1 → 3 behind, with what 2 and 3 added', /ports\.mjs 1 → 3/.test(full.out) && /time limits/.test(full.out) && /knocks on the port/.test(full.out) && !/the old lookup/.test(full.out), full.out)
+  expect('…check-all.mjs with no version line → named as an old copy', /scripts\/check-all\.mjs.*no version line/.test(full.out), full.out)
+  expect('…checks.yml (CRLF line ends) current', /checks\.yml 1 .*current/.test(full.out), full.out)
+  expect('…a TEMPLATES.md path outside the game is refused, never read', /evil\.mjs.*outside the game/.test(full.out) && !/evil\.mjs 0/.test(full.out), full.out)
+
+  const session = script('templates-check.mjs', [game, '--session'], { env })
+  const lines = session.out.trim().split('\n').filter(l => /^\s+\S/.test(l))
+  expect('--session: one line per stale copy (ports, check-all), nothing for the current one', session.code === 0 && lines.length === 2 && !/checks\.yml/.test(session.out), session.out)
+  expect('…a "copy" template says copy it over, a "merge" one says merge and what to keep', /ports\.mjs 1 → 3.*copy .*templates[\\/]ports\.mjs over it/.test(session.out) && /check-all\.mjs.*merge .*templates[\\/]check-all\.mjs.*keep its FAST, E2E/.test(session.out), session.out)
+  expect('…no line about the refused path (session start stays short)', !/evil/.test(session.out), session.out)
+
+  // the project's own file at a copy's path (the framework's checks.yml): not a copy → never named
+  write(join(game, '.github', 'workflows', 'checks.yml'), '# Framework checks on GitHub — its own\nname: Framework\n')
+  const own = script('templates-check.mjs', [game], { env })
+  expect('a file at a copy\'s path without the template\'s title → "its own file", not an old copy', /checks\.yml — .*own file/.test(own.out) && !/checks\.yml.*no version line/.test(own.out), own.out)
+  // a copy word for word the template, only its version line missing → current
+  write(join(game, 'scripts', 'check-all.mjs'), '// CHECK EVERYTHING, SIDE BY SIDE — the tiers\r\nconst FAST = []\r\n')
+  expect('a copy word for word the template minus the version line → current', /check-all\.mjs 2 .*current/.test(script('templates-check.mjs', [game], { env }).out))
+
+  write(join(game, 'scripts', 'ports.mjs'), '// template: ports.mjs 3 (2026-11-05)\n')
+  write(join(game, 'scripts', 'check-all.mjs'), '// template: check-all.mjs 5 (2026-12-01) — ahead of these templates\n')
+  const quiet = script('templates-check.mjs', [game, '--session'], { env })
+  expect('--session with every copy current (or ahead), and the own file → says nothing', quiet.code === 0 && quiet.out.trim() === '', quiet.out)
+  expect('…a game with no copies at all → nothing', script('templates-check.mjs', [join(root, 'empty'), '--session'], { env }).out.trim() === '')
+  expect('…a broken TEMPLATES.md (missing) → nothing, exit 0 (session start never fails)', (() => { const r = script('templates-check.mjs', [game, '--session'], { env: { BMUZ_TEMPLATES: join(root, 'nope') } }); return r.code === 0 && r.out.trim() === '' })())
+  rmSync(root, { recursive: true, force: true })
+}
+
 const only = process.argv[2]
-const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList, 'release-crash-maps': testReleaseCrashMaps,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract, 'hook-history': testHookHistory, 'removal-pass': testRemovalPass }
+const suites = { 'framework-around': testFrameworkAround, 'install-module': testInstallModule, release: testRelease, 'release-gates': testReleaseGates, 'release-module-list': testReleaseModuleList, 'release-crash-maps': testReleaseCrashMaps,'checks-gate': testChecksGate, save: testSave, 'save-triggers': testSaveTriggers, 'config-sync': testConfigSync, 'sprint-helpers': testSprintHelpers, 'archive-retro': testArchiveRetro, 'stop-servers': testStopServers, 'port-preflight': testPortPreflight, 'no-shell': testNoShell,'ppp-framework': testPppFramework, merge: testMerge, 'live-check': testLiveCheck, rollback: testRollback, 'script-commit-guards': testScriptCommitGuards, 'release-playtest': testReleasePlaytest, 'release-stage-checks': testReleaseStageChecks, 'release-notes': testReleaseNotes, 'deps-check': testDepsCheck, extract: testExtract, 'hook-history': testHookHistory, 'removal-pass': testRemovalPass, templates: testTemplates }
 if (only && !suites[only]) { console.log(`✗ no suite "${only}" — the suites: ${Object.keys(suites).join(', ')}`); process.exit(1) } // a typo isn't "0 failed"
 for (const [name, run] of Object.entries(suites)) if (!only || only === name) await run()
 console.log(`\n${passed} passed, ${failed} failed`)

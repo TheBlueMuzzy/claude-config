@@ -1,3 +1,4 @@
+// template: check-all.mjs 4 (2026-11-03) — keep this line: the session start compares it with templates/TEMPLATES.md (F203)
 // CHECK EVERYTHING, SIDE BY SIDE — the BMUZ check tiers in one command (BMUZ "Checks", PROJECT-FILES.md).
 // TEMPLATE (~/.claude/config/bmuz/templates/check-all.mjs) — copy to <game>/scripts/check-all.mjs, then fill FAST and E2E
 // for this game, and add to package.json: "check:fast": "node scripts/check-all.mjs fast", "check:full": "node scripts/check-all.mjs full".

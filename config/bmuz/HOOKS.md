@@ -140,6 +140,7 @@ is checked too. GG14 refuses `--no-verify` so the step can't be skipped (Muzzy c
 | S4 ① | When a session starts in a BMUZ project (`hooks/live-ping.mjs`, F82) | **Is the live game up?** — one line per live page or room server that is DOWN | A broken live game nobody notices hurts a solo designer most |
 | S5 ① | When a session starts in a game with a crash server (`hooks/crash-news.mjs`, framework F89) | **What broke for players since last time?** — one line when there's news | Muzzy hears about a player's broken game without asking anyone |
 | S6 ① | Before Claude uses Muzzy's Chrome | **Asks Muzzy** each time (a permission prompt, settings.json) | His browser, his call |
+| S7 ① | When a session starts in a game (`scripts/templates-check.mjs`, framework F203) | **Test scripts behind the BMUZ templates** — one line per copy (check-all.mjs, ports.mjs, slow-tests.mjs, e2e/shots.mjs, checks.yml) whose `template: <name> <N>` line is older than templates/TEMPLATES.md's, or that has none, with what's new and copy-over / merge-in; quiet when all are current | Glyphtender's ports.mjs fell behind the template and nothing said so |
 | — ① | Always | Gmail stays fully blocked (unchanged) | Muzzy's choice |
 
 ## Scripts — fragile jobs as one command (F69)
