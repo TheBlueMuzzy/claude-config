@@ -32,6 +32,7 @@ Rules:
 - 1 (2026-11-03, F175): lists unit tests over 1 s that still have vitest's default time limit
 
 ## shots.mjs → e2e/shots.mjs · merge (keep: PORT, FREEZE_QUERY, STILL, JOURNEYS)
+- 2 (2026-11-07, F204): every page also gets `freeze-version` — the version module (0.3.0+) shows v0.0.0.0, so a /save's build number no longer turns the menu + Settings red
 - 1 (2026-11-07, F196): before/after screenshots — record, compare pixel by pixel, a changes page; sizes follow the game's orientation
 
 ## checks.yml → .github/workflows/checks.yml · copy
