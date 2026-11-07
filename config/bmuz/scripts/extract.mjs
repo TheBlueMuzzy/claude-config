@@ -9,6 +9,8 @@
 //     node extract.mjs fix <id> "<what was fixed>"     a bug fix made to a frozen file, logged on the entry
 //     node extract.mjs swap <id>                       the released module in, the game's old copy out, the checks
 //         unchanged, ONE game commit. Red → the attempt is set aside on a branch, the game is left exactly as it was.
+//     node extract.mjs swap <id> --rehearse            the same swap in a throwaway clone of the game (any folder name):
+//         everything happens in the clone, NOTHING is written to the queue or outside the clone (F202)
 //   In the framework:
 //     node extract.mjs list [--all]                    open entries (--all: swapped ones too)
 //     node extract.mjs status <id> building | released <module>@<version>
@@ -16,7 +18,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, posix, relative, resolve } from 'node:path'
 import {
-  FRAMEWORK, run, say, ok, refuse, tail, readJson, git, changedFiles, guardCommit, todays, moduleFolders, NEVER_COMMIT,
+  FRAMEWORK, DEV, run, say, ok, refuse, tail, readJson, git, changedFiles, guardCommit, todays, moduleFolders, NEVER_COMMIT,
   queuePath, readQueue, writeQueue, statusWord, isOpenEntry, nextExtractionId, gameName,
 } from './lib.mjs'
 
@@ -26,13 +28,15 @@ const flag = (name) => { const f = all.find(a => a === `--${name}` || a.startsWi
 const words = all.filter(a => !a.startsWith('--'))
 const [command, ...rest] = words
 const today = todays()[0]
+const rehearse = flag('rehearse') !== null
+const REHEARSAL = 'REHEARSAL — nothing recorded'
 
 const USAGE = [
   'node extract.mjs add <file…> --what="what it does" --checks=test,e2e:smoke [--name="short name"]   (in the game)',
   'node extract.mjs list [--all]',
   'node extract.mjs status <id> building | released <module>@<version>   (in the framework)',
   'node extract.mjs fix <id> "<what was fixed>"',
-  'node extract.mjs swap <id>   (in the game)',
+  'node extract.mjs swap <id> [--rehearse]   (in the game; --rehearse: in a throwaway clone of it)',
 ].join('\n    ')
 
 if (command === 'add') add()
@@ -178,10 +182,11 @@ function fix() {
 // --- swap (in the game) --------------------------------------------------------------------------------------------
 
 function swap() {
-  const { root, name } = thisGame()
+  const game = rehearse ? null : thisGame()
   const queue = readQueue()
   const entry = entryOf(queue, rest[0])
-  if (entry.game !== name) refuse(`${entry.id} comes from ${entry.game}, not ${name}`, `run the swap in ~/Documents/dev/${entry.game}`)
+  const { root, name } = game ?? rehearsalCopy(entry)
+  if (!rehearse && entry.game !== name) refuse(`${entry.id} comes from ${entry.game}, not ${name}`, `run the swap in ~/Documents/dev/${entry.game} · or rehearse it in a throwaway clone first: git clone ~/Documents/dev/${entry.game} ~/Documents/dev/.scratch/<any name>, npm ci, then swap ${entry.id} --rehearse there`)
   const released = entry.status.match(/^released\s+([a-z0-9][a-z0-9-]*)@(\d+\.\d+\.\d+)/)
   if (!released) refuse(`${entry.id} is "${entry.status}", not released yet — there's no module to swap in`, 'wait for the framework session\'s "released" (extract.mjs list shows the status)')
   const [, module, version] = released
@@ -221,6 +226,7 @@ function swap() {
   const rewrites = planImports(root, entry.files, meta.entry)
   if (rewrites.refuse) refuse(rewrites.refuse.text, rewrites.refuse.fix)
 
+  if (rehearse) say(`${REHEARSAL}: the swap runs in this copy only — the queue, the framework and ${entry.game} itself stay as they are`)
   say(`… swapping ${entry.id} (${entry.files.join(', ')}) for ${module} ${has} in ${name}`)
   const results = []
   const install = run(process.execPath, [INSTALL, module, root], { cwd: root })
@@ -256,6 +262,11 @@ function swap() {
     if (!why) {
       const sha = git(root, 'rev-parse', '--short', 'HEAD')
       ok(`${name}: committed "${message}" (${sha}) on ${branch}`)
+      if (rehearse) {
+        say(`${REHEARSAL}: ${entry.id} is still "${entry.status}" in the queue; this copy can be deleted.`)
+        say(`  Next: the real swap — node ~/.claude/config/bmuz/scripts/extract.mjs swap ${entry.id} in ~/Documents/dev/${entry.game}`)
+        return
+      }
       entry.status = `swapped in ${sha}`
       saveQueue(queue, `Extraction queue: ${entry.id} swapped into ${name.split('/').pop()} (${sha})`)
       return
@@ -271,10 +282,11 @@ function setAside(root, branch, entry, red, why) {
   for (let n = 2; git(root, 'rev-parse', '--verify', '--quiet', `refs/heads/${aside}`) !== null; n++) aside = `extract/${entry.id}-swap-${n}`
   const lines = red.map(r => `  ✗ ${r.name}:\n${tail(r.out, 12)}`)
   if (why) lines.push(`  ✗ the swap commit: ${why}`)
+  const tag = rehearse ? `${REHEARSAL} (a copy of ${entry.game}). ` : ''
   // nothing changed (install-module refused before it installed — the module's own tests, the eslint config…): no
   // branch to keep, the game simply stays where it is (review: it used to be left on an empty extract/ branch)
   if (!changedFiles(root).length) {
-    refuse(`${entry.id} isn't swapped — it went red before anything in the game changed:\n${lines.join('\n')}\n  The game is untouched on ${branch}.`,
+    refuse(`${tag}${entry.id} isn't swapped — it went red before anything in the game changed:\n${lines.join('\n')}\n  The game is untouched on ${branch}.`,
       `fix what it names (in the framework, or the game's eslint config), then swap again`)
   }
   run('git', ['switch', '-q', '-c', aside], { cwd: root })
@@ -283,12 +295,29 @@ function setAside(root, branch, entry, red, why) {
   for (const f of secret) run('git', ['rm', '-q', '--cached', '--', f], { cwd: root })
   const kept = run('git', ['commit', '-q', '-m', `Swap attempt ${entry.id} — red, set aside by extract.mjs`], { cwd: root })
   if (kept.code !== 0) { // (a game's own commit hook said no) — stay on the side branch, the attempt uncommitted there
-    refuse(`${entry.id} isn't swapped — it went red:\n${lines.join('\n')}\n  ⚠ the attempt couldn't be committed on ${aside} either:\n${tail(kept.out, 5)}\n  The game is on ${aside} with the attempt uncommitted; ${branch} itself is untouched.`,
+    refuse(`${tag}${entry.id} isn't swapped — it went red:\n${lines.join('\n')}\n  ⚠ the attempt couldn't be committed on ${aside} either:\n${tail(kept.out, 5)}\n  The game is on ${aside} with the attempt uncommitted; ${branch} itself is untouched.`,
       `look at it with git status / git diff · then put it away: \`git stash -u\` and \`git switch ${branch}\``)
   }
   const back = run('git', ['switch', '-q', branch], { cwd: root })
-  refuse(`${entry.id} isn't swapped — it went red:\n${lines.join('\n')}\n  The game is back on ${branch} exactly as before${back.code === 0 ? '' : ' (⚠ switching back failed — `git switch ' + branch + '`)'}; the attempt is kept on the branch ${aside}${secret.length ? ` (not committed there: ${secret.join(', ')})` : ''}.`,
+  refuse(`${tag}${entry.id} isn't swapped — it went red:\n${lines.join('\n')}\n  The game is back on ${branch} exactly as before${back.code === 0 ? '' : ' (⚠ switching back failed — `git switch ' + branch + '`)'}; the attempt is kept on the branch ${aside}${secret.length ? ` (not committed there: ${secret.join(', ')})` : ''}.`,
     `look at it: git diff ${branch} ${aside} · fix the module in the framework (or the game's imports), release again, swap again · drop the attempt: git branch -D ${aside} (Muzzy's OK — it isn't merged)`)
+}
+
+// --rehearse (F202): the whole swap in a throwaway clone of the game before the real one — install, imports, old copy
+// deleted, checks, one commit, all in the clone; the queue is never written (F198's rehearsal had to swap by hand).
+// The clone can have any folder name: it is the entry's game when its history holds the commit the entry was queued
+// at. The entry's Game line can be hand-edited, so it's checked again here: never the real game itself.
+function rehearsalCopy(entry) {
+  const top = git(process.cwd(), 'rev-parse', '--show-toplevel')
+  const how = `git clone ~/Documents/dev/${entry.game} ~/Documents/dev/.scratch/<any name>, npm ci, then swap ${entry.id} --rehearse there`
+  if (!top) refuse(`${process.cwd()} isn't inside a git repo — a rehearsal runs in a clone of ${entry.game}`, how)
+  const root = resolve(top)
+  const same = (a, b) => resolve(a).toLowerCase() === resolve(b).toLowerCase()
+  if (same(root, FRAMEWORK)) refuse('this is the framework itself — a rehearsal runs in a clone of the game the piece comes from', how)
+  if (!safeRelPath(entry.game)) refuse(`${entry.id}'s Game "${entry.game}" isn't a plain folder under ~/Documents/dev`, `fix the Game line of ${entry.id} in ${queuePath()}`)
+  if (same(root, join(DEV, entry.game))) refuse(`this is ${entry.game} itself — a rehearsal runs in a throwaway clone, never in the real game`, `${how} · or the real swap here: swap ${entry.id}`)
+  if (!/^[0-9a-f]{4,40}$/i.test(entry.commit) || git(root, 'cat-file', '-e', `${entry.commit}^{commit}`) === null) refuse(`${root} isn't a copy of ${entry.game} — its history doesn't hold ${entry.commit}, the commit ${entry.id} was queued at`, how)
+  return { root, name: `a copy of ${entry.game}` }
 }
 
 // Every relative import in the game's own code that reaches one of the old files → the module's entry instead.
