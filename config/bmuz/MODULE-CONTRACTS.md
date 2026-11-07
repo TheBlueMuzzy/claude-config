@@ -19,7 +19,10 @@ The Dev Kit's job is to change the RUNNING game live. A game is wired for it whe
    import, a named JSON import). Pure engine code that takes its config by reference and reads it per tick is live AND
    pure (seeded tests stay deterministic). Hot loops that read thousands of values a frame copy the file once per frame.
    - `liveTuning` / `useLiveTuning` stay for files outside content/tuning and for code that wants to know WHEN an edit
-     arrives; words → `content/text/en.json` hot-reloads (Text tab); look → `content/ui/style.json` via `applyStyle`.
+     arrives; words → `content/text/en.json` hot-reloads on Save (Text tab) — live while typing is OPTIONAL wiring
+     (Dev Kit 0.30+: read words through `liveFile('text/en', en)` and redraw on `text/en` edits; the turn-based
+     starter's lesson view does it, framework F200); lesson files `content/lessons/*.json` are live by default (0.29+);
+     look → `content/ui/style.json` via `applyStyle`.
    - Guard: the game's own tests run `copiedAtLoad(srcFiles)` (`src/devkit/tuning/liveGuard.ts`) — it fails on the
      copies above; copies inside constructors/factories it can't see → prove a few knobs live in an e2e.
 2. **Two clocks — the shared ones** (`src/devkit/gameClock.ts`, safe in every build). The **rules clock** runs
