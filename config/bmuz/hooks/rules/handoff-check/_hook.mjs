@@ -10,8 +10,8 @@
 //     → not sent back: logged, and handed to Claude with Muzzy's next message (session-moments SM5)
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { readTurn, didWork, git, wordingNoteFile } from '../../lib.mjs'
-import { isProgressLine } from './_shared.mjs'
+import { readTurn, didWork, wordingNoteFile } from '../../lib.mjs'
+import { isProgressLine, workedProject } from './_shared.mjs'
 
 const WORDING = new Set(['HC1', 'HC2', 'HC3', 'HC4', 'HC8', 'HC12'])
 
@@ -39,8 +39,9 @@ export default {
       if (!(await check('HC1'))) for (const id of ['HC5', 'HC6', 'HC7', 'HC3']) await check(id)
     }
     await check('HC9')
-    // only in a game project (PC help like "open your game library in Steam" isn't about Muzzy's game)
-    const top = input.cwd && git(input.cwd, 'rev-parse', '--show-toplevel')
+    // only in a game project (PC help like "open your game library in Steam" isn't about Muzzy's game) — the project
+    // the turn worked in, else the session folder (F210)
+    const top = workedProject(turn, input.cwd)
     const inProject = top && existsSync(join(top, '.planning'))
     if (inProject) {
       await check('HC8')

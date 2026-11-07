@@ -801,7 +801,7 @@ function testHandoffCheck() {
   writeFileSync(join(game, '.planning', 'ROADMAP.md'), '# T — Roadmap\n## v0.1 — x ← current\n- 🔨 F08 🎮 Fan — must\n  why: fan layout → players scan the whole hand → Mastery\n')
   writeFileSync(join(game, '.planning', 'SPRINT.md'), '# Sprint 04 — fan\n## F08 🎮 Fan\n- [x] 🤖 1. a — src/a.ts\n- [x] 🤖 2. b — src/a.ts\n- [x] 🤖 3. c — src/a.ts\n- [ ] 🙋 4. Try it on the phone\n')
   const inGame = [prompt('go'), { ...tool('Edit', { file_path: join(game, '.planning', 'SPRINT.md') }), cwd: game }, result]
-  const fanCard = card.replace('F73 Standard hand-off card', 'F08 Fan')
+  const fanCard = card.replace('F73 Standard hand-off card', 'F08 — Fan') // (named: the turn worked in the game, so its feature names are checked — F210)
   const noFeel = stop([...inGame, say(fanCard)])
   expect('F80: F08 built + a why: line, card without the feel question → sent back', noFeel, 'block')
   expect('…quotes the why', { result: /Did <moment> feel like/.test(noFeel.message) && /Mastery/.test(noFeel.message) ? 'ok' : 'no', message: noFeel.message }, 'ok')
@@ -837,6 +837,25 @@ function testHandoffCheck() {
   expect('names: a quoted example of the bare form ("never a bare "F151"") → allowed', ask('Say the name, never a bare "F151".'), 'allow')
   const said = ask('Next is F65.').message
   expect('names: the message suggests the roadmap name (old "Name: description" line)', { result: /F65 — Framework test game"/.test(said) ? 'allow' : 'block' }, 'allow')
+  // F210: names come from the project the turn worked in, not the folder the chat started in (a framework-started chat
+  // working in Glyphtender got the framework's names — ROADMAP Ideas 2026-11-02)
+  const { root: homeRoot, repo: home } = makeRepo() // the session folder: another project with its own F151
+  mkdirSync(join(home, '.planning'))
+  writeFileSync(join(home, '.planning', 'ROADMAP.md'), '# H — Roadmap\n## v0.1 — Start  ← current\n- 🟢 F151 🔧 Session folder thing — x — should\n')
+  const elsewhere = (tools, text, cwd = home) => stop([prompt('go'), ...tools.flatMap(t => [t, result]), say(text)], { cwd })
+  const names = (got, want) => ({ result: new RegExp(want).test(got.message || '') ? 'ok' : 'no', message: got.message || '' })
+  const editThere = tool('Edit', { file_path: join(proj, 'a.txt') })
+  const bareThere = elsewhere([editThere], 'F151 is next.')
+  expect('F210: edits in another repo → a bare id gets THAT repo\'s name', names(bareThere, 'Turn-based starter'), 'ok')
+  expect('F210: …not the session folder\'s', names(bareThere, '^(?![\\s\\S]*Session folder thing)'), 'ok')
+  expect('F210: …that repo\'s name given → allowed', elsewhere([editThere], card.replace('## F73 Standard hand-off card', '## F151 — Turn-based starter')), 'allow')
+  const cdThere = tool('Bash', { command: `cd "${proj.split('\\').join('/')}" && npm test` })
+  expect('F210: a `cd <repo>` in a shell command counts as working there', names(elsewhere([cdThere], 'F151 is next.'), 'Turn-based starter'), 'ok')
+  expect('F210: a turn that touched no other repo → the session folder\'s roadmap', names(elsewhere([tool('Bash', { command: 'git status' })], 'F151 is next.'), 'Session folder thing'), 'ok')
+  expect('F210: session folder not a project, work in one → checked there (was skipped)', names(elsewhere([editThere], 'F151 is next.', homeRoot), 'Turn-based starter'), 'ok')
+  const twoRepos = [tool('Edit', { file_path: join(home, 'a.txt') }), editThere, tool('Write', { file_path: join(proj, 'b.txt') })]
+  expect('F210: edits in two repos → the one with the most edits', names(elsewhere(twoRepos, 'F151 is next.'), 'Turn-based starter'), 'ok')
+  rmSync(homeRoot, { recursive: true, force: true })
   rmSync(projRoot, { recursive: true, force: true })
 
   // F185: judgement rules that became hooks (audit 2026-11 §5)

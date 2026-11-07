@@ -5,7 +5,7 @@ import { readRoadmap } from '../../../templates/ppp/plan-reader.mjs'
 export default {
   id: 'HC2',
   name: 'text.feature-names',
-  what: 'Every F## of the project\'s ROADMAP said in an answer comes with its name ("F151 — Turn-based starter", or "F151 🧱 Turn-based starter"); `inline code` and ids not in the roadmap are left alone; the message suggests each name',
+  what: 'Every F## of the project\'s ROADMAP (the project the turn edited, committed or `cd`\'d into, else the session folder — F210) said in an answer comes with its name ("F151 — Turn-based starter", or "F151 🧱 Turn-based starter"); `inline code` and ids not in the roadmap are left alone; the message suggests each name',
   why: 'Muzzy, 2026-10-26: "if you bring up F##, it should instead be F## - High Level Name"',
   on: true,
   mode: 'block',

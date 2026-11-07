@@ -348,7 +348,10 @@ if (usesCrashMaps(root)) {
   const built = run('npm', ['run', 'build'], { cwd: root, env })
   const maps = releaseMaps(root, label)
   const settings = Object.keys(env).filter(k => k.startsWith('VITE_')).join(', ') || 'no VITE_ settings in deploy.yml'
-  if (built.code !== 0 || !maps.length) {
+  if (built.code !== 0 && /maps are already filed/.test(built.out)) {
+    // crashes 0.3.1 (F209): this version's maps were filed before — the build refused to replace them, nothing moved
+    say(`⚠ crash maps for ${label} were already filed (releases/${label}/maps) — the release build refused to replace them, so the filed maps stand. Nothing to do unless they belong to a different build of ${label}: then delete that folder and build again.`)
+  } else if (built.code !== 0 || !maps.length) {
     say(`⚠ crash maps NOT made for ${label} (${built.code !== 0 ? 'the build failed' : 'the build filed no maps under releases/ — crashes module older than 0.3.0? update it with install-module.mjs'}) — make them by hand before pushing: ${Object.entries(env).map(([k, v]) => `${k}=${v}`).join(' ')} npm run build, then commit releases/${label}/maps${built.code !== 0 ? `\n${tail(built.out, 8)}` : ''}`)
   } else {
     const msg = `Crash maps for ${label} built with the deploy's settings (${settings})`
