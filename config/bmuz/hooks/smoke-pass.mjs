@@ -12,6 +12,13 @@ if (!root) { say('Not inside a git repo — run this from the project folder.');
 
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const script = ['smoke', 'e2e:smoke'].find(name => pkg.scripts?.[name])
+// A library (STATE "Release: none (library)") has no game to load and nothing deploys from it — framework v0.42.0
+// asked for a smoke script it can't have
+const state = existsSync(join(root, '.planning', 'STATE.md')) ? readFileSync(join(root, '.planning', 'STATE.md'), 'utf8') : ''
+if (!script && /^- Release: none \(library\)/m.test(state)) {
+  say('A library (STATE: Release: none (library)) — nothing to smoke-test or deploy; push the release as it is.')
+  process.exit(0)
+}
 if (!script) {
   say('No smoke script yet. Add a `smoke` npm script to package.json that loads the game and plays one turn/round in Playwright with a clean console (often an existing e2e script — point `smoke` at it), commit it, then run this again.')
   process.exit(1)
