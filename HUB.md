@@ -21,6 +21,7 @@ All code projects live here: `C:\Users\Muzzy\Documents\dev\`
 | Framework | GitHub | What |
 |---|---|---|
 | framework | [framework](https://github.com/TheBlueMuzzy/framework) (private) | Reusable game modules — first: game UI kit |
+| bmuz (`dev\bmuz\`) | [bmuz](https://github.com/TheBlueMuzzy/bmuz) (old Feb version archived as bmuz-v0) | BMUZ engine: the game-making process as a Claude Code plugin (plan lives in framework) |
 
 ## Apps — `dev\apps\`
 
