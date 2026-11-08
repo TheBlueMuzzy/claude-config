@@ -6,13 +6,16 @@ import { isProgressLine } from './_shared.mjs'
 export default {
   id: 'HC10',
   name: 'card.wake-up-armed',
-  what: 'A progress line that says it is waiting needs a wake-up still running (a background command or a Monitor), so a helper that goes quiet can never leave Claude waiting with nothing to wake it',
+  what: 'A hand-back that says work goes on by itself (a progress line, or "nothing to type") needs a wake-up still running (a background command or a Monitor), so a helper that goes quiet can never leave Claude waiting with nothing to wake it',
   why: 'Muzzy, 2026-11-04: "is there a way to ensure that doesn\'t happen going forward?" — the F184 helper waited for a "tests finished" notice that never came, the main session waited on the helper with nothing set to wake it, and both sat from ~1 PM until he asked at 10:43 PM',
   on: true,
   mode: 'block',
   tests: 'handoff-check',
   check({ message }, ctx) {
-    if (!isProgressLine(message) || !/waiting/i.test(message)) return
+    // Any hand-back that says the work goes on by itself — a progress line, or the card's "nothing to type" Next — not
+    // only one with the word "waiting" (2026-11-07: "wakes me" / "I keep going" slipped past, the F210 helper hung and
+    // main sat 5 h until Muzzy came home: "i thought we had something in place… so you didn't wait for five hours")
+    if (!isProgressLine(message) && !/nothing to type/i.test(message)) return
     let entries = []
     try {
       entries = readFileSync(ctx.input.transcript_path, 'utf8').split('\n').filter(Boolean).map(line => {

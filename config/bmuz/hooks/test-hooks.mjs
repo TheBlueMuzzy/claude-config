@@ -742,7 +742,12 @@ function testHandoffCheck() {
   expect('…a Monitor still running → allowed', stop([...work, monStarted, say(progress(at(0)))]), 'allow')
   expect('…a stopped wake-up → sent back', stop([...work, bgStarted, { type: 'user', message: { content: [{ type: 'tool_result', content: '{"message":"Successfully stopped task: bwake1 (x)"}' }] } }, say(progress(at(0)))]), 'block')
   expect('…Claude only SAYING "running in background with ID: x" → still sent back', stop([...work, say('Command running in background with ID: bfake'), say(progress(at(0)))]), 'block')
-  expect('a progress line that is not waiting on anything → allowed', stop([...work, say(`\`████████░░ 80% · 4/5 steps · ~2 min left · posted ${at(0)}\``)]), 'allow')
+  // 2026-11-07 (framework sprint 66): the word "waiting" was the trigger — Claude's lines said "wakes me" / "I keep going",
+  // the F210 helper hung, and main sat 5 h. Any hand-back saying work goes on by itself now needs Claude's OWN wake-up.
+  expect('a progress line without the word "waiting", nothing set to wake Claude → sent back', stop([...work, say(`\`████████░░ 80% · 4/5 steps · ~2 min left · posted ${at(0)}\``)]), 'block')
+  const goesOn = 'Progress — four helpers building.\n\n**Next:** nothing to type — I keep going: merge each one as it lands.'
+  expect('"nothing to type — I keep going" with nothing set to wake Claude → sent back', stop([...work, say(goesOn)]), 'block')
+  expect('…with a wake-up running → not sent back', { result: stop([...work, bgStarted, say(goesOn)]).result !== 'block' ? 'ok' : 'no', message: '' }, 'ok')
   // framework sprint 48: guessed times (08:05 PM posted at 07:55 PM) — the posted time is the clock's
   const guessed = stop([...work, say(progress(at(-180)))])
   expect('a progress line posted 3 hours off the clock → sent back', guessed, 'block')
@@ -855,6 +860,11 @@ function testHandoffCheck() {
   expect('F210: session folder not a project, work in one → checked there (was skipped)', names(elsewhere([editThere], 'F151 is next.', homeRoot), 'Turn-based starter'), 'ok')
   const twoRepos = [tool('Edit', { file_path: join(home, 'a.txt') }), editThere, tool('Write', { file_path: join(proj, 'b.txt') })]
   expect('F210: edits in two repos → the one with the most edits', names(elsewhere(twoRepos, 'F151 is next.'), 'Turn-based starter'), 'ok')
+  // F210 review: the hook process started inside a repo (the suite run from the framework) read a bare "a.ts" there
+  const fromRepo = join(root, `t${n++}.jsonl`)
+  writeFileSync(fromRepo, [prompt('go'), tool('Edit', { file_path: 'a.ts' }), result, say(card.replace('F73', 'F151'))].map(e => JSON.stringify(e)).join('\n'))
+  const run = spawnSync('node', [join(HOOKS, 'handoff-check.mjs')], { cwd: proj, input: JSON.stringify({ hook_event_name: 'Stop', transcript_path: fromRepo, session_id: 'f210-proc', stop_hook_active: false }), encoding: 'utf8', timeout: 600_000 })
+  expect('F210: a relative path with no folder given is never read from the hook\'s own folder', { result: existsSync(join(CTX, 'f210-proc.wording-slips')) ? 'noted' : 'allow', message: run.stdout + run.stderr }, 'allow')
   rmSync(homeRoot, { recursive: true, force: true })
   rmSync(projRoot, { recursive: true, force: true })
 

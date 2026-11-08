@@ -1,6 +1,6 @@
 // Helpers the handoff-check rules share (F184 — moved out of handoff-check.mjs unchanged).
 import { readFileSync } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
+import { join, dirname, resolve, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { git, gitCalls, commands, didWork, isCommit, isFileEdit } from '../../lib.mjs'
 
@@ -45,10 +45,13 @@ export function projectRoots(turn) {
 // Glyphtender got the framework's feature names). Where it changed things (a real file edit, a commit) first; a turn
 // that changed nothing → where its shell commands `cd`'d to (so a stray `cd` to read something never outweighs the
 // edits). Most tool calls wins — a turn that touched two repos is mostly about one; a tie → the latest. Nothing →
-// the session folder.
+// the session folder. A relative path is read from the tool call's folder (else the session's) — never the hook's own
+// folder, which is wherever Claude Code started it (F210 review: run from the framework, a fixture's bare "a.ts"
+// became the framework repo and its feature names).
 export function workedProject(turn, cwd) {
   const tops = new Map() // folder → its repo (one git call per folder)
   const topOf = (dir) => {
+    if (!dir) return null
     if (!tops.has(dir)) { const top = git(dir, 'rev-parse', '--show-toplevel'); tops.set(dir, top ? resolve(top) : null) }
     return tops.get(dir)
   }
@@ -56,11 +59,13 @@ export function workedProject(turn, cwd) {
   const visited = new Map()
   const count = (tally, roots, i) => { for (const root of roots) if (root) tally.set(root, [(tally.get(root)?.[0] || 0) + 1, i]) }
   turn.tools.forEach((t, i) => {
-    if (isFileEdit(t) && didWork({ tools: [t] })) count(changed, [topOf(dirname(resolve(t.cwd || '.', t.input.file_path || t.input.notebook_path || '.')))], i)
-    if (t.name !== 'Bash' && t.name !== 'PowerShell') return
+    const base = t.cwd || cwd
+    const file = t.input.file_path || t.input.notebook_path
+    if (isFileEdit(t) && file && (base || isAbsolute(file)) && didWork({ tools: [t] })) count(changed, [topOf(dirname(resolve(base || '', file)))], i)
+    if ((t.name !== 'Bash' && t.name !== 'PowerShell') || !base) return // no folder to read the command from
     const command = t.input.command || ''
-    count(changed, new Set(gitCalls(command, t.cwd).filter(c => c.sub === 'commit' && !c.args.includes('--dry-run')).map(c => topOf(c.dir))), i)
-    count(visited, new Set(commands(command, t.cwd).filter(c => c.dir && resolve(c.dir) !== resolve(t.cwd || '.')).map(c => topOf(c.dir))), i)
+    count(changed, new Set(gitCalls(command, base).filter(c => c.sub === 'commit' && !c.args.includes('--dry-run')).map(c => topOf(c.dir))), i)
+    count(visited, new Set(commands(command, base).filter(c => c.dir && resolve(c.dir) !== resolve(base)).map(c => topOf(c.dir))), i)
   })
   const [best] = [...(changed.size ? changed : visited)].sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1])
   if (best) return best[0]
