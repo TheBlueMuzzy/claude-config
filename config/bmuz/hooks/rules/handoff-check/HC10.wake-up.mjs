@@ -3,6 +3,23 @@
 import { readFileSync } from 'node:fs'
 import { isProgressLine } from './_shared.mjs'
 
+// tuning-ok: Muzzy's cap on a check-in (2026-11-08) — the longest a session may go without looking at running work
+const MAX_SECONDS = 20 * 60
+
+/** How long a running wake-up can last, in seconds (Infinity when nothing caps it). */
+function lengthOf(id, entries, said) {
+  const monitor = said.match(new RegExp(`Monitor started \\(task ${id}, expires in (\\d+)s`))
+  if (monitor) return Number(monitor[1])
+  // the tool call that started this background command: its result names the id; the call itself has the command
+  const result = entries.flatMap(e => (e.type === 'user' && Array.isArray(e.message?.content) ? e.message.content : []))
+    .find(c => c.type === 'tool_result' && JSON.stringify(c.content ?? '').includes(`with ID: ${id}`))
+  const call = result && entries.flatMap(e => (e.type === 'assistant' && Array.isArray(e.message?.content) ? e.message.content : []))
+    .find(c => c.type === 'tool_use' && c.id === result.tool_use_id)
+  const capped = String(call?.input?.command ?? '').match(/(?:^|[;&|(\s])timeout\s+(\d+)([smh]?)(?=\s)/)
+  if (!capped) return Infinity
+  return Number(capped[1]) * ({ m: 60, h: 3600 }[capped[2]] ?? 1)
+}
+
 export default {
   id: 'HC10',
   name: 'card.wake-up-armed',
@@ -29,7 +46,11 @@ export default {
       ...[...said.matchAll(/<task-id>(\w+)<\/task-id>[\s\S]{0,600}?<status>(?:completed|failed|killed|stopped|expired|timed_out|timeout)/g)].map(m => m[1]),
       ...[...said.matchAll(/Successfully stopped task: (\w+)/g)].map(m => m[1]),
     ])
-    if (started.some(id => !over.has(id))) return
+    const running = started.filter(id => !over.has(id))
+    // 2026-11-08 (Muzzy: "yes" — cap check-ins at 20 minutes): a wake-up counts only if it ends within MAX_SECONDS —
+    // a Monitor's "expires in Ns", or a background command wrapped in `timeout N` (s/m/h). A 5-hour sleep isn't a check-in.
+    if (running.some(id => lengthOf(id, entries, said) <= MAX_SECONDS)) return
+    if (running.length) return `A wake-up is running, but nothing ends it within ${MAX_SECONDS / 60} minutes — a long check (or a helper) can hang for hours with it. Start a check-in that ends within ${MAX_SECONDS / 60} minutes: a background command wrapped in \`timeout ${MAX_SECONDS}\` (e.g. \`timeout ${MAX_SECONDS} bash -c 'until [ "$(git -C <repo> log -1 --format=%h)" != "<now>" ]; do sleep 30; done'\`) or a Monitor that expires within ${MAX_SECONDS} s. When it wakes you, look at the work yourself and start the next one.`
     return 'This progress line says you are waiting, but nothing is set to wake you — if a helper goes quiet, this session sleeps until Muzzy asks (2026-11-04: ~10 hours). Before handing back, start a wake-up: a background command (Bash run_in_background) that exits when the work you wait on changes (a new commit, a results file) or after at most 20 minutes, e.g. `until [ "$(git -C <repo> log -1 --format=%h)" != "<now>" ]; do sleep 30; done` wrapped in `timeout 1200` — or a Monitor. When it wakes you, look at the helper\'s files yourself, nudge it if it has gone quiet, and post the bar again.'
   },
 }

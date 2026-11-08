@@ -8,8 +8,10 @@ always runs (①). Scripts: `~/.claude/config/bmuz/hooks/` · wiring: `~/.claude
 does, why (with Muzzy's words where there are some), on/off, and the test suite that proves it. `rules/<hook>/_hook.mjs`
 says when the hook runs and in what order its rules are checked. The hook files `settings.json` starts (guard-git.mjs,
 handoff-check.mjs, …) are 4-line starters that hand over to `hooks/runner.mjs`. Every answer goes into the firing log
-(`~/.claude/logs/bmuz-hooks.jsonl`) with the rule's id. To change a rule: edit its file, run
-`node ~/.claude/config/bmuz/hooks/test-hooks.mjs`, then `node ~/.claude/config/bmuz/scripts/hooks-doc.mjs` (rewrites the
+(`~/.claude/logs/bmuz-hooks.jsonl`) with the rule's id. To change a rule: edit its file, run its own group while
+working — `node ~/.claude/config/bmuz/hooks/test-hooks.mjs <group>` (e.g. `handoff-check`; a wrong name lists the
+groups) — and the whole suite (`test-hooks.mjs`, ~830 cases) ONCE before the config push (2026-11-08: three full runs
+for a one-rule change, Muzzy: "i feel like i'm mostly just waiting on tests"), then `node ~/.claude/config/bmuz/scripts/hooks-doc.mjs` (rewrites the
 table below). To switch one off: `on: false` in its file.
 
 **Never silent (F184).** ① A rule that crashes, or a rule file that won't load, is skipped — the other rules still

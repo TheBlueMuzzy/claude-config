@@ -731,10 +731,17 @@ function testHandoffCheck() {
   const at = (minutesFromNow) => new Date(Date.now() + minutesFromNow * 60_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   const progress = (time) => `Waiting on the helper.\n\n\`████████░░ 80% · 4/5 steps · ~2 min left (waiting on helper) · posted ${time}\``
   // HC10 (2026-11-04): a waiting progress line needs a wake-up still running — a background command or a Monitor
-  const bgStarted = { type: 'user', message: { content: [{ type: 'tool_result', content: 'Command running in background with ID: bwake1. Output is being written to: x' }] } }
+  const bgStarted = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'ubwake1', content: 'Command running in background with ID: bwake1. Output is being written to: x' }] } }
+  // the call that started it — a wake-up counts only when it ends within 20 minutes (2026-11-08)
+  const bgCall = (command) => ({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'ubwake1', name: 'Bash', input: { command, run_in_background: true } }] } })
+  const capped = bgCall('timeout 1200 bash -c "until false; do sleep 30; done"')
   const bgDone = prompt('<task-notification>\n<task-id>bwake1</task-id>\n<status>completed</status>\n</task-notification>')
   const monStarted = { type: 'user', message: { content: [{ type: 'tool_result', content: 'Monitor started (task mwake2, expires in 1200s)' }] } }
-  expect('work + progress line with a wake-up running → allowed', stop([...work, tool('Bash', { command: 'sleep 1', run_in_background: true }), bgStarted, say(progress(at(0)))]), 'allow')
+  expect('work + progress line with a wake-up running → allowed', stop([...work, capped, bgStarted, say(progress(at(0)))]), 'allow')
+  expect('…a wake-up with no time limit (a 5-hour sleep) → sent back', stop([...work, bgCall('sleep 18000'), bgStarted, say(progress(at(0)))]), 'block')
+  expect('…`timeout 2h` → sent back (over 20 minutes)', stop([...work, bgCall('timeout 2h npm run check:full'), bgStarted, say(progress(at(0)))]), 'block')
+  expect('…`timeout 15m` → allowed', stop([...work, bgCall('timeout 15m bash -c "sleep 60"'), bgStarted, say(progress(at(0)))]), 'allow')
+  expect('…a Monitor that runs an hour → sent back', stop([...work, { type: 'user', message: { content: [{ type: 'tool_result', content: 'Monitor started (task mlong, expires in 3600s)' }] } }, say(progress(at(0)))]), 'block')
   const asleep = stop([...work, say(progress(at(0)))])
   expect('a waiting progress line with nothing set to wake Claude → sent back', asleep, 'block')
   expect('…says to start a wake-up', { result: /wake-up/.test(asleep.message) ? 'ok' : 'no', message: asleep.message }, 'ok')
@@ -747,7 +754,7 @@ function testHandoffCheck() {
   expect('a progress line without the word "waiting", nothing set to wake Claude → sent back', stop([...work, say(`\`████████░░ 80% · 4/5 steps · ~2 min left · posted ${at(0)}\``)]), 'block')
   const goesOn = 'Progress — four helpers building.\n\n**Next:** nothing to type — I keep going: merge each one as it lands.'
   expect('"nothing to type — I keep going" with nothing set to wake Claude → sent back', stop([...work, say(goesOn)]), 'block')
-  expect('…with a wake-up running → not sent back', { result: stop([...work, bgStarted, say(goesOn)]).result !== 'block' ? 'ok' : 'no', message: '' }, 'ok')
+  expect('…with a wake-up running → not sent back', { result: stop([...work, capped, bgStarted, say(goesOn)]).result !== 'block' ? 'ok' : 'no', message: '' }, 'ok')
   // framework sprint 48: guessed times (08:05 PM posted at 07:55 PM) — the posted time is the clock's
   const guessed = stop([...work, say(progress(at(-180)))])
   expect('a progress line posted 3 hours off the clock → sent back', guessed, 'block')
