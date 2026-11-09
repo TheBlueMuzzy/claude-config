@@ -1,21 +1,20 @@
 {
-  "idleCompaction": false,
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
+    "allow": [
+      "Edit(~/.claude/config/bmuz/hooks/**)",
+      "Edit(~/.claude/config/bmuz/scripts/**)",
+      "Edit(~/.claude/skills/deliver/**)"
+    ],
     "deny": [
       "mcp__claude_ai_Gmail"
     ],
     "ask": [
       "mcp__claude-in-chrome"
     ],
-    "defaultMode": "auto",
-    "allow": [
-      "Edit(~/.claude/config/bmuz/hooks/**)",
-      "Edit(~/.claude/config/bmuz/scripts/**)",
-      "Edit(~/.claude/skills/deliver/**)"
-    ]
+    "defaultMode": "auto"
   },
   "hooks": {
     "SessionStart": [
@@ -166,12 +165,27 @@
     "playwright@claude-plugins-official": true,
     "playground@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "context7@claude-plugins-official": true
+    "context7@claude-plugins-official": true,
+    "bmuz@bmuz": true
+  },
+  "extraKnownMarketplaces": {
+    "bmuz": {
+      "source": {
+        "source": "directory",
+        "path": "C:\\Users\\Muzzy\\Documents\\dev\\bmuz"
+      }
+    }
   },
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
+  "idleCompaction": false,
   "agentPushNotifEnabled": true,
   "autoMode": {
+    "allow": [
+      "$defaults",
+      "Editing and testing the user own BMUZ workflow tooling under ~/.claude/config/bmuz/hooks, ~/.claude/config/bmuz/scripts and ~/.claude/skills/deliver is routine (Muzzy approved 2026-11-03). Not settings.json or credentials."
+    ],
     "soft_deny": [
       "$defaults",
       "Bash(npx party:deploy:*) in glyphtender — deploy script, scope to confirm before running unattended",
@@ -203,10 +217,6 @@
       "**Trusted repo**: C:\\Users\\Muzzy\\Documents\\dev\\games\\glyphtender, working directory and origin remote https://github.com/TheBlueMuzzy/glyphtender.git — PUBLIC repo: only this repo's own work is OK to commit/push; confidential material should not be committed here",
       "**Org-specific CLIs**: `gws` (Google Workspace CLI — Drive, Docs, Sheets, Slides, Tasks; Gmail MCP tools explicitly denied per global CLAUDE.md); `gh` (GitHub CLI); `gcloud` (seen in shell history, no project scoping found); `adb` (Android debugging, seen in shell history)",
       "**Routine under this repo's paths**: BMUZ workflow commands (/discover, /define, /develop, /deliver, /save, /bug, etc.) and npm scripts (dev, build, lint, test, e2e:*, sim*, golden:*, party:dev, party:deploy) are routine within glyphtender/"
-    ],
-    "allow": [
-      "$defaults",
-      "Editing and testing the user own BMUZ workflow tooling under ~/.claude/config/bmuz/hooks, ~/.claude/config/bmuz/scripts and ~/.claude/skills/deliver is routine (Muzzy approved 2026-11-03). Not settings.json or credentials."
     ]
   }
 }

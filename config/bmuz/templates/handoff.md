@@ -23,6 +23,7 @@ A `/command` under **Next** means "type this when you're ready". Never put one t
 Questions are only ones a designer can answer from what he sees, plays or wants — never an engineering choice
 (how it's built, where a check runs, which verdict on a code audit): Claude decides those, says so in Done, and logs
 why (Muzzy, 2026-11-04: "remember, i don't really understand this level of technical decisions") ③.
+A question he hasn't answered after it's been asked twice moves to where it's decided (ROADMAP Ideas with the feature that needs it, or STATE Ask Muzzy) and leaves the card; don't re-ask it beside unrelated steps (Muzzy, 2026-11-09: "you keep asking me the same question, but having me do a try it that doesn't seem to have to do with the question… feels confusing") ③.
 Questions holds questions only (Muzzy, 2026-10-23: "this didn't seem like a question. it felt like information. this
 section is called Questions: i'm confused by that") — information goes in Done / You'll see, actions in Your to-dos; the
 check sends back a Questions item with no "?". A question about something on screen names it as a player would (the
