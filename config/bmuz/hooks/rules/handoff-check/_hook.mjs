@@ -24,6 +24,10 @@ export default {
   async run(ctx) {
     const { input } = ctx
     if (!input.transcript_path || !existsSync(input.transcript_path)) ctx.exit()
+    // A BMUZ engine project (a bmuz.json in the session folder): the engine writes and checks the card itself (F213),
+    // so this check stands aside — its send-backs landed under the engine's card and buried what Muzzy had to do
+    // (Muzzy, 2026-11-09: "the things you want me to do should be closer to the bottom of the latest message").
+    if (input.cwd && existsSync(join(input.cwd, 'bmuz.json'))) ctx.exit()
     const turn = readTurn(input.transcript_path)
     const message = (input.last_assistant_message ?? turn.lastText ?? '').trim()
     const worked = didWork(turn) // a real edit (not the scratchpad / .scratch / memory) or a real commit (F185)

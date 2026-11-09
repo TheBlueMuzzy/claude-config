@@ -703,6 +703,11 @@ function testHandoffCheck() {
   ].join('\n')
   const work = [prompt('go'), tool('Edit', { file_path: 'a.ts' }), result]
   expect('question only, no work → no card needed', stop([prompt('what does 1 do?'), say('It stops three git commands.')]), 'allow')
+  // F213 (2026-11-09): in a BMUZ engine project the engine writes the card; this check stands aside, so nothing lands under it
+  const engineProj = join(root, 'engine-proj')
+  mkdirSync(engineProj, { recursive: true })
+  writeFileSync(join(engineProj, 'bmuz.json'), '{"pipeline":"hello"}')
+  expect('a BMUZ engine project (bmuz.json) → the engine owns the card, the check stands aside', stop([...work, say('no card at all')], { cwd: engineProj }), 'allow')
   // Muzzy 2026-11-04: "I don't want you making a decision with only half of a perspective" — Claude recommended
   // splitting BMUZ from the framework just because Muzzy raised it, and only weighed why they were together when asked
   const decide = 'should I open a new CLI and have it handle the BMUZ changes, while you take on the framework ones?'
