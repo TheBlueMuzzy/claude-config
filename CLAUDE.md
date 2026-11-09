@@ -6,7 +6,7 @@ One line per rule. Each rule's reason, in Muzzy's own words: `references/claude-
 - Artist and designer, not a professional engineer — good with logic, not abstract coding patterns
 - Human-readable code over clever abstractions; targeted, minimal changes — never refactor beyond what's asked ③
 - Explain genre jargon in plain words the first time ("wall kick" = what a piece does when you rotate it against something) ③
-- Terminal commands ready to copy/paste ③
+- Terminal commands ready to copy/paste — in PowerShell (his terminal on Windows), never bash-only lines like `rm -rf`; better still, do file work yourself ③
 - New app or tool walkthroughs: ONE step at a time — wait for "done" or a screenshot before the next ③
 - Engineering calls are Claude's: decide how things are built, log why, tell Muzzy in plain words what he'll see; ask him only about what he sees, plays or wants ③ (hand-off template)
 
