@@ -186,7 +186,7 @@ Rules:
 ## STATE.md  (under ~120 lines)
 ```markdown
 ## ▶ RESUME HERE
-<2–5 lines: where things stand, the exact next action, `Muzzy: …` lines for his to-dos. Always REPLACE, never append.>
+<2–5 lines: where things stand, the exact next action, `Muzzy: …` lines for his to-dos. Always REPLACE, never append. Paths in it use forward slashes (`~/Documents/dev/…`, which PowerShell takes too): a Windows backslash path written through a shell or JS one-liner gets mangled (`\b` → backspace, sed's `\U` → UPPERCASE; framework STATE 2026-11-11) ③ (judgement: a hook can't tell a mangled path from a real one).>
 ## Where we are
 Stage · Milestone · Sprint · Doing · Branch · Version · Live (url + release stage)
 ## Key facts
