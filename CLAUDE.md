@@ -59,6 +59,7 @@ Muzzy may type the command or say it in plain English — treat both the same.
 
 ## Working Style
 - Delegate exploration and research to helpers; keep the main chat small ③
+- Research first: before building, recommending or explaining how a thing is done, read current sources and cite them — never act on memory, even for things done before; "your pick" rests on research ③
 - One work branch per delivery (`dev/<milestone>`), merged only by /deliver; tiny fixes may go on main ① (guard-git)
 - Every hand-off is the card in `config/bmuz/templates/handoff.md` — progress line while work runs (re-posted each time a step finishes, with the clock time), numbered questions, feature numbers with their names, sprint reports opening with their header, "the game you played on <date>" never "your game" ② (handoff-check)
 - Lists and short bullets, never paragraphs — one fact each; a decision is options with my pick first ③ (handoff-check HC14 logs long paragraphs, to measure before it ever sends one back)
