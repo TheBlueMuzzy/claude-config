@@ -1,7 +1,7 @@
 # <Name> — Technical Design Document (TDD)
 
 > How the game is built. Plain English first; code names in `backticks` only where they help.
-> Living document — /define writes it, /develop keeps it true, /tdd shows it.
+> Living document — /design writes it (its build plan), /develop keeps it true, /tdd shows it.
 > Last updated: <date>
 
 ## 1. At a glance

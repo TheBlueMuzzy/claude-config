@@ -1,7 +1,7 @@
 # Release recipes
 
 One file per platform (`github-pages.md`, `vercel.md`, `itch.md`, `google-play.md`…), shared by every project.
-They're written by `/deliver` the **first time** a game goes to that platform, and corrected every time
+They're written by `/deliver` (or `/release`, for 1.0 going public) the **first time** a game goes to that platform, and corrected every time
 something turns out different. No recipe exists until it's needed.
 
 ## Recipe template

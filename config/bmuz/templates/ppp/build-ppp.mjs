@@ -99,7 +99,7 @@ const log = section(state, /^## Log/);
 const gddSection = (n) => { const lines = gdd.split('\n'); const s = lines.findIndex(l => new RegExp(`^## ${n}\\. `).test(l)); if (s < 0) return null; let e = lines.findIndex((l, k) => k > s && /^## /.test(l)); if (e < 0) e = lines.length; return { title: lines[s].replace(/^## \d+\.\s*/, '').replace(/\s*\(.*$/, ''), body: lines.slice(s + 1, e).join('\n') }; };
 const tableRows = (text) => text.split('\n').filter(l => /^\|/.test(l) && !/^\|[\s:|-]+\|$/.test(l)).map(r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim()));
 const strip = (s) => s.replace(/\*\*/g, '').replace(/^["“]|["”]$/g, '').trim();
-const HUES = ['--done', '--develop', '--define', '--discover', '--idea', '--deliver'];
+const HUES = ['--done', '--develop', '--define', '--ideate', '--idea', '--deliver', '--design'];
 function gamePitch(sec) {
   if (!sec) return '';
   const bullets = sec.body.split('\n').filter(l => /^- /.test(l));
@@ -228,17 +228,17 @@ const html = `<title>${esc(title)} Planner</title>
 /* Layout: one reading column of collapsible bands (game · now · milestones · parking lot · bugs · log); colour = state. */
 :root {
   --bg: #f4f5f8; --card: #ffffff; --card-2: #eceef4; --line: #d9dce6; --fg: #1b1f2a; --muted: #5d6476; --accent: #3b5bdb;
-  --idea: #b7791f; --discover: #2b6cb0; --define: #6b46c1; --develop: #c05621; --deliver: #0f766e; --done: #2f855a; --later: #718096;
+  --idea: #b7791f; --ideate: #2b6cb0; --define: #6b46c1; --design: #b83280; --ready: #4f7364; --develop: #c05621; --deliver: #0f766e; --done: #2f855a; --later: #718096;
   --must: #c53030; --should: #2b6cb0; --could: #718096;
   --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif; --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #12141b; --card: #1a1d27; --card-2: #232735; --line: #2f3445; --fg: #e8eaf2; --muted: #9aa1b5; --accent: #7c95ff;
-  --idea: #f6c453; --discover: #63a4ff; --define: #b394ff; --develop: #ff9a55; --deliver: #3cc9b7; --done: #5fd38d; --later: #8f98ab;
+  --idea: #f6c453; --ideate: #63a4ff; --define: #b394ff; --design: #f27ac0; --ready: #8fb3a1; --develop: #ff9a55; --deliver: #3cc9b7; --done: #5fd38d; --later: #8f98ab;
   --must: #ff7b7b; --should: #63a4ff; --could: #8f98ab; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #12141b; --card: #1a1d27; --card-2: #232735; --line: #2f3445; --fg: #e8eaf2; --muted: #9aa1b5; --accent: #7c95ff;
-  --idea: #f6c453; --discover: #63a4ff; --define: #b394ff; --develop: #ff9a55; --deliver: #3cc9b7; --done: #5fd38d; --later: #8f98ab;
+  --idea: #f6c453; --ideate: #63a4ff; --define: #b394ff; --design: #f27ac0; --ready: #8fb3a1; --develop: #ff9a55; --deliver: #3cc9b7; --done: #5fd38d; --later: #8f98ab;
   --must: #ff7b7b; --should: #63a4ff; --could: #8f98ab; color-scheme: dark }
 body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
 .wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; display: grid; gap: 14px; }
@@ -275,7 +275,7 @@ details[open] > summary::before { transform: rotate(90deg); }
 .id { font-family: var(--mono); font-size: .78rem; color: var(--muted); margin-right: 6px; }
 .type { margin-right: 6px; }
 .state { font-family: var(--mono); font-size: .7rem; padding: 2px 8px; border-radius: 6px; color: var(--card); white-space: nowrap; min-width: 74px; text-align: center; }
-.st-idea { background: var(--idea); } .st-discover { background: var(--discover); } .st-define { background: var(--define); } .st-develop { background: var(--develop); }
+.st-idea { background: var(--idea); } .st-ideate { background: var(--ideate); } .st-define { background: var(--define); } .st-design { background: var(--design); } .st-ready { background: var(--ready); } .st-develop { background: var(--develop); }
 .st-deliver { background: var(--deliver); } .st-done { background: var(--done); } .st-later, .st-wont { background: var(--later); }
 .st-row-done .it-title { color: var(--muted); }
 .st-row-wont .it-title { text-decoration: line-through; }
@@ -361,16 +361,16 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; padding-top:
     ${live ? `<span class="fact"><a href="${esc(live)}" target="_blank" rel="noopener">live game</a></span>` : ''}
     <span class="fact">updated ${today}</span>
   </div>
-  <div class="legend">${['💡', '🔍', '📐', '🔨', '🚀', '✅', '💤'].map(k => stateChip(STATES[k])).join('')}</div>
+  <div class="legend">${['💡', '🔍', '📐', '🎨', '🟢', '🔨', '🚀', '✅', '💤'].map(k => stateChip(STATES[k])).join('')}</div>
 </header>
 
 <details class="band" data-key="game"><summary><h2>The game</h2><span class="hint">pitch · feelings · pillars · how it plays</span></summary>
-  <div class="band-body">${gameParts || '<p class="empty">No GDD yet: /discover starts it.</p>'}</div></details>
+  <div class="band-body">${gameParts || (read('.planning/IDEATE.md') ? '<p class="empty">No GDD yet: the game so far is in IDEATE.md, and /define turns it into the concept.</p>' : '<p class="empty">No GDD yet: /ideate starts it (your idea and your material), then /define.</p>')}</div></details>
 
 <details class="band" data-key="now" open><summary><h2>Now</h2><span class="hint">${sprintTitle ? esc(sprintTitle) : 'what\'s in hand'}</span></summary>
   <div class="band-body">${resumeHtml || '<p class="empty">Nothing in hand.</p>'}</div></details>
 
-${msHtml || '<p class="empty">No milestones yet: /define lays them out.</p>'}
+${msHtml || '<p class="empty">No milestones yet: /design lays them out (its build plan).</p>'}
 
 ${sketches.length ? `<details class="band" data-key="sketches"><summary><h2>Sketches</h2><span class="hint">${sketches.length} to play with</span></summary>
   <div class="band-body">

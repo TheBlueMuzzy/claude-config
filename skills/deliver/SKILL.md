@@ -1,9 +1,9 @@
 ---
 name: deliver
-description: Double Diamond stage 4 — converge and put it out: check the release's must-haves are done, polish, merge the sprint branch, version, and release to the platform (GitHub Pages, Vercel, itch, app stores…) following a per-platform release recipe, then hand Muzzy the live link. Use when Muzzy types /deliver, or says "deploy", "release", "ship it", "put it live", "merge", "<deploy>", or "push it to the site".
+description: Stage 5 of 6, Deliver — turn each finished milestone (playable, alpha, beta, 1.0) into a build to play and share: check the must-haves are done, polish, merge the sprint branch, version, and put it out on its share link (GitHub Pages, Vercel, itch…) following a per-platform release recipe, then hand Muzzy the live link. At 1.0 it builds and versions the release, then hands to /release to take it public. Use when Muzzy types /deliver, or says "deploy", "release" (a milestone), "ship it", "put it live", "share it", "merge", "<deploy>", or "push it to the site".
 ---
 
-# /deliver — settle it and put it out (converge)
+# /deliver — build it and share it
 
 Steps are marked by how they happen (F80): ① a script or hook does it · ② Claude's judgement, refused until it's on record · ③ judgement only.
 Scripts: `~/.claude/config/bmuz/scripts/` (called `S/` below). Every refusal says why in plain words with a `→` fix: fix that, run it again.
@@ -12,7 +12,7 @@ Rules for the plan files: `~/.claude/config/bmuz/PROJECT-FILES.md`. **Old GSD la
 ## 1. What kind? ③
 - **update** — finished work onto the live site (most common) → Z.
 - **milestone** — a milestone's features are all done → Y (even if another milestone stays open).
-- **stage** — prototype / alpha / beta / 1.0 → Y, `--stage=<name>`. **major** — only when Muzzy says it's the public 1.0 → X.
+- **stage** — prototype / alpha / beta → Y, `--stage=<name>`. **major** — only when Muzzy says it's the public 1.0 → X; §2–§4 here, then `/release` takes it public (§5 stops).
 
 ## 2. Get it ready (the records release.mjs will look for)
 Do these on the work branch, then commit (/save). release.mjs refuses until each is true — run `release.mjs … --dry-run` any time: it lists **every** open gate at once.
@@ -32,11 +32,12 @@ Do these on the work branch, then commit (/save). release.mjs refuses until each
 - ① **Patch notes draft:** `node S/release.mjs <kind> --draft-notes` → `.planning/archive/releases/vX.Y.Z.md`, the commits since the last tag grouped by feature, marked DRAFT (never over an existing file). Format: PROJECT-FILES "Patch notes".
 - ② **Edit them with Muzzy:** rewrite each line as what the player notices, in a neutral voice ("Fixed the crash when…", never "We…") — no feature/bug ids, file names, "Dev Kit", checks or git talk in a game's notes; 1–3 sentences of Highlights; Balance as old → new; Known issues with a status; a library: Breaking + upgrade steps first. Show him the file, take his words, delete the DRAFT line. release.mjs refuses a missing / DRAFT / highlight-less / dev-talk file, naming each line (`--no-notes-ok` only on his say-so). The Highlights' first sentence is a good summary.
 - ② ROADMAP: milestone/stage → its heading ✅ with today's date ("✅ released 2026-11-02 (v0.3.0)"); a stage release moves `Release target:` on ("beta — musts not set (/define)").
-- ② STATE: a Log line dated today; RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)"; Stage = deliver; the Live line. Key facts has a `Release:` line: `<platform> (recipe …)` · `none (library)` · `not set up (declined <date>)` · `<platform> — blocked: <why>`.
+- ② STATE: a Log line dated today; RESUME HERE → "Released vX.Y.Z — next: /sprint (or /roadmap)" (1.0: "1.0 built — next: /release"); Stage = deliver; the Live line. Key facts has a `Release:` line: `<platform> (recipe …)` · `none (library)` · `not set up (declined <date>)` · `<platform> — blocked: <why>`.
 - ① `node S/release.mjs <update|milestone|stage|major> "<summary>" [--stage=alpha]` — checks every gate first (Fast tier, check:framework, reviews, full check, P0, approvals, sprint, ROADMAP, STATE, patch notes, packages, GitHub green for what was merged), and only then: bump, history, package.json + lock, STATE `Version:`, CHANGELOG.md (newest first) + the itch text (saved as `vX.Y.Z-itch.txt` beside the notes and printed), `public/third-party-notices.txt` for a game, commit `Release vX.Y.Z: …` with your ROADMAP/STATE/notes edits (the commit hooks check it), tag, cleanup.sh. It prints whether server code changed since the last tag. It never pushes.
 - ② **Packages** (F85, `S/deps-check.mjs`): a GPL / AGPL / LGPL / unlicensed package or a high security problem in what players get refuses, naming the package and who pulls it in — swap or update it on a work branch; release anyway only on Muzzy's say-so (`--deps-risk-ok`). "Couldn't reach npm's security list" is a warning: say it in §7.
 
 ## 5. Release it — the platform's recipe ③
+**1.0 (major)** → stop after §4: tell him 1.0 is built and versioned, and hand to `/release` (where it goes, each platform's needs, the launch on his OK) ③. Everything below 1.0 goes out here.
 Recipes: `~/.claude/config/bmuz/release/<platform>.md` (shared by every project; Key facts `Release:` names the platform).
 - ① **Smoke pass first:** `node ~/.claude/config/bmuz/hooks/smoke-pass.mjs` (the project's `smoke` script: loads, one turn/round, console clean — no script → add one pointing at an e2e that plays a round), commit `.planning/smoke-pass`, then `git push --follow-tags`. A hook refuses any push to a deploying branch or deploy command without a fresh pass, or with an open P0.
 - **Recipe exists** → follow it step by step. Anything different this time → fix the recipe afterwards.

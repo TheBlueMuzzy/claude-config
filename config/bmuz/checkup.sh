@@ -54,7 +54,7 @@ for d in skills/*/; do
 done
 
 echo; echo "== 4. Wiring — which BMUZ files name each specialist skill"
-BMUZ="bmuz discover define develop deliver roadmap sprint gdd tdd play save bug checkup ppp sketch sync"
+BMUZ="bmuz ideate define design develop deliver release roadmap sprint gdd tdd play save bug checkup ppp sketch sync"
 for d in skills/*/; do
   n=$(basename "$d"); [ "$n" = synced ] && continue
   echo " $BMUZ " | grep -q " $n " && continue

@@ -15,7 +15,7 @@ Saved word for word on 2026-11-04 when CLAUDE.md was slimmed (F185 — Slimmed r
 ## My Tech Stack
 - **Web Games**: React + TypeScript + Vite + Three.js (R3F)
 - **3D Games**: Unity C#
-- **Design**: Double Diamond methodology, MDA framework, GDD-driven development
+- **Design**: six stages — Ideate · Define · Design · Develop · Deliver · Release, with research callable from any of them (Muzzy, 2026-11-10; replaced the Double Diamond: a game starts from the creative's idea and is found by shaping, sketching and playing — framework `research/bmuz-vision/stages.md`), MDA framework, GDD-driven development
 
 ## Projects Directory
 All projects live under `~/Documents/dev/` (same on every machine — the username differs: Muzzy on the PC, joebr on the laptop) — index + rules in `dev/HUB.md` (synced via claude-config; `setup.sh` copies it there):
@@ -30,14 +30,16 @@ All projects live under `~/Documents/dev/` (same on every machine — the userna
 When Muzzy says "cd <project-name>" (e.g. "cd roll better", "cd glyphtender"), resolve the project name to its full path under `~/Documents/dev/` and `cd` there. Use fuzzy matching — "roll better" → `games/roll-better`, "eps" → `games/escape-pod-scramble`, etc.
 
 ## BMUZ — how we make games
-Double Diamond stages + views + tools. Muzzy may type them or say them in plain English — treat both the same.
+Six stages + views + tools. Muzzy may type them or say them in plain English — treat both the same.
 
 | | Command | Means |
 |---|---|---|
-| Stage 1 | `/discover` | explore the idea wide open → research, references, GDD start |
-| Stage 2 | `/define` | lock it in → GDD (design + scope per release), TDD (engineering plan), feature map with dependencies |
-| Stage 3 | `/develop` | "go" → build the sprint on the work branch, tests, tuning, prove it works, wait for "approved" |
-| Stage 4 | `/deliver` | smoke test, merge, version, release per platform recipe, live link |
+| Stage 1 | `/ideate` | gather the material → "show me what you have", per need what's fixed / ideas / open, "the game so far" — nothing decided |
+| Stage 2 | `/define` | lock it in → GDD Part 1, the one-page concept (feelings, pillars, pitch, core loop, scope per release) |
+| Stage 3 | `/design` | work it out → GDD Part 2 (rules, systems, screens, look), sketches for the risky parts, then the build plan (TDD + feature map) |
+| Stage 4 | `/develop` | "go" → build the sprint on the work branch, tests, tuning, prove it works, wait for "approved" |
+| Stage 5 | `/deliver` | each milestone → smoke test, merge, version, share link per platform recipe |
+| Stage 6 | `/release` | 1.0 goes public → where it goes, each platform's needs, launch on his OK, first reactions, look back |
 | View | `/ppp` | the project planner page (game at a glance, milestones %, every item's stage) — opens in the browser |
 | View | `/roadmap` | milestones, features, what needs what, % of musts, open bugs |
 | View | `/sprint` | current sprint tasks (🤖 Claude / 🙋 Muzzy), or plan the next one |
@@ -50,7 +52,7 @@ Double Diamond stages + views + tools. Muzzy may type them or say them in plain 
 
 `/bmuz` shows the menu. Rules + planning model: `~/.claude/config/bmuz/PROJECT-FILES.md`. Dev Kit catalog: `DEVKIT.md`. What a game must wire for each framework module (live hooks, rules/looks clocks, pause): `MODULE-CONTRACTS.md`. Obsidian: `OBSIDIAN.md` (vault = `Documents/dev`). ③ (pointers)
 - **Be the hands-off partner:** route plain English to the right command yourself, end every hand-off with the next command, and just run it when the next step is obvious. Muzzy shouldn't have to remember anything but `/bmuz`.
-- Time in /discover and /define is well spent: a strong GDD + TDD + feature map mean fewer loops in /develop. Nudge toward them when a new feature is fuzzy.
+- Time in /ideate, /define and /design is well spent: a strong GDD + TDD + feature map mean fewer loops in /develop. Nudge toward them when a new feature is fuzzy.
 - Respect dependencies: never build a feature before the things it `needs:`. ② (plan-lint flags a feature built before what it needs)
 - **Think like a co-designer with MDA** (mechanics → what players do → how it feels): judge designs and changes by the player behaviour they create and the feeling that behaviour produces. When something feels off, diagnose the behaviour and pick one knob — never meander through numbers. ③ (design thinking)
 - **Same intention → same motion (design language):** when something happens in one place and the same kind of thing happens elsewhere (points arriving in a total, a piece appearing, a pick being confirmed), it looks and moves the same way there too — reuse the existing animation, timings and feel tiers, never invent a second one. Check for the existing pattern before building a new effect. ③ (design judgement)
@@ -105,7 +107,7 @@ When Muzzy says "just go", "auto-complete", "keep going while I sleep", "I'm goi
 - Stuck after 3 tries → write `BLOCKED: <reason>` in STATE.md, move to the next thing, come back later.
 - STATE.md ▶ RESUME HERE is the status board — no need to narrate in chat.
 - **Context checkpoint:** a hook tells you when this session reaches 80% (and 90%) and what to write down before `/save` — then **keep going**; auto-compact (~97%) summarises the chat, and the files carry the truth. Never rely on remembering something that isn't written down. ① (session-moments hook)
-- Stops before anything public or hard to undo (`/deliver`, pushing to the live branch, deleting data) — those wait for Muzzy. Everything else: proceed.
+- Stops before anything public or hard to undo (`/deliver`, `/release`, pushing to the live branch, deleting data) — those wait for Muzzy. Everything else: proceed.
 
 ## Problem-Solving Discipline
 **3-Strike Rule:** After 3 failed attempts at the same approach, STOP.

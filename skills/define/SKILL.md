@@ -1,39 +1,35 @@
 ---
 name: define
-description: Double Diamond stage 2 — narrow the game (or a big feature) down to a clear concept, scope (must per release / should / could / won't), design, and a feature map with dependencies in ROADMAP.md. Use when Muzzy types /define, says "let's lock it in", "let's nail down the design", "what's in scope", wants to write or update the GDD, or wants to add a big feature to the roadmap properly.
+description: Stage 2 of 6, Define — decide what the game (or a big feature) is, on one page — from the material Ideate gathered, one answer per need — the feelings, the pillars, the pitch, the core loop, platform and play, a clash check, the scope (must per release / should / could / won't) and the risks — then lock GDD Part 1, the concept, and hand to /design. Use when Muzzy types /define, says "let's lock it in", "let's decide what it is", "pin it down", "what's in scope", wants to write or change the concept, or wants to scope a big new feature.
 ---
 
-# /define — narrow it down (converge)
+# /define — make the blocks
 
 Read `~/.claude/config/bmuz/PROJECT-FILES.md` first (layout, planning model, ROADMAP format). No `.planning/STATE.md`? Do the quick setup from `~/.claude/config/bmuz/SETUP-AND-CONVERT.md`. Old GSD layout? Offer the conversion first.
 
 Steps are marked by how they happen (F80): ① a script or hook does it · ② Claude's judgement, refused until it's on record · ③ judgement only. Most of /define is a design conversation ③; the marks below are where something checks.
 
-**Why this matters:** every hour here saves loops in /develop. A clear GDD + a good feature map means Claude builds the right thing in the right order.
+**What Define means** (framework `research/bmuz-vision/stages.md`): "which one is it?" per need, one answer each — the tight concept. It ends with **GDD Part 1, the one-page concept, locked**; the rules, systems, screens and the build plan are `/design`'s.
+**Why this matters:** every hour here saves loops later. A clear concept means Design works out the right game and Claude builds the right thing.
 
-## 1. Where are we?
-- **No GDD** → ask: *"Explore first (/discover), or fast-track — you already know what you want?"* Fast-track → `stages/fast-track.md` (one pass, ends with the feature map; commit `GDD + roadmap: fast-track` with STATE ② — guard-git).
-- **GDD from /discover** (`Current phase: Discover`) → run the three parts below in order, one per sitting if Muzzy likes.
-- **GDD complete** (`Current phase: Complete`) → ask what to rethink: a section of the GDD, the scope, or adding/reshaping features. Edit just that — and update ROADMAP.md to match (new features get IDs, types, scope, needs).
+## 1. Where are we? ③
+- **No GDD and nothing gathered** (no `.planning/IDEATE.md`) → the opening first: `/ideate` (it asks for his idea and his material, and offers the jump to Define when the material already answers most of it). Never a separate "fast-track" pass ③ (judgement: reading what he has).
+- **The game so far** (`.planning/IDEATE.md`; older projects: a GDD with `Current phase: Discover` + `research/discovery.md`, or `.planning/DISCOVER.md`) → create `.planning/GDD.md` from `~/.claude/config/bmuz/templates/GDD.md` (an older GDD: keep it, add the Part 1 / Part 2 headings) and run `stages/define.md`, one sitting or several.
+- **Part 1 locked or GDD complete** → ask what to rethink: a Part 1 chapter or the scope. Edit just that, log the change with the date — and update ROADMAP.md to match when the scope moved (new features get IDs, types, scope, needs). Rules, systems and the build plan → `/design`.
 
-## 1b. Gap walk (always, before the three parts — Muzzy, 2026-10-16: "walk me through the steps to fill in the gaps after analyzing what you do have")
-1. **Analyze first, ask second.** Read the GDD, `research/`, `design/` (and for a remake, the old docs + code). Check every GDD section and every feature against: settled · drafted (Claude's guess, needs a yes) · open · conflicting (docs vs code, old vs new).
-2. **Show the gap map once:** one short table — what's settled (no questions), and the gaps in walk order. Order = what blocks the most comes first: feel targets → core rules → scope/release → systems → content/story → tutorial (last; it teaches the settled rules) → look & sound.
-3. **Walk one gap at a time:** what we already have (quote it) · what's missing · Claude's recommendation + 2–3 options (AskUserQuestion when the options are clear, open question when it's taste) · write the answer into the GDD/design doc straight away, commit, then the next gap. Never a bulk list of questions ③ (conversation).
-4. A gap that needs a feel test (a `/sketch` for feel/look, `proto` for numbers) → start it, skip ahead, come back. Muzzy can say "stop here" any time — STATE RESUME HERE names the next gap ② (stop-unsaved sends a "stopping" turn back to /save; save.mjs refuses an unchanged RESUME HERE when there's new work) · ③ naming the right gap.
+## 1b. Gap walk (always, before deciding — Muzzy, 2026-10-16: "walk me through the steps to fill in the gaps after analyzing what you do have")
+1. **Analyze first, ask second.** Read IDEATE.md (or the older GDD), `research/`, `design/` (and for a remake, the old docs + code). Check every Part 1 chapter against: settled · drafted (Claude's guess, needs a yes) · open · conflicting (docs vs code, old vs new).
+2. **Show the gap map once:** one short table — what's settled (no questions), and the gaps in walk order: feelings → pillars → pitch → core loop → platform & play → scope → risks.
+3. **Walk one gap at a time:** what we already have (quote it — what his material already answers shows first, one tap to keep) · what's missing · Claude's recommendation + 2–3 options (AskUserQuestion when the options are clear, open question when it's taste) · write the answer into the GDD straight away, commit, then the next gap. Never a bulk list of questions ③ (conversation).
+4. Muzzy can say "stop here" any time — STATE RESUME HERE names the next gap ② (stop-unsaved sends a "stopping" turn back to /save; save.mjs refuses an unchanged RESUME HERE when there's new work) · ③ naming the right gap.
 
-## 2. The three parts
-1. **Define** — `stages/define.md`: sharp pitch, design principles, **experience targets** (mda-analyze), success criteria, **scope** (Must per release · Should · Could · Won't) ③ (design work).
-2. **Design** — `stages/design.md`: mechanics, systems, art & audio direction. Pull in **proto** for rules/odds, **game-economy** for resources, **ai-opponent** for bots, **mda-analyze** to trace each mechanic to the experience targets.
-3. **Build plan** — `stages/build-plan.md`: the **TDD** (how it's built, standards, compliance, Dev Kit tools), milestones, and the **feature map** in ROADMAP.md — every feature typed (❓🧱🎮✨), scoped, and linked to what it `needs:` ② (plan-lint flags a feature with no type, no scope, or a need that isn't in the roadmap, and keeps the graph in sync). Show Muzzy the dependency tree before writing it ③.
-
-At the end of each part: update `Current phase:` in the GDD and STATE (Stage, RESUME HERE), commit `GDD: <part>` (`GDD: define` / `GDD: design` / `GDD: build plan`) ② (guard-git refuses those without STATE.md in the commit), and ask *"Keep going, or stop here?"*
+## 2. Decide and lock — `stages/define.md`
+The feelings (**mda-analyze** targets), the pillars, the pitch (prior-art research offered once), the core loop, platform & play, a clash check, the scope (Must per release · Should · Could · Won't) and the risks ③ (design work). Then show the concept on one page and ask to lock it.
 
 ## 3. Defining one big feature (in an existing game)
-Same three parts, feature-sized: what it's for (which principle it serves), its scope (must for which release?), how it works, and how it breaks down into features with needs ③ (design work). Add them to the right milestone in ROADMAP.md with new IDs ② (plan-lint: unique IDs, type, scope, needs). Update the GDD section it belongs in ③.
-- **Changing a system that already exists?** First spend 5 minutes reading how its code really works — who holds what, what each screen can see (online too) — before the sketch or the design. ③ (Glyphtender sprint 33 retro, 2026-11-03: "awards are per player" and "an online screen has no log mid-game" were found after the sketch)
+Feature-sized: what it's for (which pillar and feeling it serves) and its scope (must for which release?) ③ (design work). Write it into GDD Part 1's scope; then `/design` works out how it plays and breaks it into features.
 
 ## 4. Hand-off
-STATE: Stage = define → develop when the map is done; RESUME HERE → "Roadmap ready — N features ready to start. Next: /sprint" ② (the `GDD: build plan` commit carries STATE — guard-git).
-Say ② (handoff-check: the card, Next `/sprint`): *"The map's ready — N features can start now. Say `/sprint` and I'll line up the first sprint."*
+Part 1 locked → GDD header `Current phase: Part 1 locked <date>`; STATE: Stage = define → design, RESUME HERE → "Concept locked — next: /design"; commit `GDD: define` ② (guard-git refuses it without STATE.md in the commit).
+Say ② (handoff-check: the card, Next `/design`): *"The concept's locked — one page. Say `/design` and we'll work out the rules, test the risky parts with sketches, and make the build plan."*
 Ideas that aren't for now → ROADMAP → Ideas with the date ③ (spotting them).

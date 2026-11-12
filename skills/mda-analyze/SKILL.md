@@ -23,7 +23,7 @@ Feelings come from what players *want*: to win, to master, to belong, to express
 - **Probability shapes pacing:** how random outcomes are distributed decides how long games last and how fair they feel.
 
 ## Modes — pick by what's asked, or what the calling stage says
-**targets** — Start from players: "what would they say afterwards?" Fill the GDD **Experience targets** table: 1–2 primaries, a secondary, "not this game", each in players' words, each with a **watchable** "we'll know when…" (behaviour you can see, not a feeling someone reports), 2–4 key moments, and watch-outs (dynamics that would kill the targets). Rough in /discover, locked in /define.
+**targets** — Start from players: "what would they say afterwards?" Fill the GDD **Experience targets** table: 1–2 primaries, a secondary, "not this game", each in players' words, each with a **watchable** "we'll know when…" (behaviour you can see, not a feeling someone reports), 2–4 key moments, and watch-outs (dynamics that would kill the targets). Loose in /ideate (his words), locked in /define.
 
 **trace <feature or mechanic>** — One line: `why: <mechanic> → <what players end up doing> → <target>`. The middle part must be a *behaviour*. Say it's a prediction until play shows it. Check it against the known traps: snowballing leader, stalemate, one best strategy, waiting around, too random, too solved. Enablers (UI, saving, foundations) don't need a trace — never suggest cutting them for lacking one. A target that nothing serves = a design gap; say so.
 
@@ -47,7 +47,7 @@ Feelings come from what players *want*: to win, to master, to belong, to express
 
 **playtest** — for each target: intended vs what was seen (behaviour first, then what players said). Update the GDD `Seen?` column with date + ✅/⚠️/❌. Anything ⚠️/❌ → one diagnose suggestion.
 
-**reference <game>** — break a reference game into target → dynamics → mechanics, briefly, for /discover research.
+**reference <game>** — break a reference game into target → dynamics → mechanics, briefly, when a reference comes up (any stage).
 
 ## Rules
 - **Short.** No standalone reports — write into the GDD (targets, mechanics, balance), ROADMAP `why:` lines, or SPRINT Notes, and say where.

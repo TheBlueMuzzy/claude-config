@@ -5,8 +5,9 @@
 // New ladder + the older ROADMAP states mapped onto it, so older projects still draw.
 export const STATES = {
   '💡': { key: 'idea', label: 'Idea' },
-  '🔍': { key: 'discover', label: 'Discover' },
+  '🔍': { key: 'ideate', label: 'Ideate' }, // F226: was Discover; an older roadmap's 🔍 draws as Ideate
   '📐': { key: 'define', label: 'Define' },
+  '🎨': { key: 'design', label: 'Design' }, // F226: being worked out in GDD Part 2 (rules, sketches), not built yet
   '🔨': { key: 'develop', label: 'Develop' },
   '🎛️': { key: 'develop', label: 'Develop · tuning' },
   '🎛': { key: 'develop', label: 'Develop · tuning' },
@@ -15,7 +16,7 @@ export const STATES = {
   '💤': { key: 'later', label: 'Maybe later' },
   '✖': { key: 'wont', label: "Won't" },
   '⏳': { key: 'define', label: 'Define · waiting' },
-  '🟢': { key: 'define', label: 'Ready' },
+  '🟢': { key: 'ready', label: 'Ready' }, // F226: its own grey-green, so it no longer looks like Define (Muzzy 2026-11-12)
 };
 export const TYPES = { '❓': 'Decision', '🧱': 'Foundation', '🎮': 'Player-facing', '✨': 'Polish', '🔧': 'Dev Kit tool', '🐞': 'Bug' };
 const stateRe = new RegExp('^(' + Object.keys(STATES).map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?\\s+');

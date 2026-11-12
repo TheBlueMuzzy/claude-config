@@ -9,13 +9,14 @@ CHANGELOG.md        every release's notes, newest first — written by release.m
 content/            data the game reads; Muzzy edits it in Obsidian or the Dev Kit (tuning/, anim/, text/, data/, ui/ = style.json + settings.json from game-ui, credits.json)
                     a game with ranks / levels keeps every level gate in ONE ladder file (named beats → a level), and code, tests and e2e ask it by name — never a bare level number (Goops 2026-11-02: shrinking 51 ranks to 31 found 14 gate fields in 9 files, one code file and ~525 test lines restating ranks) ③ until the framework ladder piece (Goops F78 — One rank ladder file)
 .planning/
-  GDD.md            the design: what it is, how it plays, how it should feel, scope   (/discover /define · /gdd)
-  TDD.md            the engineering plan: how it's built, standards, decisions, compliance   (/define · /tdd)
-  ROADMAP.md        milestones → features with dependencies, plus Later and Ideas   (/define · /roadmap)
+  IDEATE.md         the game so far: per need what's clear, his ideas, what's open — nothing chosen   (/ideate)
+  GDD.md            the design: Part 1 the concept (what it is, how it should feel, scope) · Part 2 how it plays   (/define Part 1 · /design Part 2 · /gdd)
+  TDD.md            the engineering plan: how it's built, standards, decisions, compliance   (/design · /tdd)
+  ROADMAP.md        milestones → features with dependencies, plus Later and Ideas   (/design · /roadmap)
   SPRINT.md         the current sprint's features and tasks   (/sprint · /develop)
   BUGS.md           the bug list, P0–P3   (/bug)
   STATE.md          ▶ RESUME HERE, key facts, short log   (every command; /save rewrites it)
-  design/ research/ bugs/   optional: long design specs linked from the GDD · discovery + sims · bug captures
+  design/ research/ bugs/   optional: long design specs linked from the GDD · research + sims · bug captures
   archive/          finished sprints, old logs, old GSD files — search it when something feels familiar
   archive/releases/ vX.Y.Z.md = each release's patch notes (+ vX.Y.Z-itch.txt) — "Patch notes" below
   smoke-pass        the commit the smoke test passed on (hooks/smoke-pass.mjs — live-push needs it)
@@ -34,7 +35,7 @@ RELEASE     prototype → alpha → beta → 1.0     done = all its musts done
    TASK     🤖 2. Lay out cards in an arc — Hand.tsx   (SPRINT)
 ```
 - **Types:** ❓ decision (often Muzzy's) · 🧱 foundation others stand on · 🎮 player-facing · ✨ polish · 🔧 Dev Kit tool · 🐞 a bug big enough to need its own feature (normal bugs live in BUGS.md; an affected feature notes `LIVE BROKEN → B003`).
-- **States** (only in ROADMAP): ⏳ waiting → 🟢 ready → 🔨 building → 🎛️ tuning (works, being dialled in) → ✅ done.
+- **States** (only in ROADMAP): ⏳ waiting → 🟢 ready → 🔨 building → 🎛️ tuning (works, being dialled in) → ✅ done. A big feature still walking the early stages may say where it is: 🔍 ideate (material being gathered) · 📐 define (being decided) · 🎨 design (being worked out and sketched — not ready to build).
 - **Ready rule:** all `needs:` are ✅ — or 🎛️ for `~` needs (only has to work) ① (plan-lint names a ⏳ whose needs are met — "set it 🟢", unless the line says what else it waits for: `· waits: <what>` — and a 🟢/🔨/✅ whose needs aren't).
 - **Sprint rule:** a sprint may also take a feature whose needs are earlier *in the same sprint*, lined up after them.
 - **❓ decisions:** 1–2 tasks; ✅ only when Muzzy answers (Claude may recommend). If he's right there, just ask.
@@ -42,7 +43,7 @@ RELEASE     prototype → alpha → beta → 1.0     done = all its musts done
 - **Owners:** 🤖 Claude · 🙋 Muzzy (art, decisions, feel checks on a device). Stand-in art is a task `(stand-in)`; handed-over tasks switch owner with a note.
 
 ## Project Planner Page (PPP) — pilot on Goops (2026-10-16; full rules in BMUZ-PLAN "Project Planner Page")
-A read-only visual home page per game, **drawn** from GDD/ROADMAP/SPRINT/BUGS/STATE by `templates/ppp/build-ppp.mjs` (never a second source of truth) → `.planning/ppp.html` (gitignored) → published as a private Artifact; link in STATE Key facts (`Planner (PPP):`); rebuilt after every plan edit (plan-lint hook) and every save (save.mjs), and a Stop hook sends Claude back until it's republished — with any sketch changed that turn as a `files` entry ① (stop-plan-check). Pilot rules (ROADMAP): states 💡 Idea → 🔍 Discover → 📐 Define → 🔨 Develop → 🚀 Deliver → ✅ Done (+ 💤 Maybe later, ✖ Won't) · % only on milestones = done / all items · Milestone 0 "Design decided" holds the open ❓ questions · `## Parking lot` = 💡 homeless ideas + 💤 maybe-later · end-of-musts checkpoint: leftover should/could → yes stays, no → parking lot · always challenge new things mid-milestone. The old state set below still draws (mapped). Becomes the standard once the pilot holds up.
+A read-only visual home page per game, **drawn** from GDD/ROADMAP/SPRINT/BUGS/STATE by `templates/ppp/build-ppp.mjs` (never a second source of truth) → `.planning/ppp.html` (gitignored) → published as a private Artifact; link in STATE Key facts (`Planner (PPP):`); rebuilt after every plan edit (plan-lint hook) and every save (save.mjs), and a Stop hook sends Claude back until it's republished — with any sketch changed that turn as a `files` entry ① (stop-plan-check). Pilot rules (ROADMAP): states 💡 Idea → 🔍 Ideate → 📐 Define → 🎨 Design → 🔨 Develop → 🚀 Deliver → ✅ Done (+ 💤 Maybe later, ✖ Won't) · % only on milestones = done / all items · Milestone 0 "Design decided" holds the open ❓ questions · `## Parking lot` = 💡 homeless ideas + 💤 maybe-later · end-of-musts checkpoint: leftover should/could → yes stays, no → parking lot · always challenge new things mid-milestone. The old state set below still draws (mapped). Becomes the standard once the pilot holds up.
 **Every section Muzzy sees is written for a non-engineer:** plain words that say whether anything needs doing, and who does it ("A newer Dev Kit is out. Claude updates it in the next /develop"). No version numbers, commands, file or test names unless he opens a "details" fold. Healthy means one green line. (Muzzy 2026-10-19, about the Framework row: "I don't know what I'm looking at … I can't make any decisions based on what is present.")
 **A feature that isn't approved at sprint end gets carried over:** rename its SPRINT heading to `## Carried to sprint NN — <name> (Fxx)` with the reason, and it goes into the next sprint (archive-sprint only reads `## Fxx` headings).
 
@@ -189,6 +190,7 @@ Rules:
 <2–5 lines: where things stand, the exact next action, `Muzzy: …` lines for his to-dos. Always REPLACE, never append. Paths in it use forward slashes (`~/Documents/dev/…`, which PowerShell takes too): a Windows backslash path written through a shell or JS one-liner gets mangled (`\b` → backspace, sed's `\U` → UPPERCASE; framework STATE 2026-11-11) ③ (judgement: a hook can't tell a mangled path from a real one).>
 ## Where we are
 Stage · Milestone · Sprint · Doing · Branch · Version · Live (url + release stage)
+<Stage is the BMUZ stage, one word: ideate · define · design · develop · deliver · release (older projects may still say discover = ideate). It is never a release stage — prototype · alpha · beta · 1.0 are release stages (ROADMAP `must:<stage>`, the Live line, release checks) ③ (judgement until save.mjs checks the word).>
 ## Key facts
 <~40 lines max, under bold labels (Run/deploy, Rules, Architecture, Don't re-break). Prune stale ones.>
 Release: <platform> | none (library) | not set up (declined <date>) | <platform> — blocked: <why>

@@ -49,3 +49,6 @@ agents/game-designer.md
 skills/bmad
 config/bmad
 config/bmuz/bmuz
+
+# F226 — Six stages, one meaning each (2026-11-12): /discover became /ideate (gather the material)
+skills/discover

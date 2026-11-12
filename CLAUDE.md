@@ -11,7 +11,7 @@ One line per rule. Each rule's reason, in Muzzy's own words: `references/claude-
 - Engineering calls are Claude's: decide how things are built, log why, tell Muzzy in plain words what he'll see; ask him only about what he sees, plays or wants ③ (hand-off template)
 
 ## Tech Stack
-- Web games: React + TypeScript + Vite + Three.js (R3F) · 3D games: Unity C# · Design: Double Diamond, MDA, GDD-driven
+- Web games: React + TypeScript + Vite + Three.js (R3F) · 3D games: Unity C# · Design: six stages (research any time), MDA, GDD-driven
 
 ## Projects
 - Everything lives under `~/Documents/dev/` (user Muzzy on the PC, joebr on the laptop); the project list + rules: `dev/HUB.md`
@@ -23,10 +23,12 @@ Muzzy may type the command or say it in plain English — treat both the same.
 
 | | Command | Means |
 |---|---|---|
-| Stage 1 | `/discover` | explore the idea wide open → research, references, GDD start |
-| Stage 2 | `/define` | lock it in → GDD (design + scope per release), TDD (engineering plan), feature map with dependencies |
-| Stage 3 | `/develop` | "go" → build the sprint on the work branch, tests, tuning, prove it works, wait for "approved" |
-| Stage 4 | `/deliver` | smoke test, merge, version, release per platform recipe, live link |
+| Stage 1 | `/ideate` | gather the material → "show me what you have", per need what's fixed / ideas / open, "the game so far" — nothing decided |
+| Stage 2 | `/define` | lock it in → GDD Part 1, the one-page concept (feelings, pillars, pitch, core loop, scope per release) |
+| Stage 3 | `/design` | work it out → GDD Part 2 (rules, systems, screens, look), sketches for the risky parts, then the build plan (TDD + feature map) |
+| Stage 4 | `/develop` | "go" → build the sprint on the work branch, tests, tuning, prove it works, wait for "approved" |
+| Stage 5 | `/deliver` | each milestone → smoke test, merge, version, share link per platform recipe |
+| Stage 6 | `/release` | 1.0 goes public → where it goes, each platform's needs, launch on his OK, first reactions, look back |
 | View | `/ppp` | the project planner page (game at a glance, milestones %, every item's stage) — opens in the browser |
 | View | `/roadmap` | milestones, features, what needs what, % of musts, open bugs |
 | View | `/sprint` | current sprint tasks (🤖 Claude / 🙋 Muzzy), or plan the next one |
@@ -39,7 +41,7 @@ Muzzy may type the command or say it in plain English — treat both the same.
 
 `/bmuz` shows the menu. Plan rules: `config/bmuz/PROJECT-FILES.md` · Dev Kit: `DEVKIT.md` · module wiring: `MODULE-CONTRACTS.md` · Obsidian: `OBSIDIAN.md` (vault = Documents/dev) · hooks: `HOOKS.md`.
 - Hands-off partner: route plain English to the right command, end every hand-off with the next command, just run it when it's obvious ③
-- Time in /discover and /define is well spent — nudge toward them when a feature is fuzzy ③
+- Time in /ideate, /define and /design is well spent — nudge toward them when a feature is fuzzy ③
 - Co-designer with MDA: judge a change by the behaviour it creates and the feeling that produces; when something feels off, diagnose the behaviour and pick one knob ③
 - Same intention → same motion: the same kind of moment reuses the existing animation, timings and feel tier — check for the pattern before building a new effect ③
 - Breathing room: nothing touches a card's or container's edge; a card that fills in during a sequence is a fixed size from the start — check screenshots for both ③ until F88
@@ -78,7 +80,7 @@ Muzzy may type the command or say it in plain English — treat both the same.
 - One fresh helper per feature; this chat plans, merges, checks, reviews and saves (develop skill) ③
 - Stuck after 3 tries → `BLOCKED: <reason>` in STATE, move on, come back later ③
 - A hook says when context is filling — write things down, /save, keep going ① (session-moments)
-- Stop before anything public or hard to undo (/deliver, the live branch, deleting data) ① (guard-git, live-push)
+- Stop before anything public or hard to undo (/deliver, /release, the live branch, deleting data) ① (guard-git, live-push)
 
 ## Problem-Solving
 - 3 failed tries at the same approach → stop: "This approach isn't working. Reassessing." — look for the simpler path; don't add complexity to fix complexity ② (guard-edits GE11 says it after the same failure 3×)

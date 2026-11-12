@@ -5,7 +5,7 @@ description: Show the game's design (the GDD) as a one-screen digest — pitch, 
 
 # /gdd — the game design, at a glance
 
-Read `.planning/GDD.md` (old projects may still call it PRD.md — offer the conversion from `~/.claude/config/bmuz/SETUP-AND-CONVERT.md`). No GDD? → "No design doc yet — `/discover` or `/define` starts one."
+Read `.planning/GDD.md` (old projects may still call it PRD.md — offer the conversion from `~/.claude/config/bmuz/SETUP-AND-CONVERT.md`). No GDD? → "No design doc yet — `/ideate` gathers what you have, then `/define` starts it."
 
 ## `/gdd` (no words) → the digest, one screen
 ```
@@ -20,7 +20,7 @@ Full doc: .planning/GDD.md (open it in Obsidian)
 ```
 Pull every line from the GDD, ROADMAP ❓ features, and `git log -- .planning/GDD.md` — never invent ③ (honesty; nothing can check it). Flag stale sections if Key facts lists "GDD out of date: §…".
 
-**Whole-game map** ("big, simple overview", "show me the beats", a remake or a fresh /define): publish a one-page visual artifact instead of chat text: pitch, the story in Muzzy's words, feel targets, pillars, core loop, screens, story arc, **every feature with a status chip** (settled · kept · new · gap N) and the gap-walk progress. Republish it to the same URL as gaps close (Muzzy, 2026-10-16, Goops).
+**Whole-game map** ("big, simple overview", "show me the beats", a remake, a fresh /define or /design): publish a one-page visual artifact instead of chat text: pitch, the story in Muzzy's words, feel targets, pillars, core loop, screens, story arc, **every feature with a status chip** (settled · kept · new · gap N) and the gap-walk progress. Republish it to the same URL as gaps close (Muzzy, 2026-10-16, Goops).
 
 ## `/gdd <section or topic>` → that part
 Show the section in plain English, trimmed to what matters, with the file + heading so Muzzy can open it in Obsidian.
@@ -29,5 +29,5 @@ Show the section in plain English, trimmed to what matters, with the file + head
 1. Say what it would change (which sections, which features in ROADMAP, which principles it serves or strains) — and a one-line **mda-analyze** trace: what players would end up doing, and which experience target that serves or strains.
 2. Give an honest take — including when his idea is simpler or better than what's there.
 3. Small and agreed → edit the GDD section, update ROADMAP if features change (new IDs, needs), commit `GDD: <change>`.
-   Big (new system, new direction) → suggest `/define` for it (or `/discover` if it's still fuzzy).
+   Big (new system, new direction) → suggest `/define` for it (or `/ideate` if it's still fuzzy), then `/design` to work it out.
 4. Not for now → ROADMAP → Ideas with the date.

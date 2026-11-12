@@ -32,5 +32,5 @@ Muzzy often sees simpler or outside-the-box approaches. Take them seriously:
 4. Not adopted (his call) → still log it briefly with why (so it isn't re-argued), unless Muzzy says don't bother. If the idea answers an open ❓ feature, it closes only on his OK.
 
 ## Keeping it true (every verb follows this)
-- /define writes the first TDD (build plan part). /develop updates it when a sprint adds a data file ② (stop-plan-check sends the turn back while TDD.md doesn't mention a new `content/` file or its folder), changes architecture or adds a Dev Kit tool ③ until F92 (tech-lead routine). /deliver ticks compliance items ③.
+- /design writes the first TDD (its build plan part). /develop updates it when a sprint adds a data file ② (stop-plan-check sends the turn back while TDD.md doesn't mention a new `content/` file or its folder), changes architecture or adds a Dev Kit tool ③ until F92 (tech-lead routine). /deliver ticks compliance items ③.
 - Any real "how should we build this" choice made during /develop → Decisions log ③ (judging what's "real").

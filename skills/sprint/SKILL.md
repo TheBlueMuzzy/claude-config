@@ -7,7 +7,7 @@ description: Show what's actionable right now in a game project — the current 
 
 Steps are marked by how they happen (F80): ① a script or hook does it · ② Claude's judgement, refused or sent back until it's on record · ③ judgement only.
 
-Read `~/.claude/config/bmuz/PROJECT-FILES.md` (planning model + SPRINT format). Old GSD layout? Offer the conversion first. No ROADMAP.md? → "No feature map yet — `/define` makes one (or I can sketch a quick one if you already know the next few things)."
+Read `~/.claude/config/bmuz/PROJECT-FILES.md` (planning model + SPRINT format). Old GSD layout? Offer the conversion first. No ROADMAP.md? → "No feature map yet — `/design` makes one (or I can sketch a quick one if you already know the next few things)."
 
 ## A. A sprint is running → show it
 ```

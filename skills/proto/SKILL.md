@@ -218,7 +218,7 @@ The content/data/ files are the SAME files your real game will read from.
 No re-entry needed — what's balanced here stays balanced.
 
 What's next?
-  /define       → Fold the results into the GDD and feature map
+  /design       → Fold the results into the GDD and feature map
   /sprint       → Line up the next sprint and start building
   /ai-opponent   → Build on the archetypes we tested here
 ```

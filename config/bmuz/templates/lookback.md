@@ -3,7 +3,7 @@
 Muzzy, 2026-10-18: "when finishing a milestone, analyze it all and see if any lessons or structure/methods, etc can be
 ported to BMUZ/Framework in a ever-flowing self-improving loop."
 
-**When:** /deliver of a milestone or a release stage (not a plain update), before §8. **Where:** the project's
+**When:** /deliver of a milestone or a release stage (not a plain update), before §8 — and once more at /release, for the whole game and its launch (`release-1.0.md`). **Where:** the project's
 `.planning/archive/lookbacks/<milestone>.md` (e.g. `v0.9.md`). A Stop hook sends the turn back if a milestone went out
 without one, or if an item's home doesn't exist.
 

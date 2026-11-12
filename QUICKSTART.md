@@ -2,20 +2,24 @@
 
 Forget the commands? Type **`/bmuz`**. Or just say what you want in plain English.
 
-## The Double Diamond
+## The six stages
 ```
-   problem                        solution
-/discover  ◇  /define         /develop  ◇  /deliver
- explore      lock it in       build + tune   release
+/ideate → /define → /design → /develop → /deliver → /release
+ gather    decide    work out   build      share each   1.0 goes
+           (1 page)  + sketch   + tune     milestone    public
 ```
+Research any time: "has this been done?", "look into …"
+
 | Stage | Type | You get |
 |---|---|---|
-| 1. Explore an idea | `/discover` | research, references, the start of the GDD |
-| 2. Lock it in | `/define` | GDD (design + scope per release), TDD (engineering plan), **feature map with dependencies** |
-| 3. Build it | `/develop` or "go" | the sprint built, tested, tuned, waiting for your "approved" |
-| 4. Put it out | `/deliver` | smoke-tested, merged, versioned, released, live link |
+| 1. Gather it | `/ideate` | everything you have, read — per need what's clear, your ideas, what's open ("the game so far") |
+| 2. Decide it | `/define` | GDD Part 1: the one-page concept, scope per release — locked |
+| 3. Work it out | `/design` | GDD Part 2 (rules, systems, screens, look), sketches for the risky parts, TDD + **feature map with dependencies** |
+| 4. Build it | `/develop` or "go" | the sprint built, tested, tuned, waiting for your "approved" |
+| 5. Share it | `/deliver` | each milestone smoke-tested, merged, versioned, on its share link |
+| 6. Release it | `/release` | 1.0 public on the platforms you pick, first reactions, a look back |
 
-More time in 1 and 2 = fewer loops in 3.
+More time in 1–3 = fewer loops in 4.
 
 ## Views (anytime)
 | | |
