@@ -7,12 +7,12 @@ import { readRoadmap } from '../templates/ppp/plan-reader.mjs'
 import { say, ok, refuse, args, projectDir } from './lib.mjs'
 
 let text
-try { text = readFileSync(join(projectDir(), '.planning', 'ROADMAP.md'), 'utf8').replace(/\r\n/g, '\n') } catch { refuse('no .planning/ROADMAP.md here', '/define makes one') }
+try { text = readFileSync(join(projectDir(), '.planning', 'ROADMAP.md'), 'utf8').replace(/\r\n/g, '\n') } catch { refuse('no .planning/ROADMAP.md here', '/design makes one (its build plan)') }
 const stage = (args().words[0] || (text.match(/^Release target:\s*([a-z0-9.]+)/im) || [])[1] || '').toLowerCase()
 if (!stage) refuse('which stage? (ROADMAP has no "Release target:" line)', 'musts-check.mjs alpha')
 const { allItems, parking } = readRoadmap(text)
 const musts = [...allItems, ...parking].filter(item => new RegExp(`^must:\\s*${stage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w.])`, 'i').test(item.scope))
-if (!musts.length) refuse(`no feature says must:${stage}`, '/define sets the musts for each stage')
+if (!musts.length) refuse(`no feature says must:${stage}`, '/define sets the musts for each stage (GDD scope); /design maps them into ROADMAP')
 const open = musts.filter(item => item.state.key !== 'done')
 if (!open.length) { ok(`${stage} musts: ${musts.length}/${musts.length} done`); process.exit(0) }
 say(`${stage} musts: ${musts.length - open.length}/${musts.length} done — still open:`)

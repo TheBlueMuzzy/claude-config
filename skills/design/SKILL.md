@@ -26,13 +26,13 @@ Steps are marked by how they happen (F80): ① a script or hook does it · ② C
 1. **Design** — `stages/design.md`: GDD Part 2 — sketches for the risky parts, the rulebook, content and balance, change over time, scope and risks again, players and opponents, look and sound, screens and teaching. Pull in **proto** for rules/odds, **game-economy** for resources, **ai-opponent** for bots, **mda-analyze** to trace each mechanic to the experience targets ③ (design work).
 2. **Build plan** — `stages/build-plan.md`: the **TDD** (how it's built, standards, compliance, Dev Kit tools), milestones, and the **feature map** in ROADMAP.md — every feature typed (❓🧱🎮✨), scoped, and linked to what it `needs:` ② (plan-lint flags a feature with no type, no scope, or a need that isn't in the roadmap, and keeps the graph in sync), checked against the GDD ③. Show Muzzy the dependency tree before writing it ③.
 
-At the end of each part: update `Current phase:` in the GDD and STATE (Stage, RESUME HERE), commit `GDD: design` / `TDD + roadmap: build plan` with STATE.md in it ② (guard-git GG13 refuses `GDD: design` without STATE.md; `TDD + roadmap: build plan` is ③ until GG13 learns its name — F226's morning file), and ask *"Keep going, or stop here?"*
+At the end of each part: update `Current phase:` in the GDD and STATE (Stage, RESUME HERE), commit `GDD: design` / `TDD + roadmap: build plan` with STATE.md in it ② (guard-git GG13 refuses either one without STATE.md), and ask *"Keep going, or stop here?"*
 
 ## 3. Designing one big feature (in an existing game)
 After `/define` set what it's for and its scope: how it works (the GDD Part 2 chapter it belongs in), a sketch for its risky part, and how it breaks down into features with needs ③ (design work). Add them to the right milestone in ROADMAP.md with new IDs ② (plan-lint: unique IDs, type, scope, needs).
 - **Changing a system that already exists?** First spend 5 minutes reading how its code really works — who holds what, what each screen can see (online too) — before the sketch or the design. ③ (Glyphtender sprint 33 retro, 2026-11-03: "awards are per player" and "an online screen has no log mid-game" were found after the sketch)
 
 ## 4. Hand-off
-STATE: Stage = design → develop when the map is done; RESUME HERE → "Roadmap ready — N features ready to start. Next: /sprint" ③ (the build-plan commit carries STATE; GG13 checks it once it learns the name).
+STATE: Stage = design → develop when the map is done; RESUME HERE → "Roadmap ready — N features ready to start. Next: /sprint" ② (the build-plan commit carries STATE; guard-git GG13 refuses it without).
 Say ② (handoff-check: the card, Next `/sprint`): *"The game's worked out and the map's ready — N features can start now. Say `/sprint` and I'll line up the first sprint, then `/develop` builds it."*
 Ideas that aren't for now → ROADMAP → Ideas with the date ③ (spotting them).

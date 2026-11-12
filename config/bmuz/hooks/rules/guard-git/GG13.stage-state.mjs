@@ -5,7 +5,7 @@ import { rootOf } from './_shared.mjs'
 export default {
   id: 'GG13',
   name: 'commit.stage-has-state',
-  what: 'Refuses a stage commit (`Sprint 04: <goal>`, `GDD: discover`, `GDD: define|design|build plan`, `GDD + roadmap: fast-track`) without STATE.md in it',
+  what: 'Refuses a stage commit (`Sprint 04: <goal>`, `Ideate: the game so far`, `GDD: define|design`, `TDD + roadmap: build plan`; older: `GDD: discover|build plan`, `GDD + roadmap: fast-track`) without STATE.md in it',
   why: 'The next session starts from RESUME HERE — a stage change that STATE doesn\'t say is lost to it (F80)',
   on: true,
   mode: 'block',
@@ -14,7 +14,11 @@ export default {
     if (!commit) return
     const message = commit.message
     // the stage word alone (or followed by " — <detail>"): "GDD: define the lobby flow better" is a /gdd change, not a stage
-    const stage = /^\s*Sprint \d+\s*:/i.test(message) || /^\s*GDD(\s*\+\s*roadmap)?\s*:\s*(discover|define|design|build plan|fast-track)\s*([—–-].*)?$/i.test(message.split('\n')[0])
+    const first = message.split('\n')[0]
+    const stage = /^\s*Sprint \d+\s*:/i.test(message)
+      || /^\s*GDD(\s*\+\s*roadmap)?\s*:\s*(discover|define|design|build plan|fast-track)\s*([—–-].*)?$/i.test(first)
+      || /^\s*Ideate\s*:\s*the game so far\s*([—–-].*)?$/i.test(first) // F226: /ideate
+      || /^\s*(GDD\s*\+\s*)?TDD\s*\+\s*roadmap\s*:\s*(build plan|fast-track)\s*([—–-].*)?$/i.test(first) // F226: /design's build plan (never matched before)
     if (!stage) return
     const root = rootOf(commit)
     if (!root) return

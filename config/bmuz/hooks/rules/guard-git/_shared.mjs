@@ -71,17 +71,18 @@ export function branchAt(calls, index) {
   return git(calls[index].dir, 'rev-parse', '--abbrev-ref', 'HEAD')
 }
 
-// Did /deliver run in this session? (Muzzy typed it, or Claude called the deliver skill.)
+// Did /deliver or /release run in this session? (Muzzy typed it, or Claude called the skill.) F226: /release is
+// Stage 6 (1.0 going public) and may need rollback.mjs, so it counts like /deliver.
 export function deliverRan(input) {
   try {
     // only Muzzy typing it, or Claude calling the skill — not a file or message that merely mentions it
     for (const line of readFileSync(input.transcript_path, 'utf8').split('\n')) {
-      if (!line.includes('deliver')) continue
+      if (!line.includes('deliver') && !line.includes('release')) continue
       let entry
       try { entry = JSON.parse(line) } catch { continue }
       const content = entry.message?.content
-      if (entry.type === 'user' && typeof content === 'string' && content.includes('<command-name>/deliver</command-name>')) return true
-      if (entry.type === 'assistant' && Array.isArray(content) && content.some(b => b.type === 'tool_use' && b.name === 'Skill' && b.input?.skill === 'deliver')) return true
+      if (entry.type === 'user' && typeof content === 'string' && /<command-name>\/(deliver|release)<\/command-name>/.test(content)) return true
+      if (entry.type === 'assistant' && Array.isArray(content) && content.some(b => b.type === 'tool_use' && b.name === 'Skill' && ['deliver', 'release'].includes(b.input?.skill))) return true
     }
     return false
   } catch {

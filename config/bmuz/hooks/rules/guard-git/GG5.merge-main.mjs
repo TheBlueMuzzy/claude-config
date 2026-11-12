@@ -4,8 +4,8 @@ import { branchAt, deliverRan } from './_shared.mjs'
 export default {
   id: 'GG5',
   name: 'git.main-via-deliver',
-  what: 'Refuses merging a work branch into main, and running merge.mjs / rollback.mjs, unless /deliver is running',
-  why: 'Main only changes through /deliver, after its smoke test and checks (F67, F80)',
+  what: 'Refuses merging a work branch into main, and running merge.mjs / rollback.mjs, unless /deliver (or /release, F226) is running',
+  why: 'Main only changes through /deliver (or /release), after its smoke test and checks (F67, F80, F226)',
   on: true,
   rare: true, // a guard for something that should almost never happen: silence means it works (F187 removal pass)
   mode: 'block',
