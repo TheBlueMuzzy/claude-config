@@ -1870,6 +1870,10 @@ function testQaRoutine() {
   expect('review: "- Checked: …" as a bullet (how check notes were long written) → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
   writeFileSync(sprintFile, `# Sprint 04 — x\n${section}**Checked**: e2e green\n`)
   expect('review: "**Checked**: …" → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}Checked (F08 — Splayed, main chat 2026-11-12): e2e green\n`)
+  expect('F226: "Checked (F08 — name, who/when): …" (how sprint 67 wrote them) → allowed', d('git add -A && git commit -m "F08: done"'), 'allow')
+  writeFileSync(sprintFile, `# Sprint 04 — x\n${section}Checked (F08 — Splayed): —\n`)
+  expect('F226: …but a placeholder after it → still blocked', d('git add -A && git commit -m "F08: done"'), 'deny')
   writeFileSync(sprintFile, `# Sprint 04 — x\n${section}`)
   expect('review: lowercase "f08: done" is still checked (it used to crash the hook → no check at all) → blocked', d('git add -A && git commit -m "f08: done"'), 'deny')
   // archived before the done commit: F08's section is in the newest archived sprint

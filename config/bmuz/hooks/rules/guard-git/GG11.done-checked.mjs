@@ -30,8 +30,9 @@ export default {
       const start = lines.findIndex(l => heading(id).test(l))
       if (start < 0) return false
       for (let i = start + 1; i < lines.length && !/^#{2,3} /.test(lines[i]); i++) {
-        // "Checked: …", "**Checked:** …", "**Checked**: …", "- Checked: …", indented — check notes were long written as bullets
-        const m = lines[i].match(/^[-*\s]*\*{0,2}Checked\*{0,2}:\*{0,2}(.*)$/i)
+        // "Checked: …", "**Checked:** …", "**Checked**: …", "- Checked: …", indented — check notes were long written as bullets;
+        // "Checked (F230 — Release pipeline, main chat …): …" too — sprint 67 wrote every Checked line that way (F226, 2026-11-12)
+        const m = lines[i].match(/^[-*\s]*\*{0,2}Checked(?: \([^)]*\))?\*{0,2}:\*{0,2}(.*)$/i)
         if (m) return /^(—|-|<[^>]*>)?$/.test(m[1].trim()) // an empty or placeholder line records nothing
       }
       return true
